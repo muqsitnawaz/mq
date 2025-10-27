@@ -223,8 +223,21 @@ func (v *compilerVisitor) VisitSelector(node *SelectorNode) (interface{}, error)
 		priority, _ := doc.GetPriority()
 		return priority, nil
 
+	// New content selectors
+	case "source":
+		return doc.GetSourceString(), nil
+
+	case "frontmatter":
+		return doc.GetFrontmatterRaw(), nil
+
+	case "body":
+		return doc.GetBody(), nil
+
 	case "text":
-		// Extract text from current context
+		// Extract text from current context or document
+		if v.context.Current == doc {
+			return doc.GetTextContent(), nil
+		}
 		return extractTextFromAny(v.context.Current), nil
 
 	case "length":
@@ -242,7 +255,14 @@ func (v *compilerVisitor) VisitSelector(node *SelectorNode) (interface{}, error)
 		return v.VisitFilter(filterNode)
 
 	default:
-		return nil, fmt.Errorf("unknown selector: %s", node.Name)
+		// Try to access as frontmatter field (direct access)
+		// This allows .title, .author, .version, etc.
+		if val, ok := doc.GetNestedField(node.Name); ok {
+			return val, nil
+		}
+		// Return nil for non-existent fields (jq-like behavior)
+		// This allows queries to gracefully handle missing metadata
+		return nil, nil
 	}
 }
 
@@ -594,6 +614,33 @@ func getProperty(obj interface{}, name string) (interface{}, error) {
 			return nil, fmt.Errorf("link has no property: %s", name)
 		}
 
+	case map[string]interface{}:
+		// Handle nested map access (for nested frontmatter fields)
+		if val, ok := v[name]; ok {
+			return val, nil
+		}
+		return nil, fmt.Errorf("map has no property: %s", name)
+
+	case map[interface{}]interface{}:
+		// Handle YAML-parsed nested maps (keys are interface{})
+		if val, ok := v[name]; ok {
+			return val, nil
+		}
+		// Try with string key
+		for k, val := range v {
+			if strKey, ok := k.(string); ok && strKey == name {
+				return val, nil
+			}
+		}
+		return nil, fmt.Errorf("map has no property: %s", name)
+
+	case mq.Metadata:
+		// Handle Metadata type (which is also map[string]interface{})
+		if val, ok := v[name]; ok {
+			return val, nil
+		}
+		return nil, fmt.Errorf("metadata has no property: %s", name)
+
 	default:
 		return nil, fmt.Errorf("cannot access property %s on type %T", name, obj)
 	}
@@ -878,6 +925,26 @@ func (v *compilerVisitor) handlePropertyAccess(property string) (interface{}, bo
 			return item.Headers, true
 		case "rows":
 			return item.Rows, true
+		}
+
+	case mq.Metadata:
+		// Handle metadata maps
+		if val, ok := item[property]; ok {
+			return val, true
+		}
+
+	case map[string]interface{}:
+		// Handle regular maps
+		if val, ok := item[property]; ok {
+			return val, true
+		}
+
+	case map[interface{}]interface{}:
+		// Handle YAML-parsed maps with interface{} keys
+		for k, val := range item {
+			if strKey, ok := k.(string); ok && strKey == property {
+				return val, true
+			}
 		}
 	}
 

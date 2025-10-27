@@ -1,7 +1,9 @@
 package mq
 
 import (
+	"bytes"
 	"github.com/yuin/goldmark/ast"
+	"strings"
 	"sync"
 )
 
@@ -11,6 +13,10 @@ type Document struct {
 	path     string
 	root     ast.Node
 	metadata Metadata
+
+	// Frontmatter boundaries
+	frontmatterRaw string // Raw YAML frontmatter text (including --- markers)
+	bodyStart      int    // Byte offset where body content starts
 
 	// Pre-computed indexes for O(1) lookups
 	mu              sync.RWMutex
@@ -234,4 +240,100 @@ func (d *Document) GetTableOfContents() []*Section {
 // Walk traverses the document AST with a visitor function.
 func (d *Document) Walk(visitor func(ast.Node, bool) (ast.WalkStatus, error)) error {
 	return ast.Walk(d.root, visitor)
+}
+
+// GetSourceString returns the raw markdown source as a string.
+func (d *Document) GetSourceString() string {
+	return string(d.source)
+}
+
+// GetFrontmatterRaw returns the raw YAML frontmatter (including --- markers).
+// Returns empty string if document has no frontmatter.
+func (d *Document) GetFrontmatterRaw() string {
+	return d.frontmatterRaw
+}
+
+// GetBody returns the document content after frontmatter.
+// If there's no frontmatter, returns the entire document.
+func (d *Document) GetBody() string {
+	if d.bodyStart >= len(d.source) {
+		return ""
+	}
+	return string(d.source[d.bodyStart:])
+}
+
+// GetTextContent returns plain text content without markdown syntax or frontmatter.
+func (d *Document) GetTextContent() string {
+	var buf bytes.Buffer
+
+	// Walk the AST and extract text nodes
+	ast.Walk(d.root, func(n ast.Node, entering bool) (ast.WalkStatus, error) {
+		if !entering {
+			return ast.WalkContinue, nil
+		}
+
+		switch node := n.(type) {
+		case *ast.Text:
+			buf.Write(node.Segment.Value(d.source))
+		case *ast.String:
+			buf.Write(node.Value)
+		case *ast.Paragraph:
+			// Add newline after paragraph if buffer has content
+			if buf.Len() > 0 && !bytes.HasSuffix(buf.Bytes(), []byte("\n")) {
+				buf.WriteString("\n")
+			}
+		}
+
+		return ast.WalkContinue, nil
+	})
+
+	return buf.String()
+}
+
+// GetNestedField retrieves a nested metadata field using dot notation.
+// Examples: "author", "config.theme", "nested.deep.value"
+func (d *Document) GetNestedField(path string) (interface{}, bool) {
+	if d.metadata == nil {
+		return nil, false
+	}
+
+	// Split path by dots
+	parts := strings.Split(path, ".")
+
+	var current interface{} = d.metadata
+
+	for _, part := range parts {
+		// Handle map access
+		if m, ok := current.(map[string]interface{}); ok {
+			if val, exists := m[part]; exists {
+				current = val
+			} else {
+				return nil, false
+			}
+		} else if m, ok := current.(Metadata); ok {
+			if val, exists := m[part]; exists {
+				current = val
+			} else {
+				return nil, false
+			}
+		} else if m, ok := current.(map[interface{}]interface{}); ok {
+			// Handle YAML-parsed maps with interface{} keys
+			found := false
+			for k, v := range m {
+				if strKey, ok := k.(string); ok && strKey == part {
+					current = v
+					found = true
+					break
+				}
+			}
+			if !found {
+				return nil, false
+			}
+		} else {
+			// Not a map, can't drill deeper
+			return nil, false
+		}
+	}
+
+	return current, true
 }

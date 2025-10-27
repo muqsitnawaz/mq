@@ -100,12 +100,54 @@ func (p *Parser) Parse(source []byte, path string) (*Document, error) {
 		doc.metadata = Metadata(metaData)
 	}
 
+	// Extract frontmatter boundaries
+	frontmatterRaw, bodyStart := extractFrontmatterBoundaries(source)
+	doc.frontmatterRaw = frontmatterRaw
+	doc.bodyStart = bodyStart
+
 	// Build indexes
 	if err := p.buildIndexes(doc); err != nil {
 		return nil, fmt.Errorf("building indexes: %w", err)
 	}
 
 	return doc, nil
+}
+
+// extractFrontmatterBoundaries extracts the raw frontmatter text and body start position.
+// Returns the raw frontmatter (with --- markers) and the byte offset where body starts.
+func extractFrontmatterBoundaries(source []byte) (string, int) {
+	// Check if document starts with ---
+	if len(source) < 4 || !bytes.HasPrefix(source, []byte("---\n")) {
+		// No frontmatter
+		return "", 0
+	}
+
+	// Find the closing ---
+	// Start searching after the opening ---
+	searchStart := 4
+	closingIdx := bytes.Index(source[searchStart:], []byte("\n---\n"))
+
+	if closingIdx == -1 {
+		// Also check for closing --- at end of file without trailing newline
+		closingIdx = bytes.Index(source[searchStart:], []byte("\n---"))
+		if closingIdx == -1 {
+			// No closing marker found, no frontmatter
+			return "", 0
+		}
+		// Closing marker at end
+		endIdx := searchStart + closingIdx + 4 // "\n---"
+		frontmatter := string(source[:endIdx])
+		return frontmatter, endIdx
+	}
+
+	// Found closing marker
+	endIdx := searchStart + closingIdx + 5 // "\n---\n"
+
+	// Extract frontmatter including markers
+	frontmatter := string(source[:endIdx])
+
+	// Body starts after the closing marker and newline
+	return frontmatter, endIdx
 }
 
 // buildIndexes walks the AST and builds document indexes.
