@@ -196,7 +196,7 @@ See [skills.sh](https://skills.sh) for more.
 Skills aren't always loaded into context. Add this line to your `CLAUDE.md` for optimal performance:
 
 ```markdown
-Use `mq` to query markdown files - run `mq <path> .tree` to see structure before reading.
+Use `mq` to query markdown files. Narrow down to a specific file/subdir first, then run `mq <path> '.tree("full")'` to see structure before reading.
 ```
 
 ## Usage
