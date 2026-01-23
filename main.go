@@ -10,26 +10,22 @@ import (
 	"github.com/muqsitnawaz/mq/mql"
 )
 
+var version = "dev"
+
 func main() {
+	if len(os.Args) >= 2 {
+		switch os.Args[1] {
+		case "-h", "--help", "help":
+			printUsage()
+			os.Exit(0)
+		case "-v", "--version", "version":
+			fmt.Printf("mq %s\n", version)
+			os.Exit(0)
+		}
+	}
+
 	if len(os.Args) < 2 {
-		fmt.Println("Usage: mq <markdown-file|directory> [query]")
-		fmt.Println("\nBasic Examples:")
-		fmt.Println("  mq README.md                                    # Show document info")
-		fmt.Println("  mq README.md '.headings'                        # Get all headings")
-		fmt.Println("  mq README.md '.headings(2)'                    # Get H2 headings only")
-		fmt.Println("  mq README.md '.code(\"python\")'                 # Get Python code blocks")
-		fmt.Println("  mq README.md '.section(\"Installation\")'        # Get Installation section")
-		fmt.Println("\nTree Examples:")
-		fmt.Println("  mq README.md .tree                              # Show document structure")
-		fmt.Println("  mq README.md '.tree(\"compact\")'                # Headings only")
-		fmt.Println("  mq README.md '.tree(\"preview\")'                # Headings + first few words")
-		fmt.Println("  mq docs/ .tree                                  # Show all .md files in directory")
-		fmt.Println("  mq docs/ '.tree(\"expand\")'                     # Show files with section names")
-		fmt.Println("  mq docs/ '.tree(\"full\")'                       # Section names + previews")
-		fmt.Println("\nAdvanced Examples:")
-		fmt.Println("  mq README.md '.section(\"API\") | .code(\"curl\")'  # Get curl examples in API section")
-		fmt.Println("  mq README.md '.section(\"API\") | .text'          # Get section content")
-		fmt.Println("  mq README.md '.section(\"API\") | .tree'          # Tree of specific section")
+		printUsage()
 		os.Exit(1)
 	}
 
@@ -71,6 +67,20 @@ func main() {
 
 	// Display results
 	displayResult(result)
+}
+
+func printUsage() {
+	fmt.Printf("mq %s - Query markdown files efficiently\n\n", version)
+	fmt.Println("Usage: mq <file|directory> [query]")
+	fmt.Println("\nExamples:")
+	fmt.Println("  mq README.md .tree                    # Document structure")
+	fmt.Println("  mq README.md '.tree(\"full\")'          # Structure + previews")
+	fmt.Println("  mq README.md '.section(\"API\") | .text' # Extract section")
+	fmt.Println("  mq README.md '.search(\"auth\")'        # Search content")
+	fmt.Println("  mq docs/ '.tree(\"full\")'              # Directory overview")
+	fmt.Println("\nFlags:")
+	fmt.Println("  -h, --help      Show this help")
+	fmt.Println("  -v, --version   Show version")
 }
 
 func handleDirectory(path string, query string) {
