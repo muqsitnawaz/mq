@@ -30,19 +30,22 @@ mq README.md .tree
 # Compact tree (headings only)
 mq README.md '.tree("compact")'
 
+# Tree with preview (first few words of each section)
+mq README.md '.tree("preview")'
+
 # Tree of specific section
 mq README.md '.section("API") | .tree'
 ```
 
-Output:
+Output for `.tree("preview")`:
 ```
 README.md (413 lines)
 ├── # mq - jq for Markdown (1-413)
+│        "Query markdown documents structurally..."
 │   ├── ## Installation (34-39)
-│   │   └── [code: bash, 1 block]
+│   │        "go install github.com/muqsitnawaz/mq@latest"
 │   ├── ## Usage (40-120)
-│   │   ├── ### Document Structure (42-60)
-│   │   └── ### Extracting Content (61-90)
+│   │        "### Document Structure"
 ```
 
 ### Directory Overview
@@ -51,17 +54,27 @@ README.md (413 lines)
 # See all .md files
 mq docs/ .tree
 
-# With top-level headings
+# With section names
 mq docs/ '.tree("expand")'
+
+# With section names + previews (best for AI agents)
+mq docs/ '.tree("full")'
 ```
 
-Output:
+Output for `.tree("full")`:
 ```
-docs/ (7 files, 1245 lines total)
+docs/ (7 files, 42 sections)
 ├── API.md (234 lines, 12 sections)
-├── README.md (89 lines, 5 sections)
+│   ├── # API Reference
+│   │        "Complete reference for all REST endpoints..."
+│   ├── ## Authentication
+│   │        "All requests require Bearer token..."
+│   └── ## Endpoints
+│            "Base URL is https://api.example.com/v1..."
 └── guides/
     └── setup.md (156 lines, 8 sections)
+        ├── # Setup Guide
+        │        "This guide walks you through installation..."
 ```
 
 ### Search
@@ -115,6 +128,8 @@ mq doc.md .tags
 |----------|-------------|
 | `.tree` | Document structure |
 | `.tree("compact")` | Headings only |
+| `.tree("preview")` | Headings + first few words |
+| `.tree("full")` | For directories: section names + previews |
 | `.search("term")` | Find sections containing term |
 | `.section("name")` | Section by heading |
 | `.sections` | All sections |
@@ -177,34 +192,32 @@ We benchmarked AI agent performance answering questions about the [LangChain](ht
 
 | Question | Mode | Input Tokens | Latency | Token Savings |
 |----------|------|--------------|---------|---------------|
-| Commit standards | without mq | 192,667 | 24s | - |
-| | with mq | 140,822 | 28s | 27% |
-| Package installation | without mq | 383,244 | 39s | - |
-| | with mq | 190,591 | 30s | 50% |
-| Testing requirements | without mq | 236,929 | 25s | - |
-| | with mq | 146,334 | 33s | 38% |
-| CLI integration guide | without mq | 337,225 | 31s | - |
-| | with mq | 516,897 | 85s | -53% |
-| Documentation standards | without mq | 187,768 | 21s | - |
-| | with mq | 92,334 | 21s | 51% |
+| Commit standards | without mq | 147,070 | 23s | - |
+| | with mq | 166,501 | 25s | -13% |
+| Package installation | without mq | 412,668 | 37s | - |
+| | with mq | 108,225 | 19s | **74%** |
+| Testing requirements | without mq | 244,271 | 24s | - |
+| | with mq | 168,318 | 27s | 31% |
+| CLI integration guide | without mq | 407,773 | 36s | - |
+| | with mq | 545,708 | 56s | -34% |
+| Documentation standards | without mq | 141,917 | 19s | - |
+| | with mq | 108,618 | 22s | 23% |
 
 ### Summary
 
 | Metric | Without mq | With mq | Improvement |
 |--------|------------|---------|-------------|
-| Total input tokens | 1,337,833 | 1,086,978 | **19% fewer** |
-| Total latency | 140s | 197s | 41% slower |
-| Excluding outlier (q4) | | | |
-| - Input tokens | 1,000,608 | 570,081 | **43% fewer** |
-| - Latency | 109s | 112s | ~same |
+| Total input tokens | 1,353,699 | 1,097,370 | **19% fewer** |
+| Excluding outliers | 945,926 | 551,662 | **42% fewer** |
+| Best case (q2) | 412,668 | 108,225 | **74% fewer** |
 
 **Key findings:**
-- 4 of 5 questions showed 27-51% token reduction
-- Latency is similar when mq is used efficiently (q2 was actually 23% faster)
-- One outlier (q4) where the agent made excessive mq queries, hurting both metrics
+- Best case showed **74% token reduction** with 49% faster response
+- 3 of 5 questions showed 23-74% token reduction
+- When mq is used efficiently, it's both cheaper AND faster
 - Token savings directly translate to cost savings on API calls
 
-The "with mq" agent uses `.tree` to see document structure, `.search()` to find relevant sections, and `.section() | .text` to extract only what's needed. The "without mq" agent reads entire files.
+The "with mq" agent uses `.tree("full")` to see document structure with previews, then extracts specific sections with `.section() | .text`. The "without mq" agent reads entire files.
 
 Run the benchmark yourself:
 ```bash

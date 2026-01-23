@@ -1,42 +1,32 @@
-Based on my search through the documentation, the LangChain CLI does **not** have a direct command to create a new integration package. Here's what I found:
+The `integration` command is registered in the CLI. Here's the answer:
 
-## Available CLI Commands
+---
 
-The `langchain-cli` provides these commands:
-- `langchain app new` - Create a new LangServe application
-- `langchain app add` - Add templates to an existing app
-- `langchain template new` - Creates a new **template** package (not integration package)
+To create a new integration package using the LangChain CLI, use:
 
-## Creating Integration Packages
+```bash
+langchain integration new --name <integration-name>
+```
 
-The documentation shows an `integration_template` folder exists at `libs/cli/langchain_cli/integration_template/` which serves as a reference structure, but there's no CLI command to scaffold it automatically.
+**Options:**
 
-To create a new integration package, you would need to:
+| Option | Description |
+|--------|-------------|
+| `--name` | The name of the integration (e.g., `my-integration`). Required, prompts if not provided. |
+| `--name-class` | PascalCase name for classes (e.g., `MyIntegration`). Used for class names like `MyIntegrationVectorStore`. |
+| `--src` | Template file to copy (can be used multiple times) |
+| `--dst` | Destination path for the new file |
 
-1. **Install the CLI**: `pip install -U langchain-cli`
-2. **Manually copy** the integration template structure from `libs/cli/langchain_cli/integration_template/`
-3. **Replace placeholders** like `__package_name__`, `__ModuleName__`, and `__module_name__` with your actual values
-4. The template includes boilerplate for Chat Models, Embeddings, and LLMs
+**Example:**
 
-Alternatively, use `langchain template new NAME` to create a template package (different from an integration package).
+```bash
+langchain integration new --name parrot-link --name-class ParrotLink
+```
+
+This creates a new integration package with the standard structure including chat models, embeddings, and LLM boilerplate code. The template includes placeholder classes that you can customize for your integration.
 
 ```metrics
-MQ_COMMANDS: [
-  "/home/muqsit/src/github.com/muqsitnawaz/mq/mq /tmp/langchain-bench .tree",
-  "/home/muqsit/src/github.com/muqsitnawaz/mq/mq /tmp/langchain-bench '.search(\"integration\")'",
-  "/home/muqsit/src/github.com/muqsitnawaz/mq/mq /tmp/langchain-bench/libs/cli/DOCS.md .tree",
-  "/home/muqsit/src/github.com/muqsitnawaz/mq/mq /tmp/langchain-bench '.search(\"CLI\")'",
-  "/home/muqsit/src/github.com/muqsitnawaz/mq/mq /tmp/langchain-bench '.search(\"integration package\")'",
-  "/home/muqsit/src/github.com/muqsitnawaz/mq/mq /tmp/langchain-bench/libs/cli/DOCS.md '.section(\"langchain template\") | .text'",
-  "/home/muqsit/src/github.com/muqsitnawaz/mq/mq /tmp/langchain-bench '.search(\"new integration\")'",
-  "/home/muqsit/src/github.com/muqsitnawaz/mq/mq /tmp/langchain-bench '.search(\"integration_template\")'",
-  "/home/muqsit/src/github.com/muqsitnawaz/mq/mq /tmp/langchain-bench/libs/cli/langchain_cli/integration_template/README.md '.section(\"package_name\") | .text'",
-  "/home/muqsit/src/github.com/muqsitnawaz/mq/mq /tmp/langchain-bench/libs/cli/DOCS.md '.section(\"langchain\") | .text' 2>/dev/null | head -60",
-  "/home/muqsit/src/github.com/muqsitnawaz/mq/mq /tmp/langchain-bench '.search(\"partner\")'",
-  "/home/muqsit/src/github.com/muqsitnawaz/mq/mq /tmp/langchain-bench/AGENTS.md .tree",
-  "/home/muqsit/src/github.com/muqsitnawaz/mq/mq /tmp/langchain-bench '.search(\"create.*package\")'",
-  "/home/muqsit/src/github.com/muqsitnawaz/mq/mq /tmp/langchain-bench/libs/cli/langchain_cli/package_template/README.md '.section(\"Usage\") | .text'"
-]
-TOTAL_CHARS: 16847
-ANSWER: The LangChain CLI does not have a direct command to create integration packages. Use `langchain template new NAME` to create template packages, or manually copy the integration_template folder structure from libs/cli/langchain_cli/integration_template/ and replace the placeholders (__package_name__, __ModuleName__, __module_name__) with your values.
+MQ_COMMANDS: ["/home/muqsit/src/github.com/muqsitnawaz/mq/mq /tmp/langchain-bench '.tree(\"full\")'", "/home/muqsit/src/github.com/muqsitnawaz/mq/mq /tmp/langchain-bench/libs/cli/DOCS.md '.tree(\"full\")'", "/home/muqsit/src/github.com/muqsitnawaz/mq/mq /tmp/langchain-bench/libs/cli/DOCS.md '.section(\"langchain\") | .text'", "/home/muqsit/src/github.com/muqsitnawaz/mq/mq /tmp/langchain-bench/libs/cli/langchain_cli/integration_template/README.md '.section(\"package_name\") | .text'", "/home/muqsit/src/github.com/muqsitnawaz/mq/mq /tmp/langchain-bench '.search(\"integration\")'"]
+TOTAL_CHARS: 22518
+ANSWER: Use `langchain integration new --name <name>` with optional `--name-class` for PascalCase class naming. The command creates a new integration package with boilerplate for chat models, embeddings, and LLMs.
 ```

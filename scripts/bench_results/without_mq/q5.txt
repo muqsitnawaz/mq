@@ -1,18 +1,16 @@
-I have all the information needed from the AGENTS.md file. Here's the answer:
+The AGENTS.md file contains all the documentation standards. Here's the answer:
 
-## LangChain Documentation Standards
+## Documentation Standards for LangChain Code
 
-LangChain uses **Google-style docstrings** with Args sections for all public functions.
+LangChain uses **Google-style docstrings** with the following requirements:
 
-### Key Documentation Rules:
-
+### Key Rules:
 1. **Types go in function signatures, NOT in docstrings**
-2. **Use Google-style docstrings** with Args, Returns, and Raises sections
-3. **Focus on "why" rather than "what"** in descriptions
-4. **Document all parameters, return values, and exceptions**
-5. **Keep descriptions concise but clear**
-6. **Use American English spelling** (e.g., "behavior", not "behaviour")
-7. **Don't repeat default values** in docstrings unless there's post-processing or conditional logic
+2. Don't repeat default values in docstrings unless there is post-processing or conditional setting
+3. Focus on "why" rather than "what" in descriptions
+4. Document all parameters, return values, and exceptions
+5. Keep descriptions concise but clear
+6. Use American English spelling (e.g., "behavior", not "behaviour")
 
 ### Example of Proper Docstring Format:
 
@@ -53,10 +51,14 @@ def filter_unknown_users(users: list[str], known_users: set[str]) -> list[str]:
     """
 ```
 
-For experimental features, use MkDocs Material admonitions like `!!! warning` in the docstring.
+### Additional Code Quality Standards:
+- All Python code **MUST include type hints and return types**
+- Use descriptive, self-explanatory variable names
+- Follow existing patterns in the codebase
+- Mark experimental features with MkDocs Material admonitions (like `!!! warning`)
 
 ```metrics
 FILES_READ: [/tmp/langchain-bench/AGENTS.md]
-TOTAL_CHARS: 7276
-ANSWER: LangChain uses Google-style docstrings with Args sections. Types go in function signatures (not docstrings), focus on "why" rather than "what", document all params/returns/exceptions, use American English. Example format includes a single-line summary, optional additional context, Args section (param: description), Returns section, and Raises section for exceptions.
+TOTAL_CHARS: 6641
+ANSWER: LangChain uses Google-style docstrings. Types go in function signatures (not docstrings), Args section documents all parameters, Returns section describes return values, and Raises section lists exceptions. Use American English, focus on "why" not "what", and keep descriptions concise. Example format shows single-line summary, optional context paragraph, then Args/Returns/Raises sections.
 ```

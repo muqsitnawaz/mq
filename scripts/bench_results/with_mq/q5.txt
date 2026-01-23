@@ -1,8 +1,10 @@
-## Documentation Standards for LangChain Code
+I found the documentation standards. Here's the answer:
 
-LangChain uses **Google-style docstrings** with an `Args` section for all public functions.
+## LangChain Documentation Standards
 
-### Example of Proper Docstring Format
+LangChain uses **Google-style docstrings** with the following requirements:
+
+### Docstring Format Example
 
 ```python
 def send_email(to: str, msg: str, *, priority: str = "normal") -> bool:
@@ -26,15 +28,33 @@ def send_email(to: str, msg: str, *, priority: str = "normal") -> bool:
 
 ### Key Rules
 
-1. **Types go in function signatures, NOT in docstrings**
-2. **Don't repeat defaults** in docstrings unless there's post-processing or conditional setting
+1. **Types go in function signatures, NOT in docstrings** - all Python code must include type hints and return types
+2. **Do NOT repeat default values** in the docstring unless there is post-processing or it is set conditionally
 3. **Focus on "why" rather than "what"** in descriptions
 4. **Document all parameters, return values, and exceptions**
 5. **Keep descriptions concise but clear**
 6. **Use American English spelling** (e.g., "behavior", not "behaviour")
+7. **Mark experimental features** with docstring warnings using MkDocs Material admonitions (`!!! warning`)
+
+### Simpler Example (from code quality section)
+
+```python
+def filter_unknown_users(users: list[str], known_users: set[str]) -> list[str]:
+    """Single line description of the function.
+
+    Any additional context about the function can go here.
+
+    Args:
+        users: List of user identifiers to filter.
+        known_users: Set of known/valid user identifiers.
+
+    Returns:
+        List of users that are not in the known_users set.
+    """
+```
 
 ```metrics
-MQ_COMMANDS: ["/home/muqsit/src/github.com/muqsitnawaz/mq/mq /tmp/langchain-bench .tree", "/home/muqsit/src/github.com/muqsitnawaz/mq/mq /tmp/langchain-bench '.search(\"docstring\")'", "/home/muqsit/src/github.com/muqsitnawaz/mq/mq /tmp/langchain-bench/AGENTS.md '.section(\"Documentation standards\") | .text'"]
-TOTAL_CHARS: 3804
-ANSWER: LangChain uses Google-style docstrings with Args, Returns, and Raises sections. Types belong in function signatures only, not docstrings. Focus on "why" over "what", document all parameters/returns/exceptions, use American English spelling.
+MQ_COMMANDS: ["/home/muqsit/src/github.com/muqsitnawaz/mq/mq /tmp/langchain-bench '.tree(\"full\")'", "/home/muqsit/src/github.com/muqsitnawaz/mq/mq /tmp/langchain-bench/AGENTS.md '.section(\"Core development principles\") | .text'"]
+TOTAL_CHARS: 8993
+ANSWER: LangChain uses Google-style docstrings with Args, Returns, and Raises sections. Types go in function signatures (not docstrings), default values should not be repeated in docstrings, and descriptions should focus on "why" rather than "what". Use American English spelling.
 ```

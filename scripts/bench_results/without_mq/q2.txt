@@ -1,0 +1,53 @@
+I now have enough information to provide a comprehensive answer. Here's how to install and use the langchain-anthropic partner package:
+
+## Installing langchain-anthropic
+
+```bash
+pip install langchain-anthropic
+```
+
+## Using langchain-anthropic
+
+The package provides the following main exports:
+
+- **`ChatAnthropic`** - The main chat model class for interacting with Claude models
+- **`AnthropicLLM`** - Legacy LLM interface
+- **`convert_to_anthropic_tool`** - Utility to convert LangChain tools to Anthropic format
+
+### Basic Usage Example
+
+```python
+from langchain_anthropic import ChatAnthropic
+
+# Initialize the model
+llm = ChatAnthropic(model_name="claude-3-5-haiku-20241022")
+
+# Simple invocation
+response = llm.invoke("Hello, how are you?")
+
+# Streaming
+for token in llm.stream("Tell me a story"):
+    print(token.content, end="")
+
+# Async streaming
+async for token in llm.astream("Tell me a story"):
+    print(token.content, end="")
+```
+
+### Environment Setup
+
+You'll need to set your Anthropic API key:
+```bash
+export ANTHROPIC_API_KEY="your-api-key"
+```
+
+### Documentation Links
+
+- **API Reference**: https://reference.langchain.com/python/integrations/langchain_anthropic/
+- **Integration Docs**: https://docs.langchain.com/oss/python/integrations/providers/anthropic
+
+```metrics
+FILES_READ: [/tmp/langchain-bench/libs/partners/anthropic/README.md, /tmp/langchain-bench/libs/partners/README.md, /tmp/langchain-bench/libs/partners/anthropic/langchain_anthropic/__init__.py, /tmp/langchain-bench/libs/partners/anthropic/langchain_anthropic/chat_models.py (first 150 lines), /tmp/langchain-bench/libs/partners/anthropic/tests/integration_tests/test_chat_models.py (first 100 lines)]
+TOTAL_CHARS: 9251
+ANSWER: Install with `pip install langchain-anthropic`. Use `ChatAnthropic` class for chat models (e.g., `llm = ChatAnthropic(model_name="claude-3-5-haiku-20241022")`). Set `ANTHROPIC_API_KEY` environment variable. Supports invoke(), stream(), astream() methods. Full docs at docs.langchain.com/oss/python/integrations/providers/anthropic.
+```
