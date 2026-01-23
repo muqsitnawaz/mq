@@ -1,3 +1,8 @@
+---
+name: mq
+description: Query markdown files efficiently with mq CLI. Use when exploring documentation structure, extracting specific sections, or reducing token usage when reading .md files.
+---
+
 # mq Skill: Efficient Document Querying
 
 `mq` doesn't compute answers - it externalizes document structure into your context so you can reason to answers yourself.

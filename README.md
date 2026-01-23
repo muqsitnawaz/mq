@@ -9,6 +9,8 @@ AI agents waste tokens reading entire files. mq lets them query structure first,
 
 **Result: Up to 83% fewer tokens when scoped correctly.**
 
+**The philosophy**: Don't outsource reasoning to embeddings and rerankers. Expose structure, let the agent reason.
+
 [Install](#installation) | [Agent Skill](#agent-skill) | [Usage](#usage) | [Query Language](#query-language)
 
 ### Works With
