@@ -1,8 +1,25 @@
 # mq - Agentic Querying for Structured Documents
 
+[![CI](https://github.com/muqsitnawaz/mq/actions/workflows/ci.yml/badge.svg)](https://github.com/muqsitnawaz/mq/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/muqsitnawaz/mq)](https://github.com/muqsitnawaz/mq/releases/latest)
+[![Go Report Card](https://goreportcard.com/badge/github.com/muqsitnawaz/mq)](https://goreportcard.com/report/github.com/muqsitnawaz/mq)
+
 AI agents waste tokens reading entire files. mq lets them query structure first, then extract only what they need. The agent's context window becomes the working index.
 
 **Result: Up to 83% fewer tokens when scoped correctly.**
+
+### Works With
+
+<p>
+  <img src="assets/claude.png" alt="Claude" height="40">
+  <img src="assets/cursor.png" alt="Cursor" height="40">
+  <img src="assets/opencode.png" alt="OpenCode" height="40">
+  <img src="assets/chatgpt.png" alt="ChatGPT" height="40">
+  <img src="assets/gemini.png" alt="Gemini" height="40">
+  <img src="assets/vscode.png" alt="VS Code" height="40">
+</p>
+
+Any AI agent or coding assistant that can execute shell commands.
 
 ```bash
 # Agent sees the structure (this IS the index)
@@ -23,8 +40,17 @@ mq docs/auth.md '.section("OAuth Flow") | .text'
 Traditional retrieval computes results for you. mq externalizes structure so the agent computes results itself:
 
 ```
-Traditional: Documents → Query → Results (system computes the answer)
-mq:          Documents → Query → Structure → Agent reasons → Results
+┌─────────────────────────────────────────────────────────────────────────┐
+│  Traditional RAG                                                        │
+│  Documents → Embeddings → Vector DB → Query → System computes → Results │
+└─────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│  mq                                                                     │
+│  Documents → Agent queries structure → Agent reasons → Agent extracts   │
+│                    ↑                                                    │
+│              (zero LLM cost)                                            │
+└─────────────────────────────────────────────────────────────────────────┘
 ```
 
 mq is an **interface**, not an answer engine. It extracts structure into the agent's context, where the agent can reason over it directly.
@@ -70,11 +96,12 @@ Run it yourself: `./scripts/bench.sh`
 
 ## Comparison: mq vs qmd vs PageIndex
 
-Three approaches to markdown retrieval for AI agents:
+Three approaches to document retrieval for AI agents:
 
 | | **mq** | **[qmd](https://github.com/tobi/qmd)** | **[PageIndex](https://github.com/VectifyAI/PageIndex)** |
 |--|--------|---------|---------------|
-| **Technique** | AST parsing + query language | Vector embeddings + BM25 | Tree structure + LLM reasoning |
+| **Target** | Markdown | Markdown | PDFs |
+| **Technique** | AST parsing + query language | Vector embeddings + BM25 | LLM-generated tree structure |
 | **Index** | On-demand (agent context) | Pre-built (SQLite + vectors) | Pre-built (JSON tree) |
 | **Retrieval** | Deterministic query | Similarity search | LLM traverses tree |
 | **Dependencies** | Single Go binary | 3GB models, Bun, SQLite | Python, OpenAI API |
@@ -88,6 +115,34 @@ Three approaches to markdown retrieval for AI agents:
 - **mq**: Exposes structure → agent reasons → agent finds what it needs
 
 When the consumer is an LLM, it already has reasoning capability. mq leverages that instead of adding redundant computation layers.
+
+### Why Markdown is Different
+
+PageIndex uses heavy LLM processing because **PDF structure isn't deterministic** - you need an LLM to detect TOC pages, extract hierarchy, map page indices, and verify correctness.
+
+But **markdown structure IS deterministic**. Headings, code blocks, lists - these can be parsed with an AST. No LLM needed to understand structure, only to reason over it.
+
+This is mq's advantage: zero-cost structure extraction for formats where structure is explicit.
+
+## Roadmap: Vision Support
+
+For non-deterministic formats (PDFs, images, scanned documents), we're exploring a sub-agent architecture:
+
+```
+Main Agent (Opus/Sonnet)
+    └── spawns Explorer Sub-Agent (Haiku with vision)
+            └── examines PDF/image
+            └── returns structured summary to main context
+```
+
+**The insight**: Vision-capable models (even Haiku) can do OCR. Instead of pre-processing documents with a separate service, reuse the agent infrastructure:
+
+- **No pre-processing step** - explore on demand
+- **Cheaper models for exploration** - Haiku has vision but costs less
+- **Disposable context** - sub-agent's work doesn't pollute main context
+- **Unified interface** - same query patterns for markdown and vision
+
+This extends the mq philosophy: let agents reason over structure, but use sub-agents to extract structure from non-deterministic formats.
 
 ## Installation
 
