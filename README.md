@@ -166,25 +166,55 @@ mq doc.md '.section("Examples") | .code("python")'
 mq doc.md '.section("API") | .tree'
 ```
 
-## mq vs qmd
+## Agentic Indexing
 
-[qmd](https://github.com/tobi/qmd) is semantic search. `mq` is structural extraction. They complement each other.
+Traditional document retrieval requires pre-building indexes:
 
-| | **mq** | **qmd** |
-|--|--------|---------|
-| **Purpose** | Extract section X from file | Find files about topic Y |
-| **Query** | `.section("Auth")` | `"how to authenticate"` |
-| **Output** | Actual content | File paths + scores |
-| **Deps** | Single binary | Bun, SQLite, 1.6GB models |
+```
+Traditional: Documents → Build Index → Store in DB → Query Index → Results
+mq:          Documents → Query → Structure IS the Index (in agent context)
+```
+
+When an LLM agent uses mq, the `.tree` output **is** the index. The agent holds it in context and reasons over it directly. No pre-computation, no vector database, no storage layer.
+
+**Why this works**: The LLM already has semantic understanding. It can try synonyms, rephrase queries, and decide which sections to explore. You don't need a separate embedding layer when the agent itself is the reasoning engine.
 
 ```bash
-# Find files with qmd
-qmd query "authentication"
-# → docs/auth.md (0.92)
+# Agent gets the index on-demand
+mq docs/ '.tree("full")'
+# → docs/ (12 files, 2847 lines)
+# → ├── auth.md (234 lines, 8 sections)
+# → │   ├── ## Authentication
+# → │   │        "OAuth 2.0 and API key authentication..."
+# → │   └── ## OAuth Flow
+# → │            "Step-by-step OAuth implementation..."
 
-# Extract content with mq
-mq docs/auth.md '.section("OAuth") | .text'
+# Agent extracts what it needs
+mq docs/auth.md '.section("OAuth Flow") | .text'
 ```
+
+The agent's context window becomes the working index. Each query refines what the agent knows.
+
+## Comparison: mq vs qmd vs PageIndex
+
+Three approaches to markdown retrieval for AI agents:
+
+| | **mq** | **[qmd](https://github.com/tobi/qmd)** | **[PageIndex](https://github.com/VectifyAI/PageIndex)** |
+|--|--------|---------|---------------|
+| **Technique** | AST parsing + query language | Vector embeddings + BM25 | Tree structure + LLM reasoning |
+| **Index** | On-demand (agent context) | Pre-built (SQLite + vectors) | Pre-built (JSON tree) |
+| **Retrieval** | Deterministic query | Similarity search | LLM traverses tree |
+| **Dependencies** | Single Go binary | 3GB models, Bun, SQLite | Python, OpenAI API |
+| **Cost per query** | Zero | Local compute | LLM API calls |
+| **Output** | Exact content | Paths + scores | Node references |
+
+**Core insight**: Markdown has explicit structure (`#` headings). All three tools parse the same headers - they differ in navigation:
+
+- **qmd**: Converts text → vectors, searches by mathematical similarity
+- **PageIndex**: Builds tree, uses LLM to reason which branch to follow
+- **mq**: Exposes tree directly, lets the agent reason over it
+
+When the consumer is an LLM agent, adding another embedding layer (qmd) or another LLM layer (PageIndex) is redundant. The agent navigates structure directly.
 
 ## Benchmark: Agent Performance
 
