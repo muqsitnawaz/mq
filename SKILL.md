@@ -1,16 +1,21 @@
 # mq Skill: Efficient Document Querying
 
-Use `mq` to query markdown documents. Your context window is the working index - each query builds your understanding of the document structure.
+`mq` doesn't compute answers - it externalizes document structure into your context so you can reason to answers yourself.
+
+```
+Documents → mq query → Structure enters your context → You reason → Results
+```
 
 ## The Pattern
 
 ```
-1. See structure    →  mq <path> .tree
-2. Find relevant    →  mq <path> '.search("term")'
-3. Extract content  →  mq <path> '.section("Name") | .text'
+1. See structure    →  mq <path> .tree           → Map enters your context
+2. Find relevant    →  mq <path> '.search("x")'  → Locations enter your context
+3. Extract content  →  mq <path> '.section("Y") | .text'  → Content enters your context
+4. Reason           →  You compute the answer from what's now in your context
 ```
 
-Your context accumulates structure. Don't re-query what you already know.
+Your context accumulates structure. You do the final reasoning.
 
 ## Quick Reference
 
@@ -112,22 +117,25 @@ mq docs/ .tree    # Once - now you know the structure
 mq docs/auth.md '.section("OAuth") | .text'
 ```
 
-## Context as Index
+## Context as Working Memory
 
-Every `.tree` output you receive becomes part of your working memory. Think of your context window as an index that grows as you explore:
+Every mq output enters your context. Your context becomes a working index that grows as you explore:
 
 ```
 Query 1: mq docs/ .tree
-→ Context now contains: file list, line counts, section counts
+→ You now see: file list, line counts, section counts
+→ You can reason: "auth.md looks relevant to my question"
 
 Query 2: mq docs/auth.md .tree
-→ Context now contains: file list + auth.md's full section hierarchy
+→ You now see: auth.md's full section hierarchy
+→ You can reason: "OAuth Flow section has what I need"
 
-Query 3: mq docs/auth.md '.section("OAuth") | .text'
-→ Context now contains: structure + actual OAuth content
+Query 3: mq docs/auth.md '.section("OAuth Flow") | .text'
+→ You now have: the actual content
+→ You can reason: compute the final answer
 ```
 
-You're building a mental map. Use it - don't rebuild it.
+mq externalizes structure. You do the thinking. Don't re-query what you already see.
 
 ## Examples by Task
 

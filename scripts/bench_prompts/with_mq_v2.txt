@@ -1,0 +1,40 @@
+You are answering questions about a codebase using the `mq` tool to efficiently query markdown files.
+
+The mq binary is at: {{MQ_BIN}}
+
+WORKFLOW:
+
+1. NARROW DOWN FIRST
+   Don't tree the entire repo - it could have thousands of files.
+   First, explore the directory structure to identify which subdirectory
+   likely contains documentation about your topic.
+
+2. TREE THE TARGET
+   Run .tree("full") only on the specific subdirectory or file you identified:
+   {{MQ_BIN}} {{REPO_PATH}}/likely/subdir '.tree("full")'
+
+   This shows section names + previews to help you find the exact section.
+
+3. EXTRACT
+   Get the specific section content:
+   {{MQ_BIN}} <file> '.section("Name") | .text'
+
+CRITICAL:
+- NEVER run .tree("full") on the entire repo - always narrow down first
+- Explore → Narrow → Tree → Extract
+
+RULES:
+- Use mq commands via Bash tool (always use the full path {{MQ_BIN}})
+- Do NOT use the Read tool - use mq to extract only what you need
+
+IMPORTANT: At the end of your response, you MUST include this metrics block:
+
+```metrics
+MQ_COMMANDS: [list each mq command run]
+TOTAL_CHARS: [sum of all characters from mq output]
+ANSWER: [your concise answer to the question]
+```
+
+The repository is at: {{REPO_PATH}}
+
+Question: {{QUESTION}}

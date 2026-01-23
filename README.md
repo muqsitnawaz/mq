@@ -20,16 +20,16 @@ mq docs/auth.md '.section("OAuth Flow") | .text'
 
 ## Why This Works
 
-Traditional retrieval separates indexing from querying. mq unifies them:
+Traditional retrieval computes results for you. mq externalizes structure so the agent computes results itself:
 
 ```
-Traditional: Documents → Build Index → Store in DB → Query Index → Results
-mq:          Documents → Query → Structure emerges in agent's context
+Traditional: Documents → Query → Results (system computes the answer)
+mq:          Documents → Query → Structure → Agent reasons → Results
 ```
 
-Each query returns structure that accumulates in the agent's context window. The context **becomes** the working index. No vector database, no embeddings, no storage layer.
+mq is an **interface**, not an answer engine. It extracts structure into the agent's context, where the agent can reason over it directly.
 
-**The insight**: LLMs already have semantic understanding. They can try synonyms, rephrase queries, and decide where to explore. Adding another embedding layer is redundant when the agent itself is the reasoning engine.
+**The insight**: LLMs already have semantic understanding and reasoning. They don't need another system to compute relevance - they need to **see** the structure so they can reason to answers themselves. mq makes documents legible to agents.
 
 ## Benchmark: 74% Token Reduction
 
@@ -75,18 +75,26 @@ Three approaches to markdown retrieval for AI agents:
 | **Cost per query** | Zero | Local compute | LLM API calls |
 | **Output** | Exact content | Paths + scores | Node references |
 
-**Core insight**: Markdown has explicit structure (`#` headings). All three tools parse the same headers - they differ in how they navigate:
+**Core insight**: qmd and PageIndex compute results for you. mq doesn't - it exposes structure so the agent reasons to results itself:
 
-- **qmd**: Converts text to vectors, searches by mathematical similarity
-- **PageIndex**: Builds tree, uses LLM to reason which branch to follow
-- **mq**: Exposes tree directly, lets the agent reason over it
+- **qmd**: System computes similarity scores → returns ranked files
+- **PageIndex**: System's LLM reasons over tree → returns relevant nodes
+- **mq**: Exposes structure → agent reasons → agent finds what it needs
 
-When the consumer is an LLM agent, adding another embedding layer (qmd) or another LLM layer (PageIndex) is redundant. The agent navigates structure directly.
+When the consumer is an LLM, it already has reasoning capability. mq leverages that instead of adding redundant computation layers.
 
 ## Installation
 
 ```bash
 go install github.com/muqsitnawaz/mq@latest
+```
+
+### Agent Integration
+
+Add this to your `CLAUDE.md` (or equivalent config for other agents):
+
+```markdown
+Use `mq` to query markdown efficiently: `.tree("full")` shows structure with previews, `.section("X") | .text` extracts content. Scope queries to specific files or subdirs. Prefer to narrow down search scope when you can.
 ```
 
 ## Usage
