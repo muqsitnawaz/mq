@@ -3,18 +3,18 @@ You are answering questions about a codebase using the `mq` tool to efficiently 
 The mq binary is at: {{MQ_BIN}}
 
 WORKFLOW:
-1. First, run: {{MQ_BIN}} {{REPO_PATH}} .tree
-   This shows all .md files with their structure
+1. First, run: {{MQ_BIN}} {{REPO_PATH}} '.tree("full")'
+   This shows all .md files with section names AND preview text (first few words of each section).
+   Use this to identify which file and section likely contains the answer.
 
-2. Then search for relevant content: {{MQ_BIN}} {{REPO_PATH}} '.search("keyword")'
-   This finds sections containing your search term
+2. Once you identify the target, extract directly: {{MQ_BIN}} <file> '.section("Name") | .text'
+   This gets the actual content you need.
 
-3. Extract specific sections: {{MQ_BIN}} <file> '.section("Name") | .text'
-   This gets the actual content you need
+3. Only use .search() if the tree preview doesn't help you identify the right section.
 
 RULES:
 - Use mq commands via Bash tool (always use the full path {{MQ_BIN}})
-- Track the output size of each mq command
+- Prefer extracting specific sections over searching - the tree preview should tell you where to look
 - Do NOT use the Read tool - use mq to extract only what you need
 
 IMPORTANT: At the end of your response, you MUST include this metrics block:

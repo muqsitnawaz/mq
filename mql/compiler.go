@@ -243,20 +243,27 @@ func (v *compilerVisitor) VisitSelector(node *SelectorNode) (interface{}, error)
 
 	case "tree":
 		// Check if we're operating on a section or the whole document
-		compact := false
+		mode := mq.TreeModeDefault
 		if len(args) > 0 {
-			if s, ok := args[0].(string); ok && s == "compact" {
-				compact = true
+			if s, ok := args[0].(string); ok {
+				switch s {
+				case "compact":
+					mode = mq.TreeModeCompact
+				case "preview":
+					mode = mq.TreeModePreview
+				case "full":
+					mode = mq.TreeModeFull
+				}
 			}
 		}
 
 		// If current context is a section, build tree for that section
 		if section, ok := v.context.Current.(*mq.Section); ok {
-			return buildSectionTree(section, compact), nil
+			return buildSectionTree(section, mode), nil
 		}
 
 		// Otherwise, build tree for the whole document
-		return doc.BuildTree(compact), nil
+		return doc.BuildTree(mode), nil
 
 	case "search":
 		if len(args) == 0 {
@@ -1145,21 +1152,21 @@ func toInt(v interface{}) (int, bool) {
 }
 
 // buildSectionTree builds a tree result for a single section.
-func buildSectionTree(section *mq.Section, compact bool) *mq.TreeResult {
+func buildSectionTree(section *mq.Section, mode mq.TreeMode) *mq.TreeResult {
 	result := &mq.TreeResult{
-		Path:    section.Heading.Text,
-		Lines:   section.End - section.Start + 1,
-		Compact: compact,
+		Path:  section.Heading.Text,
+		Lines: section.End - section.Start + 1,
+		Mode:  mode,
 	}
 
-	node := buildSectionNode(section, compact)
+	node := buildSectionNode(section, mode)
 	result.Root = []*mq.TreeNode{node}
 
 	return result
 }
 
 // buildSectionNode recursively builds tree nodes from a section.
-func buildSectionNode(section *mq.Section, compact bool) *mq.TreeNode {
+func buildSectionNode(section *mq.Section, mode mq.TreeMode) *mq.TreeNode {
 	node := &mq.TreeNode{
 		Type:  "section",
 		Text:  section.Heading.Text,
@@ -1168,14 +1175,19 @@ func buildSectionNode(section *mq.Section, compact bool) *mq.TreeNode {
 		Level: section.Heading.Level,
 	}
 
+	// Add preview text for preview/full modes
+	if mode == mq.TreeModePreview || mode == mq.TreeModeFull {
+		node.Preview = mq.ExtractPreview(section.GetText(), 50)
+	}
+
 	// Add child sections
 	for _, child := range section.Children {
-		childNode := buildSectionNode(child, compact)
+		childNode := buildSectionNode(child, mode)
 		node.Children = append(node.Children, childNode)
 	}
 
-	// Add special elements (only in full mode)
-	if !compact {
+	// Add special elements (only in default mode)
+	if mode == mq.TreeModeDefault {
 		codeBlocks := section.GetCodeBlocks()
 		if len(codeBlocks) > 0 {
 			// Group by language

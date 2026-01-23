@@ -22,8 +22,10 @@ func main() {
 		fmt.Println("\nTree Examples:")
 		fmt.Println("  mq README.md .tree                              # Show document structure")
 		fmt.Println("  mq README.md '.tree(\"compact\")'                # Headings only")
+		fmt.Println("  mq README.md '.tree(\"preview\")'                # Headings + first few words")
 		fmt.Println("  mq docs/ .tree                                  # Show all .md files in directory")
-		fmt.Println("  mq docs/ '.tree(\"expand\")'                     # Show files with top headings")
+		fmt.Println("  mq docs/ '.tree(\"expand\")'                     # Show files with section names")
+		fmt.Println("  mq docs/ '.tree(\"full\")'                       # Section names + previews")
 		fmt.Println("\nAdvanced Examples:")
 		fmt.Println("  mq README.md '.section(\"API\") | .code(\"curl\")'  # Get curl examples in API section")
 		fmt.Println("  mq README.md '.section(\"API\") | .text'          # Get section content")
@@ -79,7 +81,7 @@ func handleDirectory(path string, query string) {
 
 	// Handle tree queries
 	if query == ".tree" || query == `.tree("compact")` {
-		result, err := mq.BuildDirTree(path, false)
+		result, err := mq.BuildDirTree(path, mq.TreeModeDefault)
 		if err != nil {
 			log.Fatalf("Failed to build directory tree: %v", err)
 		}
@@ -88,7 +90,26 @@ func handleDirectory(path string, query string) {
 	}
 
 	if query == `.tree("expand")` {
-		result, err := mq.BuildDirTree(path, true)
+		// expand is now an alias for preview (shows section headings)
+		result, err := mq.BuildDirTree(path, mq.TreeModePreview)
+		if err != nil {
+			log.Fatalf("Failed to build directory tree: %v", err)
+		}
+		fmt.Print(result.String())
+		return
+	}
+
+	if query == `.tree("preview")` {
+		result, err := mq.BuildDirTree(path, mq.TreeModePreview)
+		if err != nil {
+			log.Fatalf("Failed to build directory tree: %v", err)
+		}
+		fmt.Print(result.String())
+		return
+	}
+
+	if query == `.tree("full")` {
+		result, err := mq.BuildDirTree(path, mq.TreeModeFull)
 		if err != nil {
 			log.Fatalf("Failed to build directory tree: %v", err)
 		}
@@ -107,7 +128,7 @@ func handleDirectory(path string, query string) {
 		return
 	}
 
-	log.Fatalf("Directory mode supports: .tree, .tree(\"expand\"), .search(\"term\")")
+	log.Fatalf("Directory mode supports: .tree, .tree(\"expand\"), .tree(\"preview\"), .tree(\"full\"), .search(\"term\")")
 }
 
 func showDocumentInfo(doc *mq.Document) {

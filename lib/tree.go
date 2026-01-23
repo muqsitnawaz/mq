@@ -8,10 +8,21 @@ import (
 	"strings"
 )
 
+// TreeMode represents tree display modes.
+type TreeMode string
+
+const (
+	TreeModeDefault TreeMode = ""        // Full structure with code blocks
+	TreeModeCompact TreeMode = "compact" // Headings only
+	TreeModePreview TreeMode = "preview" // Headings + first few words
+	TreeModeFull    TreeMode = "full"    // Headings + first few words (for directories: expand + preview)
+)
+
 // TreeNode represents a node in the document structure tree.
 type TreeNode struct {
 	Type     string      // "section", "code", "table", "list", "link", "image", "frontmatter"
 	Text     string      // Display text (heading text, language, etc.)
+	Preview  string      // First few words of section content
 	Start    int         // Starting line number
 	End      int         // Ending line number
 	Level    int         // Heading level (1-6) for sections
@@ -23,17 +34,17 @@ type TreeNode struct {
 type TreeResult struct {
 	Path     string      // File path
 	Lines    int         // Total line count
-	Compact  bool        // Whether compact mode is enabled
+	Mode     TreeMode    // Display mode
 	Root     []*TreeNode // Top-level nodes
 	Metadata []string    // Frontmatter field names
 }
 
 // BuildTree creates a tree representation of the document.
-func (d *Document) BuildTree(compact bool) *TreeResult {
+func (d *Document) BuildTree(mode TreeMode) *TreeResult {
 	result := &TreeResult{
-		Path:    d.path,
-		Lines:   d.countLines(),
-		Compact: compact,
+		Path:  d.path,
+		Lines: d.countLines(),
+		Mode:  mode,
 	}
 
 	// Add frontmatter if present
@@ -48,7 +59,7 @@ func (d *Document) BuildTree(compact bool) *TreeResult {
 	// Build section tree
 	toc := d.GetTableOfContents()
 	for _, section := range toc {
-		node := d.buildSectionTree(section, compact)
+		node := d.buildSectionTree(section, mode)
 		result.Root = append(result.Root, node)
 	}
 
@@ -56,7 +67,7 @@ func (d *Document) BuildTree(compact bool) *TreeResult {
 }
 
 // buildSectionTree recursively builds tree nodes from sections.
-func (d *Document) buildSectionTree(section *Section, compact bool) *TreeNode {
+func (d *Document) buildSectionTree(section *Section, mode TreeMode) *TreeNode {
 	node := &TreeNode{
 		Type:  "section",
 		Text:  section.Heading.Text,
@@ -65,14 +76,19 @@ func (d *Document) buildSectionTree(section *Section, compact bool) *TreeNode {
 		Level: section.Heading.Level,
 	}
 
+	// Add preview text for preview/full modes
+	if mode == TreeModePreview || mode == TreeModeFull {
+		node.Preview = ExtractPreview(section.GetText(), 50)
+	}
+
 	// Add child sections
 	for _, child := range section.Children {
-		childNode := d.buildSectionTree(child, compact)
+		childNode := d.buildSectionTree(child, mode)
 		node.Children = append(node.Children, childNode)
 	}
 
-	// Add special elements (only in full mode)
-	if !compact {
+	// Add special elements (only in default mode)
+	if mode == TreeModeDefault {
 		// Code blocks in this section (not children)
 		codeBlocks := section.codeBlocks
 		if len(codeBlocks) > 0 {
@@ -103,6 +119,52 @@ func (d *Document) buildSectionTree(section *Section, compact bool) *TreeNode {
 	}
 
 	return node
+}
+
+// ExtractPreview extracts the first few words from section content.
+func ExtractPreview(text string, maxChars int) string {
+	// Skip the heading line
+	lines := strings.SplitN(text, "\n", 2)
+	if len(lines) < 2 {
+		return ""
+	}
+	content := strings.TrimSpace(lines[1])
+
+	// Skip empty content
+	if content == "" {
+		return ""
+	}
+
+	// Clean up: remove code blocks, collapse whitespace
+	// Simple approach: take first non-empty, non-code line
+	for _, line := range strings.Split(content, "\n") {
+		line = strings.TrimSpace(line)
+		// Skip empty lines, code fences, list markers at start
+		if line == "" || strings.HasPrefix(line, "```") || strings.HasPrefix(line, "---") {
+			continue
+		}
+		// Skip pure link/image lines
+		if strings.HasPrefix(line, "![") || (strings.HasPrefix(line, "[") && strings.Contains(line, "](")) {
+			continue
+		}
+
+		// Clean up markdown formatting
+		line = strings.ReplaceAll(line, "**", "")
+		line = strings.ReplaceAll(line, "__", "")
+		line = strings.ReplaceAll(line, "`", "")
+
+		// Truncate to maxChars
+		if len(line) > maxChars {
+			// Try to break at word boundary
+			truncated := line[:maxChars]
+			if lastSpace := strings.LastIndex(truncated, " "); lastSpace > maxChars/2 {
+				truncated = truncated[:lastSpace]
+			}
+			return truncated + "..."
+		}
+		return line
+	}
+	return ""
 }
 
 // countLines counts the total lines in the document.
@@ -146,6 +208,17 @@ func (t *TreeResult) renderNode(buf *strings.Builder, node *TreeNode, prefix str
 		levelPrefix := strings.Repeat("#", node.Level)
 		buf.WriteString(fmt.Sprintf("%s%s%s %s (%d-%d)\n",
 			prefix, connector, levelPrefix, node.Text, node.Start, node.End))
+
+		// Render preview if available
+		if node.Preview != "" {
+			previewPrefix := prefix
+			if isLast {
+				previewPrefix += "    "
+			} else {
+				previewPrefix += "│   "
+			}
+			buf.WriteString(fmt.Sprintf("%s     \"%s\"\n", previewPrefix, node.Preview))
+		}
 	case "code":
 		buf.WriteString(fmt.Sprintf("%s%s[code: %s, %s]\n",
 			prefix, connector, node.Text, node.Meta))
@@ -313,15 +386,21 @@ func SearchDir(dirPath string, query string) (*SearchResults, error) {
 	return results, err
 }
 
+// DirHeading represents a heading with optional preview.
+type DirHeading struct {
+	Text    string // Heading text with level prefix (e.g., "## Installation")
+	Preview string // First few words of content
+}
+
 // DirFileNode represents a file or directory in the directory tree.
 type DirFileNode struct {
-	Name       string         // File or directory name
-	Path       string         // Full path
-	IsDir      bool           // True if directory
-	Lines      int            // Line count (files only)
-	Sections   int            // Section count (files only)
-	TopHeadings []string      // Top-level headings for expand mode
-	Children   []*DirFileNode // Child files/directories
+	Name        string         // File or directory name
+	Path        string         // Full path
+	IsDir       bool           // True if directory
+	Lines       int            // Line count (files only)
+	Sections    int            // Section count (files only)
+	TopHeadings []*DirHeading  // Top-level headings for expand/full modes
+	Children    []*DirFileNode // Child files/directories
 }
 
 // DirTreeResult represents the result of a directory tree query.
@@ -329,19 +408,19 @@ type DirTreeResult struct {
 	Path       string         // Directory path
 	TotalFiles int            // Total .md files
 	TotalLines int            // Total lines across all files
-	Expand     bool           // Whether to show top-level headings
+	Mode       TreeMode       // Display mode
 	Root       []*DirFileNode // Top-level entries
 }
 
 // BuildDirTree creates a tree representation of markdown files in a directory.
-func BuildDirTree(dirPath string, expand bool) (*DirTreeResult, error) {
+func BuildDirTree(dirPath string, mode TreeMode) (*DirTreeResult, error) {
 	result := &DirTreeResult{
-		Path:   dirPath,
-		Expand: expand,
+		Path: dirPath,
+		Mode: mode,
 	}
 
 	parser := NewParser()
-	root, err := buildDirNode(dirPath, parser, expand, result)
+	root, err := buildDirNode(dirPath, parser, mode, result)
 	if err != nil {
 		return nil, err
 	}
@@ -351,7 +430,7 @@ func BuildDirTree(dirPath string, expand bool) (*DirTreeResult, error) {
 }
 
 // buildDirNode recursively builds directory tree nodes.
-func buildDirNode(path string, parser *Parser, expand bool, result *DirTreeResult) (*DirFileNode, error) {
+func buildDirNode(path string, parser *Parser, mode TreeMode, result *DirTreeResult) (*DirFileNode, error) {
 	info, err := os.Stat(path)
 	if err != nil {
 		return nil, err
@@ -380,10 +459,32 @@ func buildDirNode(path string, parser *Parser, expand bool, result *DirTreeResul
 			result.TotalFiles++
 			result.TotalLines += node.Lines
 
-			// Get top-level headings for expand mode
-			if expand {
-				for _, h := range doc.GetHeadings(1, 2) {
-					node.TopHeadings = append(node.TopHeadings, fmt.Sprintf("%s %s", strings.Repeat("#", h.Level), h.Text))
+			// Get top-level headings for expand/full modes
+			showHeadings := mode == TreeModeFull || mode == TreeModePreview
+			if showHeadings {
+				for _, section := range doc.GetTableOfContents() {
+					h := section.Heading
+					heading := &DirHeading{
+						Text: fmt.Sprintf("%s %s", strings.Repeat("#", h.Level), h.Text),
+					}
+					// Add preview for full mode
+					if mode == TreeModeFull {
+						heading.Preview = ExtractPreview(section.GetText(), 50)
+					}
+					node.TopHeadings = append(node.TopHeadings, heading)
+
+					// Also add level 2 headings (direct children)
+					for _, child := range section.Children {
+						if child.Heading.Level <= 2 {
+							childHeading := &DirHeading{
+								Text: fmt.Sprintf("%s %s", strings.Repeat("#", child.Heading.Level), child.Heading.Text),
+							}
+							if mode == TreeModeFull {
+								childHeading.Preview = ExtractPreview(child.GetText(), 50)
+							}
+							node.TopHeadings = append(node.TopHeadings, childHeading)
+						}
+					}
 				}
 			}
 		}
@@ -417,7 +518,7 @@ func buildDirNode(path string, parser *Parser, expand bool, result *DirTreeResul
 			continue
 		}
 
-		child, err := buildDirNode(childPath, parser, expand, result)
+		child, err := buildDirNode(childPath, parser, mode, result)
 		if err != nil {
 			continue // Skip entries that error
 		}
@@ -476,15 +577,27 @@ func (t *DirTreeResult) renderNode(buf *strings.Builder, node *DirFileNode, pref
 		childPrefix += "│   "
 	}
 
-	// Render top-level headings in expand mode
-	if t.Expand && len(node.TopHeadings) > 0 {
+	// Render top-level headings in expand/full modes
+	showHeadings := t.Mode == TreeModeFull || t.Mode == TreeModePreview
+	if showHeadings && len(node.TopHeadings) > 0 {
 		for i, heading := range node.TopHeadings {
 			hIsLast := i == len(node.TopHeadings)-1 && len(node.Children) == 0
 			hConnector := "├── "
 			if hIsLast {
 				hConnector = "└── "
 			}
-			buf.WriteString(fmt.Sprintf("%s%s%s\n", childPrefix, hConnector, heading))
+			buf.WriteString(fmt.Sprintf("%s%s%s\n", childPrefix, hConnector, heading.Text))
+
+			// Add preview in full mode
+			if t.Mode == TreeModeFull && heading.Preview != "" {
+				previewPrefix := childPrefix
+				if hIsLast {
+					previewPrefix += "    "
+				} else {
+					previewPrefix += "│   "
+				}
+				buf.WriteString(fmt.Sprintf("%s     \"%s\"\n", previewPrefix, heading.Preview))
+			}
 		}
 	}
 

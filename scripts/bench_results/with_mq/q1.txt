@@ -1,24 +1,30 @@
-The commit standards for the LangChain monorepo are:
+I now have the commit standards information. Let me provide the answer.
 
-## Commit Standards
+## Commit Standards for LangChain Monorepo
 
-The repository uses **Conventional Commits** format for PR titles. Key requirements:
+The LangChain monorepo follows **Conventional Commits** format for PR titles and commits. Here are the key requirements:
 
-1. **Format**: `type(scope): description`
-2. **Lowercase**: All commit/PR titles should be lowercase (except proper nouns/named entities)
-3. **Scope required**: All PR titles MUST include a scope - no exceptions
+### Format
+```
+<type>(<scope>): <description>
+```
 
-### Examples:
-```txt
+### Rules
+1. **Lowercase** - All commit/PR titles should be lowercase, except for proper nouns/named entities
+2. **Scope is required** - All PR titles must include a scope with no exceptions
+3. **Types and scopes** - Refer to `.github/workflows/pr_lint` for allowed types and scopes
+
+### Examples
+```
 feat(langchain): add new chat completion feature
 fix(core): resolve type hinting issue in vector store
 chore(anthropic): update infrastructure dependencies
 ```
 
-For allowed types and scopes, refer to `.github/workflows/pr_lint`.
+Note: Even the main package (`langchain`) requires a scope, e.g., `feat(langchain)` not just `feat:`.
 
 ```metrics
-MQ_COMMANDS: ["/home/muqsit/src/github.com/muqsitnawaz/mq/mq /tmp/langchain-bench .tree", "/home/muqsit/src/github.com/muqsitnawaz/mq/mq /tmp/langchain-bench '.search(\"commit\")'", "/home/muqsit/src/github.com/muqsitnawaz/mq/mq /tmp/langchain-bench/AGENTS.md '.section(\"Commit standards\") | .text'", "/home/muqsit/src/github.com/muqsitnawaz/mq/mq /tmp/langchain-bench '.search(\"Conventional\")'"]
-TOTAL_CHARS: 4553
-ANSWER: LangChain uses Conventional Commits format: type(scope): description. All lowercase (except proper nouns), scope is always required. Examples: feat(langchain):, fix(core):, chore(anthropic):
+MQ_COMMANDS: ["/home/muqsit/src/github.com/muqsitnawaz/mq/mq /tmp/langchain-bench '.tree(\"full\")'", "/home/muqsit/src/github.com/muqsitnawaz/mq/mq /tmp/langchain-bench/AGENTS.md '.search(\"commit\")'", "/home/muqsit/src/github.com/muqsitnawaz/mq/mq /tmp/langchain-bench/AGENTS.md '.section(\"Commit standards\") | .text'"]
+TOTAL_CHARS: 12877
+ANSWER: LangChain uses Conventional Commits format for PR titles. Format: <type>(<scope>): <description>. Rules: lowercase (except proper nouns), scope is always required. Types/scopes defined in .github/workflows/pr_lint. Examples: feat(langchain): add feature, fix(core): resolve issue.
 ```
