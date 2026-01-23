@@ -92,6 +92,12 @@ When the consumer is an LLM, it already has reasoning capability. mq leverages t
 ## Installation
 
 ```bash
+curl -fsSL https://raw.githubusercontent.com/muqsitnawaz/mq/main/install.sh | bash
+```
+
+Or with Go:
+
+```bash
 go install github.com/muqsitnawaz/mq@latest
 ```
 
