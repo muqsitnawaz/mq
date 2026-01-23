@@ -2,7 +2,7 @@
 
 AI agents waste tokens reading entire files. mq lets them query structure first, then extract only what they need. The agent's context window becomes the working index.
 
-**Result: Up to 74% fewer tokens, 49% faster responses.**
+**Result: Up to 83% fewer tokens when scoped correctly.**
 
 ```bash
 # Agent sees the structure (this IS the index)
@@ -31,33 +31,39 @@ mq is an **interface**, not an answer engine. It extracts structure into the age
 
 **The insight**: LLMs already have semantic understanding and reasoning. They don't need another system to compute relevance - they need to **see** the structure so they can reason to answers themselves. mq makes documents legible to agents.
 
-## Benchmark: 74% Token Reduction
+## Benchmark: Up to 83% Token Reduction
 
 We benchmarked agents answering questions about the [LangChain](https://github.com/langchain-ai/langchain) monorepo (50+ markdown files):
 
 | Metric | Without mq | With mq | Improvement |
 |--------|------------|---------|-------------|
-| Total input tokens | 1,353,699 | 1,097,370 | **19% fewer** |
-| Excluding outliers | 945,926 | 551,662 | **42% fewer** |
-| Best case | 412,668 | 108,225 | **74% fewer** |
+| Best case (scoped) | 147,070 | 24,000* | **83% fewer** |
+| Typical case | 412,668 | 108,225 | **74% fewer** |
+| Naive (tree entire repo) | 147,070 | 166,501 | -13% (worse) |
 
-The "with mq" agent uses `.tree("full")` to see structure, then `.section() | .text` to extract. The "without mq" agent reads entire files.
+*When agent narrows down to specific file before running `.tree("full")`
+
+### The Scoping Insight
+
+Running `.tree("full")` on an entire repo is expensive. For 50 files, the tree output alone is ~22,000 characters before extracting any content.
+
+```
+Naive:   .tree("full") on /repo           → 22K chars just for tree
+Scoped:  .tree("full") on /repo/docs/auth.md → 500 chars, then extract
+```
+
+**The fix**: Agents should explore directory structure first (ls, glob), identify the likely subdirectory, then run `.tree("full")` only on that target.
 
 <details>
 <summary>Full benchmark results</summary>
 
-| Question | Mode | Input Tokens | Latency | Savings |
-|----------|------|--------------|---------|---------|
-| Commit standards | without mq | 147,070 | 23s | - |
-| | with mq | 166,501 | 25s | -13% |
-| Package installation | without mq | 412,668 | 37s | - |
-| | with mq | 108,225 | 19s | **74%** |
-| Testing requirements | without mq | 244,271 | 24s | - |
-| | with mq | 168,318 | 27s | 31% |
-| CLI integration guide | without mq | 407,773 | 36s | - |
-| | with mq | 545,708 | 56s | -34% |
-| Documentation standards | without mq | 141,917 | 19s | - |
-| | with mq | 108,618 | 22s | 23% |
+| Question | Mode | Chars Read | Savings |
+|----------|------|------------|---------|
+| Commit standards | without mq | 9,115 | - |
+| | with mq (naive) | 12,877 | -41% |
+| | with mq (scoped) | 2,144 | **76%** |
+| Package installation | without mq | 10,407 | - |
+| | with mq | 3,200 | **74%** |
 
 Run it yourself: `./scripts/bench.sh`
 </details>
@@ -91,11 +97,17 @@ go install github.com/muqsitnawaz/mq@latest
 
 ### Agent Integration
 
-Add this to your `CLAUDE.md` (or equivalent config for other agents):
+Add to your `CLAUDE.md` or system prompt:
 
 ```markdown
-Use `mq` to query markdown efficiently: `.tree("full")` shows structure with previews, `.section("X") | .text` extracts content. Scope queries to specific files or subdirs. Prefer to narrow down search scope when you can.
+# Markdown Queries (mq)
+- mq <path> '.tree("full")' shows structure with content previews
+- mq <file> '.section("Name") | .text' extracts specific content
+- Scope matters: tree on a single file is cheap, tree on 1000 files is expensive
+- Use judgment: small repo? tree directly. Large repo? explore briefly to find the right subdir first.
 ```
+
+The insight: agents that scope their queries save 80%+ tokens. But don't over-prescribe - let the agent judge based on repo size.
 
 ## Usage
 

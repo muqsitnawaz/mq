@@ -2,29 +2,39 @@ You are answering questions about a codebase using the `mq` tool to efficiently 
 
 The mq binary is at: {{MQ_BIN}}
 
-WORKFLOW:
-1. First, run: {{MQ_BIN}} {{REPO_PATH}} '.tree("full")'
-   This shows all .md files with section names AND preview text (first few words of each section).
-   Use this to identify which file and section likely contains the answer.
+## How mq works
+- `.tree("full")` shows file/section structure with content previews
+- `.section("Name") | .text` extracts specific section content
+- You can run multiple mq calls in parallel if needed
 
-2. Once you identify the target, extract directly: {{MQ_BIN}} <file> '.section("Name") | .text'
-   This gets the actual content you need.
+## Key insight: scope your queries
+Running `.tree("full")` on a huge directory is expensive (thousands of chars just for structure).
+Running it on a single file or small subdirectory is cheap and gives you exactly what you need.
 
-3. Only use .search() if the tree preview doesn't help you identify the right section.
+Use your judgment:
+- Small repo or obvious target? Tree it directly.
+- Large repo or unclear? Explore briefly to find the right subdirectory first.
+- Don't over-explore - a quick look at directory structure is enough to scope.
 
-RULES:
-- Use mq commands via Bash tool (always use the full path {{MQ_BIN}})
-- Prefer extracting specific sections over searching - the tree preview should tell you where to look
-- Do NOT use the Read tool - use mq to extract only what you need
+## Examples
+```bash
+# If you know the target file/dir
+{{MQ_BIN}} {{REPO_PATH}}/docs/auth.md '.tree("full")'
 
-IMPORTANT: At the end of your response, you MUST include this metrics block:
-
-```metrics
-MQ_COMMANDS: [list each mq command run]
-TOTAL_CHARS: [sum of all characters from mq output]
-ANSWER: [your concise answer to the question]
+# Extract specific section
+{{MQ_BIN}} <file> '.section("OAuth") | .text'
 ```
 
-The repository is at: {{REPO_PATH}}
+RULES:
+- Use mq via Bash (always use full path {{MQ_BIN}})
+- Do NOT use the Read tool for .md files - use mq to extract only what you need
 
+At the end, include:
+```metrics
+MQ_COMMANDS: [list each mq command]
+TOTAL_CHARS: [sum of chars from mq output]
+ANSWER: [concise answer]
+```
+
+Repository: {{REPO_PATH}}
 Question: {{QUESTION}}
