@@ -1,16 +1,32 @@
 package main
 
 import (
+	"archive/tar"
+	"archive/zip"
+	"compress/gzip"
+	"encoding/json"
 	"fmt"
+	"io"
 	"log"
+	"net/http"
 	"os"
+	"path/filepath"
+	"runtime"
 	"strings"
+	"time"
 
 	mq "github.com/muqsitnawaz/mq/lib"
 	"github.com/muqsitnawaz/mq/mql"
 )
 
 var version = "dev"
+
+const (
+	repo           = "muqsitnawaz/mq"
+	releaseAPIURL  = "https://api.github.com/repos/" + repo + "/releases/latest"
+	yellow         = "\033[33m"
+	reset          = "\033[0m"
+)
 
 func main() {
 	if len(os.Args) >= 2 {
@@ -21,8 +37,16 @@ func main() {
 		case "-v", "--version", "version":
 			fmt.Printf("mq %s\n", version)
 			os.Exit(0)
+		case "upgrade":
+			if err := selfUpgrade(); err != nil {
+				log.Fatalf("Upgrade failed: %v", err)
+			}
+			os.Exit(0)
 		}
 	}
+
+	// Check for updates (non-blocking, silent on error)
+	checkForUpdates()
 
 	if len(os.Args) < 2 {
 		printUsage()
@@ -78,9 +102,237 @@ func printUsage() {
 	fmt.Println("  mq README.md '.section(\"API\") | .text' # Extract section")
 	fmt.Println("  mq README.md '.search(\"auth\")'        # Search content")
 	fmt.Println("  mq docs/ '.tree(\"full\")'              # Directory overview")
+	fmt.Println("\nCommands:")
+	fmt.Println("  upgrade         Upgrade to latest version")
 	fmt.Println("\nFlags:")
 	fmt.Println("  -h, --help      Show this help")
 	fmt.Println("  -v, --version   Show version")
+}
+
+func checkForUpdates() {
+	if version == "dev" {
+		return
+	}
+
+	client := &http.Client{Timeout: 2 * time.Second}
+	resp, err := client.Get(releaseAPIURL)
+	if err != nil {
+		return
+	}
+	defer resp.Body.Close()
+
+	var release struct {
+		TagName string `json:"tag_name"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&release); err != nil {
+		return
+	}
+
+	latest := strings.TrimPrefix(release.TagName, "v")
+	current := strings.TrimPrefix(version, "v")
+
+	if latest != current && latest > current {
+		fmt.Fprintf(os.Stderr, "%sA new version is available: %s (current: %s). Run 'mq upgrade' to update.%s\n\n", yellow, release.TagName, version, reset)
+	}
+}
+
+func selfUpgrade() error {
+	fmt.Println("Checking for updates...")
+
+	client := &http.Client{Timeout: 30 * time.Second}
+	resp, err := client.Get(releaseAPIURL)
+	if err != nil {
+		return fmt.Errorf("failed to check releases: %w", err)
+	}
+	defer resp.Body.Close()
+
+	var release struct {
+		TagName string `json:"tag_name"`
+		Assets  []struct {
+			Name               string `json:"name"`
+			BrowserDownloadURL string `json:"browser_download_url"`
+		} `json:"assets"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&release); err != nil {
+		return fmt.Errorf("failed to parse release: %w", err)
+	}
+
+	latest := strings.TrimPrefix(release.TagName, "v")
+	current := strings.TrimPrefix(version, "v")
+
+	if latest == current {
+		fmt.Printf("Already at latest version (%s)\n", version)
+		return nil
+	}
+
+	// Find the right asset
+	goos := runtime.GOOS
+	goarch := runtime.GOARCH
+	ext := "tar.gz"
+	if goos == "windows" {
+		ext = "zip"
+	}
+
+	assetName := fmt.Sprintf("mq_%s_%s.%s", goos, goarch, ext)
+	var downloadURL string
+	for _, asset := range release.Assets {
+		if asset.Name == assetName {
+			downloadURL = asset.BrowserDownloadURL
+			break
+		}
+	}
+
+	if downloadURL == "" {
+		return fmt.Errorf("no binary available for %s/%s", goos, goarch)
+	}
+
+	fmt.Printf("Downloading %s...\n", release.TagName)
+
+	// Download to temp file
+	resp, err = client.Get(downloadURL)
+	if err != nil {
+		return fmt.Errorf("download failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	tmpDir, err := os.MkdirTemp("", "mq-upgrade")
+	if err != nil {
+		return err
+	}
+	defer os.RemoveAll(tmpDir)
+
+	archivePath := filepath.Join(tmpDir, assetName)
+	f, err := os.Create(archivePath)
+	if err != nil {
+		return err
+	}
+	if _, err := io.Copy(f, resp.Body); err != nil {
+		f.Close()
+		return err
+	}
+	f.Close()
+
+	// Extract binary
+	binaryPath := filepath.Join(tmpDir, "mq")
+	if goos == "windows" {
+		binaryPath += ".exe"
+	}
+
+	if ext == "zip" {
+		if err := extractZip(archivePath, tmpDir); err != nil {
+			return err
+		}
+	} else {
+		if err := extractTarGz(archivePath, tmpDir); err != nil {
+			return err
+		}
+	}
+
+	// Get current executable path
+	execPath, err := os.Executable()
+	if err != nil {
+		return err
+	}
+	execPath, err = filepath.EvalSymlinks(execPath)
+	if err != nil {
+		return err
+	}
+
+	// Replace current binary
+	if err := os.Rename(binaryPath, execPath); err != nil {
+		// Try copy if rename fails (cross-device)
+		src, err := os.Open(binaryPath)
+		if err != nil {
+			return err
+		}
+		defer src.Close()
+
+		dst, err := os.OpenFile(execPath, os.O_WRONLY|os.O_TRUNC, 0755)
+		if err != nil {
+			return err
+		}
+		defer dst.Close()
+
+		if _, err := io.Copy(dst, src); err != nil {
+			return err
+		}
+	}
+
+	fmt.Printf("Upgraded to %s\n", release.TagName)
+	return nil
+}
+
+func extractTarGz(archivePath, destDir string) error {
+	f, err := os.Open(archivePath)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	gzr, err := gzip.NewReader(f)
+	if err != nil {
+		return err
+	}
+	defer gzr.Close()
+
+	tr := tar.NewReader(gzr)
+	for {
+		header, err := tr.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return err
+		}
+
+		if header.Typeflag == tar.TypeReg {
+			outPath := filepath.Join(destDir, header.Name)
+			outFile, err := os.OpenFile(outPath, os.O_CREATE|os.O_WRONLY, os.FileMode(header.Mode))
+			if err != nil {
+				return err
+			}
+			if _, err := io.Copy(outFile, tr); err != nil {
+				outFile.Close()
+				return err
+			}
+			outFile.Close()
+		}
+	}
+	return nil
+}
+
+func extractZip(archivePath, destDir string) error {
+	r, err := zip.OpenReader(archivePath)
+	if err != nil {
+		return err
+	}
+	defer r.Close()
+
+	for _, f := range r.File {
+		if f.FileInfo().IsDir() {
+			continue
+		}
+
+		rc, err := f.Open()
+		if err != nil {
+			return err
+		}
+
+		outPath := filepath.Join(destDir, f.Name)
+		outFile, err := os.OpenFile(outPath, os.O_CREATE|os.O_WRONLY, f.Mode())
+		if err != nil {
+			rc.Close()
+			return err
+		}
+
+		_, err = io.Copy(outFile, rc)
+		outFile.Close()
+		rc.Close()
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func handleDirectory(path string, query string) {
