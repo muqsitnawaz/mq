@@ -1,0 +1,67 @@
+# PageIndex Benchmark - Fri Jan 23 12:39:03 PM PST 2026
+
+## Tree Generation for AGENTS.md (191 lines)
+$ time python run_pageindex.py --md_path /tmp/langchain-bench/AGENTS.md
+
+Processing markdown file...
+Extracting nodes from markdown...
+Extracting text content from nodes...
+Building tree from nodes...
+Formatting tree structure...
+Generating summaries for each node...
+Parsing done, saving to file...
+Tree structure saved to: ./results/AGENTS_structure.json
+
+Latency: 6.317s (includes OpenAI API calls for LLM summaries)
+
+## Output (first 50 lines of generated tree):
+{
+  "doc_name": "AGENTS",
+  "structure": [
+    {
+      "title": "Global development guidelines for the LangChain monorepo",
+      "node_id": "0000",
+      "prefix_summary": "# Global development guidelines for the LangChain monorepo\n\nThis document provides context to understand the LangChain Python project and assist with development.",
+      "line_num": 1,
+      "nodes": [
+        {
+          "title": "Project architecture and context",
+          "node_id": "0001",
+          "prefix_summary": "## Project architecture and context",
+          "line_num": 5,
+          "nodes": [
+            {
+              "title": "Monorepo structure",
+              "node_id": "0002",
+              "summary": "The partial document describes the structure and organization of a Python monorepo for LangChain, which contains multiple independently versioned packages. It outlines the directory structure, including key components such as:\n\n1. **Core Layer (`langchain-core`)**: Contains base abstractions, interfaces, and protocols, which are foundational but not directly exposed to users.\n2. **Implementation Layer (`langchain` and `langchain_v1`)**: Includes concrete implementations and high-level public utilities, with `langchain_v1` being actively maintained and `langchain-classic` being legacy.\n3. **Integration Layer (`partners/`)**: Provides third-party service integrations, such as OpenAI, Anthropic, and local model support, while noting that some integrations are maintained in separate repositories.\n4. **Testing Layer (`standard-tests/`)**: Contains standardized integration tests for partner services.\n5. Additional utilities and tools, such as document chunking (`text-splitters`), model configuration profiles (`model-profiles`), command-line tools (`cli`), and CI/CD workflows (`.github/`).\n\nThe document also highlights the purpose of each layer and provides guidance on navigating related repositories for external integrations.",
+              "line_num": 7
+            },
+            {
+              "title": "Development tools & commands**",
+              "node_id": "0003",
+              "prefix_summary": "### Development tools & commands**\n\n- `uv` – Fast Python package installer and resolver (replaces pip/poetry)\n- `make` – Task runner for common development commands. Feel free to look at the `Makefile` for available commands and usage patterns.\n- `ruff` – Fast Python linter and formatter\n- `mypy` – Static type checking\n- `pytest` – Testing framework\n\nThis monorepo uses `uv` for dependency management. Local development uses editable installs: `[tool.uv.sources]`\n\nEach package in `libs/` has its own `pyproject.toml` and `uv.lock`.\n\n```bash\n# Run unit tests (no network)\nmake test\n\n# Run specific test file\nuv run --group test pytest tests/unit_tests/test_specific.py\n```\n\n```bash\n# Lint code\nmake lint\n\n# Format code\nmake format\n\n# Type checking\nuv run --group lint mypy .\n```",
+              "line_num": 36,
+              "nodes": [
+                {
+                  "title": "Key config files",
+                  "node_id": "0004",
+                  "summary": "#### Key config files\n\n- pyproject.toml: Main workspace configuration with dependency groups\n- uv.lock: Locked dependencies for reproducible builds\n- Makefile: Development tasks",
+                  "line_num": 67
+                },
+                {
+                  "title": "Commit standards",
+                  "node_id": "0005",
+                  "summary": "#### Commit standards\n\nSuggest PR titles that follow Conventional Commits format. Refer to .github/workflows/pr_lint for allowed types and scopes. Note that all commit/PR titles should be in lowercase with the exception of proper nouns/named entities. All PR titles should include a scope with no exceptions. For example:\n\n```txt\nfeat(langchain): add new chat completion feature\nfix(core): resolve type hinting issue in vector store\nchore(anthropic): update infrastructure dependencies\n```\n\nNote how `feat(langchain)` includes a scope even though it is the main package and name of the repo.",
+                  "line_num": 73
+                },
+                {
+                  "title": "Pull request guidelines",
+                  "node_id": "0006",
+                  "summary": "#### Pull request guidelines\n\n- Always add a disclaimer to the PR description mentioning how AI agents are involved with the contribution.\n- Describe the \"why\" of the changes, why the proposed solution is the right one. Limit prose.\n- Highlight areas of the proposed changes that require careful review.",
+                  "line_num": 85
+                }
+              ]
+            }
+          ]
+        },
+        {

@@ -8,6 +8,8 @@ AI agents waste tokens reading entire files. mq lets them query structure first,
 
 **Result: Up to 83% fewer tokens when scoped correctly.**
 
+[Install](#installation) | [Usage](#usage) | [Query Language](#query-language)
+
 ### Works With
 
 <p>
@@ -23,7 +25,7 @@ Any AI agent or coding assistant that can execute shell commands.
 
 ### Why mq?
 
-| | mq | qmd | PageIndex |
+| | mq | [qmd](https://github.com/tobi/qmd) | [PageIndex](https://github.com/VectifyAI/PageIndex) |
 |--|:--:|:--:|:--:|
 | Zero external API calls | **Yes** | No | No |
 | No pre-built index | **Yes** | No | No |
@@ -33,8 +35,8 @@ Any AI agent or coding assistant that can execute shell commands.
 <details>
 <summary>See full comparison</summary>
 
-- **vs qmd**: No 3GB models to download, no SQLite database, no embedding step
-- **vs PageIndex**: No OpenAI API costs, no pre-processing, works offline
+- **vs [qmd](https://github.com/tobi/qmd)**: No 3GB models to download, no SQLite database, no embedding step
+- **vs [PageIndex](https://github.com/VectifyAI/PageIndex)**: No OpenAI API costs, no pre-processing, works offline
 - **vs both**: Agent reasons in its own context - no external computation
 </details>
 
@@ -118,17 +120,25 @@ Run it yourself: `./scripts/bench.sh`
 
 ## Comparison: mq vs qmd vs PageIndex
 
-Three approaches to document retrieval for AI agents:
+Benchmarked on LangChain monorepo (36 markdown files, 1,804 lines). [Full logs](benchmark/tool_comparison.md).
 
-| | **mq** | **[qmd](https://github.com/tobi/qmd)** | **[PageIndex](https://github.com/VectifyAI/PageIndex)** |
-|--|--------|---------|---------------|
-| **Target** | Markdown | Markdown | PDFs |
-| **Technique** | AST parsing + query language | Vector embeddings + BM25 | LLM-generated tree structure |
-| **Index** | On-demand (agent context) | Pre-built (SQLite + vectors) | Pre-built (JSON tree) |
-| **Retrieval** | Deterministic query | Similarity search | LLM traverses tree |
-| **Dependencies** | Single Go binary | 3GB models, Bun, SQLite | Python, OpenAI API |
-| **Cost per query** | Zero | Local compute | LLM API calls |
-| **Output** | Exact content | Paths + scores | Node references |
+| Metric | **mq** | **[qmd](https://github.com/tobi/qmd)** | **[PageIndex](https://github.com/VectifyAI/PageIndex)** |
+|--------|--------|---------|---------------|
+| **Setup time** | 0 | 29s + 3.1GB models | 6s/file (API) |
+| **Query latency** | **3-22ms** | 154ms (BM25) / 74s (semantic) | 6.3s |
+| **Cost per query** | $0 | $0 (local) | ~$0.01-0.10 |
+| **Dependencies** | Single binary | Bun, SQLite, node-llama-cpp | Python, OpenAI API |
+| **Pre-indexing** | No | Yes (embed step) | Yes (tree generation) |
+| **Works offline** | Yes | Yes (after model download) | No |
+
+### Latency Comparison (same query: "commit standards")
+
+```
+mq:        22ms   ████
+qmd BM25: 154ms   ███████████████████████████
+qmd semantic: 74s ████████████████████████████████████████████████████████ (CPU, no GPU)
+PageIndex: 6.3s   ████████████████████████████████████████████
+```
 
 **Core insight**: qmd and PageIndex compute results for you. mq doesn't - it exposes structure so the agent reasons to results itself:
 
@@ -170,12 +180,6 @@ This extends the mq philosophy: let agents reason over structure, but use sub-ag
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/muqsitnawaz/mq/main/install.sh | bash
-```
-
-Or with Go:
-
-```bash
-go install github.com/muqsitnawaz/mq@latest
 ```
 
 ### Agent Integration
