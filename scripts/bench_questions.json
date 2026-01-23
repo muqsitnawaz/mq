@@ -1,0 +1,37 @@
+[
+  {
+    "id": "q1",
+    "question": "What are the commit standards for the LangChain monorepo? What format should commit messages follow?",
+    "keywords": ["commit", "standards", "format"],
+    "expected_source": "AGENTS.md",
+    "expected_section": "Commit standards"
+  },
+  {
+    "id": "q2",
+    "question": "How do I install and use the langchain-anthropic partner package?",
+    "keywords": ["anthropic", "install", "partner"],
+    "expected_source": "libs/partners/anthropic/README.md",
+    "expected_section": "Installation"
+  },
+  {
+    "id": "q3",
+    "question": "What is the testing requirement for contributions to LangChain? What test coverage is expected?",
+    "keywords": ["testing", "requirements", "coverage"],
+    "expected_source": "AGENTS.md",
+    "expected_section": "Testing requirements"
+  },
+  {
+    "id": "q4",
+    "question": "How do I create a new integration package using the LangChain CLI?",
+    "keywords": ["integration", "CLI", "template"],
+    "expected_source": "libs/cli/DOCS.md",
+    "expected_section": "integration"
+  },
+  {
+    "id": "q5",
+    "question": "What are the documentation standards for LangChain code? Show me an example of proper docstring format.",
+    "keywords": ["documentation", "standards", "docstring"],
+    "expected_source": "AGENTS.md",
+    "expected_section": "Documentation standards"
+  }
+]

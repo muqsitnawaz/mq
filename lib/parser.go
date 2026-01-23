@@ -112,21 +112,22 @@ func (p *Parser) Parse(source []byte, path string) (*Document, error) {
 func (p *Parser) buildIndexes(doc *Document) error {
 	var currentSection *Section
 	var sectionStack []*Section
-	lineNumber := 1
+
+	// Pre-compute line starts for efficient line number lookups
+	lineStarts := computeLineStarts(doc.source)
 
 	err := ast.Walk(doc.root, func(n ast.Node, entering bool) (ast.WalkStatus, error) {
 		if !entering {
-			// Track line numbers on exit
-			if _, ok := n.(*ast.Paragraph); ok {
-				lineNumber++
-			}
 			return ast.WalkContinue, nil
 		}
 
 		switch node := n.(type) {
 		case *ast.Heading:
 			heading := p.extractHeading(node, doc.source)
-			heading.Line = lineNumber
+			// Get line number from AST node's byte offset
+			if lines := node.Lines(); lines.Len() > 0 {
+				heading.Line = getLineNumber(lineStarts, lines.At(0).Start)
+			}
 
 			// Add to heading indexes
 			doc.headingIndex[heading.Text] = heading
@@ -138,15 +139,16 @@ func (p *Parser) buildIndexes(doc *Document) error {
 			// Create section
 			section := &Section{
 				Heading: heading,
-				Start:   lineNumber,
+				Start:   heading.Line,
 				Content: []ast.Node{},
+				source:  doc.source,
 			}
 
 			// Manage section hierarchy
 			for len(sectionStack) > 0 && sectionStack[len(sectionStack)-1].Heading.Level >= heading.Level {
-				// Close previous section
+				// Close previous section at the line before this heading
 				prev := sectionStack[len(sectionStack)-1]
-				prev.End = lineNumber - 1
+				prev.End = heading.Line - 1
 				sectionStack = sectionStack[:len(sectionStack)-1]
 			}
 
@@ -218,14 +220,42 @@ func (p *Parser) buildIndexes(doc *Document) error {
 		return ast.WalkContinue, nil
 	})
 
-	// Close remaining sections
+	// Close remaining sections - set end to total line count
+	totalLines := len(lineStarts)
 	for _, section := range sectionStack {
 		if section.End == 0 {
-			section.End = lineNumber
+			section.End = totalLines
 		}
 	}
 
 	return err
+}
+
+// computeLineStarts returns byte offsets where each line starts.
+// lineStarts[i] is the byte offset where line i+1 starts (0-indexed internally).
+func computeLineStarts(source []byte) []int {
+	starts := []int{0} // Line 1 starts at byte 0
+	for i, b := range source {
+		if b == '\n' {
+			starts = append(starts, i+1)
+		}
+	}
+	return starts
+}
+
+// getLineNumber returns the 1-based line number for a given byte offset.
+func getLineNumber(lineStarts []int, offset int) int {
+	// Binary search for the line containing this offset
+	lo, hi := 0, len(lineStarts)-1
+	for lo < hi {
+		mid := (lo + hi + 1) / 2
+		if lineStarts[mid] <= offset {
+			lo = mid
+		} else {
+			hi = mid - 1
+		}
+	}
+	return lo + 1 // Convert to 1-based line number
 }
 
 // extractHeading extracts heading information from an AST node.

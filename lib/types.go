@@ -26,18 +26,31 @@ type Section struct {
 	Children []*Section // Child sections
 	Start    int        // Starting line number
 	End      int        // Ending line number
+	source   []byte     // Reference to document source for text extraction
 
 	// Store references to extracted elements for this section
 	codeBlocks []*CodeBlock // Code blocks in this section (not children)
 }
 
-// GetText extracts the text content from the section.
+// GetText extracts the raw markdown content from the section using line numbers.
 func (s *Section) GetText() string {
-	var buf strings.Builder
-	for _, node := range s.Content {
-		extractText(node, &buf)
+	if s.source == nil || s.Start == 0 || s.End == 0 {
+		return ""
 	}
-	return buf.String()
+
+	lines := strings.Split(string(s.source), "\n")
+	if s.Start > len(lines) {
+		return ""
+	}
+
+	end := s.End
+	if end > len(lines) {
+		end = len(lines)
+	}
+
+	// Extract lines (1-indexed to 0-indexed)
+	sectionLines := lines[s.Start-1 : end]
+	return strings.Join(sectionLines, "\n")
 }
 
 // GetCodeBlocks returns all code blocks in this section and its children.

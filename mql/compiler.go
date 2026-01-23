@@ -241,6 +241,33 @@ func (v *compilerVisitor) VisitSelector(node *SelectorNode) (interface{}, error)
 		}
 		return v.VisitFilter(filterNode)
 
+	case "tree":
+		// Check if we're operating on a section or the whole document
+		compact := false
+		if len(args) > 0 {
+			if s, ok := args[0].(string); ok && s == "compact" {
+				compact = true
+			}
+		}
+
+		// If current context is a section, build tree for that section
+		if section, ok := v.context.Current.(*mq.Section); ok {
+			return buildSectionTree(section, compact), nil
+		}
+
+		// Otherwise, build tree for the whole document
+		return doc.BuildTree(compact), nil
+
+	case "search":
+		if len(args) == 0 {
+			return nil, fmt.Errorf("search requires a query string")
+		}
+		query, ok := args[0].(string)
+		if !ok {
+			return nil, fmt.Errorf("search query must be a string")
+		}
+		return doc.Search(query), nil
+
 	default:
 		return nil, fmt.Errorf("unknown selector: %s", node.Name)
 	}
@@ -1115,4 +1142,64 @@ func toInt(v interface{}) (int, bool) {
 	default:
 		return 0, false
 	}
+}
+
+// buildSectionTree builds a tree result for a single section.
+func buildSectionTree(section *mq.Section, compact bool) *mq.TreeResult {
+	result := &mq.TreeResult{
+		Path:    section.Heading.Text,
+		Lines:   section.End - section.Start + 1,
+		Compact: compact,
+	}
+
+	node := buildSectionNode(section, compact)
+	result.Root = []*mq.TreeNode{node}
+
+	return result
+}
+
+// buildSectionNode recursively builds tree nodes from a section.
+func buildSectionNode(section *mq.Section, compact bool) *mq.TreeNode {
+	node := &mq.TreeNode{
+		Type:  "section",
+		Text:  section.Heading.Text,
+		Start: section.Start,
+		End:   section.End,
+		Level: section.Heading.Level,
+	}
+
+	// Add child sections
+	for _, child := range section.Children {
+		childNode := buildSectionNode(child, compact)
+		node.Children = append(node.Children, childNode)
+	}
+
+	// Add special elements (only in full mode)
+	if !compact {
+		codeBlocks := section.GetCodeBlocks()
+		if len(codeBlocks) > 0 {
+			// Group by language
+			langCounts := make(map[string]int)
+			for _, cb := range codeBlocks {
+				lang := cb.Language
+				if lang == "" {
+					lang = "plain"
+				}
+				langCounts[lang]++
+			}
+			for lang, count := range langCounts {
+				meta := fmt.Sprintf("%d block", count)
+				if count > 1 {
+					meta = fmt.Sprintf("%d blocks", count)
+				}
+				node.Children = append(node.Children, &mq.TreeNode{
+					Type: "code",
+					Text: lang,
+					Meta: meta,
+				})
+			}
+		}
+	}
+
+	return node
 }

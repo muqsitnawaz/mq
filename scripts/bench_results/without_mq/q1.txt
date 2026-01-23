@@ -1,0 +1,50 @@
+I now have all the information about commit standards.
+
+## Commit Standards for LangChain Monorepo
+
+The LangChain monorepo follows the **Conventional Commits 1.0.0** specification for commit messages and PR titles.
+
+### Format
+```
+<type>[optional scope]: <description>
+```
+
+### Allowed Types
+| Type | Description |
+|------|-------------|
+| `feat` | A new feature (MINOR version) |
+| `fix` | A bug fix (PATCH version) |
+| `docs` | Documentation only changes |
+| `style` | Formatting, linting; no code change |
+| `refactor` | Code change that neither fixes a bug nor adds a feature |
+| `perf` | Code change that improves performance |
+| `test` | Adding or correcting tests |
+| `build` | Changes affecting build system/external dependencies |
+| `ci` | Continuous integration/configuration changes |
+| `chore` | Other changes not modifying source or test files |
+| `revert` | Reverts a previous commit |
+| `release` | Prepare a new release |
+
+### Allowed Scopes
+`core`, `cli`, `langchain`, `langchain-classic`, `model-profiles`, `standard-tests`, `text-splitters`, `docs`, `anthropic`, `chroma`, `deepseek`, `exa`, `fireworks`, `groq`, `huggingface`, `mistralai`, `nomic`, `ollama`, `openai`, `perplexity`, `prompty`, `qdrant`, `xai`, `infra`, `deps`
+
+### Key Rules
+1. All commit/PR titles should be **lowercase** (except proper nouns)
+2. All PR titles should **include a scope** (even for `langchain` package)
+3. Breaking changes: append `!` after type/scope (e.g., `feat!: drop x support`)
+4. Multiple scopes can be comma-separated: `feat(core,cli): description`
+5. Release commits: `release(scope): x.y.z`
+
+### Examples
+```
+feat(langchain): add new chat completion feature
+fix(core): resolve type hinting issue in vector store
+chore(anthropic): update infrastructure dependencies
+docs(openai): update API usage examples
+```
+
+```metrics
+FILES_READ: [/tmp/langchain-bench/CLAUDE.md, /tmp/langchain-bench/.github/PULL_REQUEST_TEMPLATE.md, /tmp/langchain-bench/.github/workflows/pr_lint.yml]
+TOTAL_CHARS: 9553
+ANSWER: LangChain follows Conventional Commits 1.0.0 format: `<type>(scope): description`. Allowed types are feat, fix, docs, style, refactor, perf, test, build, ci, chore, revert, release. Scopes include core, cli, langchain, and partner packages. Titles must be lowercase (except proper nouns), and scopes are required for all PRs.
+```

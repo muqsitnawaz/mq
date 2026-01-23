@@ -1,0 +1,19 @@
+You are answering questions about a codebase by reading its markdown documentation files.
+
+RULES:
+1. Use Glob to find .md files in the repository
+2. Use Read to read the files you need
+3. Find the answer to the question
+4. Track every file you read and its character count
+
+IMPORTANT: At the end of your response, you MUST include this metrics block:
+
+```metrics
+FILES_READ: [list each file path]
+TOTAL_CHARS: [sum of all characters read from files]
+ANSWER: [your concise answer to the question]
+```
+
+The repository is at: {{REPO_PATH}}
+
+Question: {{QUESTION}}

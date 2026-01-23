@@ -12,48 +12,56 @@ import (
 
 func main() {
 	if len(os.Args) < 2 {
-		fmt.Println("Usage: mq <markdown-file> [query]")
+		fmt.Println("Usage: mq <markdown-file|directory> [query]")
 		fmt.Println("\nBasic Examples:")
 		fmt.Println("  mq README.md                                    # Show document info")
 		fmt.Println("  mq README.md '.headings'                        # Get all headings")
 		fmt.Println("  mq README.md '.headings(2)'                    # Get H2 headings only")
 		fmt.Println("  mq README.md '.code(\"python\")'                 # Get Python code blocks")
 		fmt.Println("  mq README.md '.section(\"Installation\")'        # Get Installation section")
+		fmt.Println("\nTree Examples:")
+		fmt.Println("  mq README.md .tree                              # Show document structure")
+		fmt.Println("  mq README.md '.tree(\"compact\")'                # Headings only")
+		fmt.Println("  mq docs/ .tree                                  # Show all .md files in directory")
+		fmt.Println("  mq docs/ '.tree(\"expand\")'                     # Show files with top headings")
 		fmt.Println("\nAdvanced Examples:")
-		fmt.Println("  mq README.md '.section(\"API\").code(\"curl\")'    # Get curl examples in API section")
-		fmt.Println("  mq README.md '.code | select(.language == \"python\" and .lines > 10)'  # Filter code blocks")
-		fmt.Println("  mq README.md '.headings | select(.level <= 2)'  # Filter by heading level")
-		fmt.Println("  mq README.md '.context(\"authentication flow\")'  # Find relevant sections")
-		fmt.Println("\nTransformation Examples:")
-		fmt.Println("  mq README.md '.headings | map(.text)'           # Extract heading text")
-		fmt.Println("  mq README.md '.code | map({lang: .language})'   # Transform to JSON")
-		fmt.Println("  mq README.md '.section(\"API\") | .summary(100)' # Summarize section")
-		fmt.Println("\nStructural Examples:")
-		fmt.Println("  mq README.md '.toc'                             # Get table of contents")
-		fmt.Println("  mq README.md '.depth(2)'                        # Get elements at depth 2")
-		fmt.Println("  mq README.md '.section(\"API\").children'        # Get subsections")
-		fmt.Println("\nOutput Format Examples:")
-		fmt.Println("  mq README.md '.section(\"Examples\") | .json'    # Output as JSON")
-		fmt.Println("  mq README.md '.section(\"API\") | .yaml'         # Output as YAML")
-		fmt.Println("  mq README.md '.code | .chunk(4000)'            # Split into chunks")
+		fmt.Println("  mq README.md '.section(\"API\") | .code(\"curl\")'  # Get curl examples in API section")
+		fmt.Println("  mq README.md '.section(\"API\") | .text'          # Get section content")
+		fmt.Println("  mq README.md '.section(\"API\") | .tree'          # Tree of specific section")
 		os.Exit(1)
+	}
+
+	path := os.Args[1]
+	query := ""
+	if len(os.Args) >= 3 {
+		query = os.Args[2]
+	}
+
+	// Check if path is a directory
+	info, err := os.Stat(path)
+	if err != nil {
+		log.Fatalf("Failed to stat path: %v", err)
+	}
+
+	if info.IsDir() {
+		handleDirectory(path, query)
+		return
 	}
 
 	// Load the markdown file
 	engine := mql.New()
-	doc, err := engine.LoadDocument(os.Args[1])
+	doc, err := engine.LoadDocument(path)
 	if err != nil {
 		log.Fatalf("Failed to load document: %v", err)
 	}
 
 	// If no query provided, show document info
-	if len(os.Args) < 3 {
+	if query == "" {
 		showDocumentInfo(doc)
 		return
 	}
 
 	// Execute the query
-	query := os.Args[2]
 	result, err := engine.Query(doc, query)
 	if err != nil {
 		log.Fatalf("Query failed: %v", err)
@@ -61,6 +69,45 @@ func main() {
 
 	// Display results
 	displayResult(result)
+}
+
+func handleDirectory(path string, query string) {
+	// Directory mode supports .tree and .search queries
+	if query == "" {
+		query = ".tree"
+	}
+
+	// Handle tree queries
+	if query == ".tree" || query == `.tree("compact")` {
+		result, err := mq.BuildDirTree(path, false)
+		if err != nil {
+			log.Fatalf("Failed to build directory tree: %v", err)
+		}
+		fmt.Print(result.String())
+		return
+	}
+
+	if query == `.tree("expand")` {
+		result, err := mq.BuildDirTree(path, true)
+		if err != nil {
+			log.Fatalf("Failed to build directory tree: %v", err)
+		}
+		fmt.Print(result.String())
+		return
+	}
+
+	// Handle search queries: .search("term")
+	if strings.HasPrefix(query, `.search("`) && strings.HasSuffix(query, `")`) {
+		searchTerm := query[9 : len(query)-2]
+		result, err := mq.SearchDir(path, searchTerm)
+		if err != nil {
+			log.Fatalf("Search failed: %v", err)
+		}
+		fmt.Print(result.String())
+		return
+	}
+
+	log.Fatalf("Directory mode supports: .tree, .tree(\"expand\"), .search(\"term\")")
 }
 
 func showDocumentInfo(doc *mq.Document) {
@@ -200,6 +247,12 @@ func displayResult(result interface{}) {
 		for i, s := range v {
 			fmt.Printf("%d. %s\n", i+1, s)
 		}
+
+	case *mq.TreeResult:
+		fmt.Print(v.String())
+
+	case *mq.SearchResults:
+		fmt.Print(v.String())
 
 	default:
 		fmt.Printf("Result type: %T\n", result)
