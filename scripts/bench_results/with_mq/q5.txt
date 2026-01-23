@@ -1,0 +1,40 @@
+## Documentation Standards for LangChain Code
+
+LangChain uses **Google-style docstrings** with an `Args` section for all public functions.
+
+### Example of Proper Docstring Format
+
+```python
+def send_email(to: str, msg: str, *, priority: str = "normal") -> bool:
+    """Send an email to a recipient with specified priority.
+
+    Any additional context about the function can go here.
+
+    Args:
+        to: The email address of the recipient.
+        msg: The message body to send.
+        priority: Email priority level.
+
+    Returns:
+        `True` if email was sent successfully, `False` otherwise.
+
+    Raises:
+        InvalidEmailError: If the email address format is invalid.
+        SMTPConnectionError: If unable to connect to email server.
+    """
+```
+
+### Key Rules
+
+1. **Types go in function signatures, NOT in docstrings**
+2. **Don't repeat defaults** in docstrings unless there's post-processing or conditional setting
+3. **Focus on "why" rather than "what"** in descriptions
+4. **Document all parameters, return values, and exceptions**
+5. **Keep descriptions concise but clear**
+6. **Use American English spelling** (e.g., "behavior", not "behaviour")
+
+```metrics
+MQ_COMMANDS: ["/home/muqsit/src/github.com/muqsitnawaz/mq/mq /tmp/langchain-bench .tree", "/home/muqsit/src/github.com/muqsitnawaz/mq/mq /tmp/langchain-bench '.search(\"docstring\")'", "/home/muqsit/src/github.com/muqsitnawaz/mq/mq /tmp/langchain-bench/AGENTS.md '.section(\"Documentation standards\") | .text'"]
+TOTAL_CHARS: 3804
+ANSWER: LangChain uses Google-style docstrings with Args, Returns, and Raises sections. Types belong in function signatures only, not docstrings. Focus on "why" over "what", document all parameters/returns/exceptions, use American English spelling.
+```

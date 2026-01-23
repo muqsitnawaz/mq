@@ -1,0 +1,32 @@
+Based on my search through the LangChain documentation, here's what I found about testing requirements:
+
+## Testing Requirements for LangChain Contributions
+
+**Core Requirement:** Every new feature or bugfix **MUST** be covered by unit tests.
+
+**Test Types:**
+- **Unit tests:** Located in `tests/unit_tests/` - no network calls allowed
+- **Integration tests:** Located in `tests/integration_tests/` - network calls permitted
+
+**Testing Framework:** `pytest`
+
+**Test Structure:** File structure should mirror the source code structure
+
+**Required Checklist:**
+- Tests fail when new logic is broken
+- Happy path is covered
+- Edge cases and error conditions are tested
+- Use fixtures/mocks for external dependencies
+- Tests must be deterministic (no flaky tests)
+
+**For Integration Packages:** Must implement standard tests by inheriting from:
+- `ChatModelUnitTests` for unit tests
+- `ChatModelIntegrationTests` for integration tests
+
+**Coverage Expectation:** No specific percentage is mentioned - the requirement is that all new features/bugfixes must have corresponding tests that would fail if the logic breaks.
+
+```metrics
+MQ_COMMANDS: ["/home/muqsit/src/github.com/muqsitnawaz/mq/mq /tmp/langchain-bench .tree", "/home/muqsit/src/github.com/muqsitnawaz/mq/mq /tmp/langchain-bench '.search(\"test\")'", "/home/muqsit/src/github.com/muqsitnawaz/mq/mq /tmp/langchain-bench/AGENTS.md '.section(\"Testing requirements\") | .text'", "/home/muqsit/src/github.com/muqsitnawaz/mq/mq /tmp/langchain-bench '.search(\"coverage\")'", "/home/muqsit/src/github.com/muqsitnawaz/mq/mq /tmp/langchain-bench/libs/standard-tests/README.md '.section(\"Usage\") | .text'"]
+TOTAL_CHARS: 8051
+ANSWER: Every new feature/bugfix MUST have unit tests. Tests go in tests/unit_tests/ (no network) or tests/integration_tests/ (network allowed). Use pytest framework. Tests must cover happy path, edge cases, error conditions, and be deterministic. Integration packages must implement standard tests inheriting from ChatModelUnitTests and ChatModelIntegrationTests. No specific coverage percentage is defined.
+```

@@ -58,6 +58,22 @@ setup_repo() {
     fi
 }
 
+# Temporarily hide CLAUDE.md to force agents to search
+hide_claude_md() {
+    if [ -f "$REPO_PATH/CLAUDE.md" ]; then
+        mv "$REPO_PATH/CLAUDE.md" "$REPO_PATH/.CLAUDE.md.bak"
+        log "Temporarily hidden CLAUDE.md"
+    fi
+}
+
+# Restore CLAUDE.md after benchmark
+restore_claude_md() {
+    if [ -f "$REPO_PATH/.CLAUDE.md.bak" ]; then
+        mv "$REPO_PATH/.CLAUDE.md.bak" "$REPO_PATH/CLAUDE.md"
+        log "Restored CLAUDE.md"
+    fi
+}
+
 # Find session file by session ID
 find_session_file() {
     local session_id="$1"
@@ -127,6 +143,7 @@ run_benchmark() {
     prompt=$(cat "$prompt_file")
     prompt="${prompt//\{\{REPO_PATH\}\}/$REPO_PATH}"
     prompt="${prompt//\{\{QUESTION\}\}/$question}"
+    prompt="${prompt//\{\{MQ_BIN\}\}/$MQ_BIN}"
 
     log "Running $question_id ($mode) [session: $session_id]..."
 
@@ -193,8 +210,8 @@ Comparing agent performance with and without mq tool.
 
 ## Results
 
-| Question | Mode | Input Tokens | Output Tokens | Duration (ms) | Wall Time (s) |
-|----------|------|--------------|---------------|---------------|---------------|
+| Question | Mode | Input Tokens | Output Tokens | Wall Time (s) |
+|----------|------|--------------|---------------|---------------|
 EOF
 
     local total_without_input=0
@@ -211,17 +228,15 @@ EOF
         # Without mq metrics
         local without_input=$(cat "$RESULTS_DIR/without_mq/${qid}.input_tokens" 2>/dev/null || echo "0")
         local without_output=$(cat "$RESULTS_DIR/without_mq/${qid}.output_tokens" 2>/dev/null || echo "0")
-        local without_duration=$(cat "$RESULTS_DIR/without_mq/${qid}.duration_ms" 2>/dev/null || echo "0")
         local without_wall=$(cat "$RESULTS_DIR/without_mq/${qid}.wall_time" 2>/dev/null | cut -d. -f1 || echo "0")
 
         # With mq metrics
         local with_input=$(cat "$RESULTS_DIR/with_mq/${qid}.input_tokens" 2>/dev/null || echo "0")
         local with_output=$(cat "$RESULTS_DIR/with_mq/${qid}.output_tokens" 2>/dev/null || echo "0")
-        local with_duration=$(cat "$RESULTS_DIR/with_mq/${qid}.duration_ms" 2>/dev/null || echo "0")
         local with_wall=$(cat "$RESULTS_DIR/with_mq/${qid}.wall_time" 2>/dev/null | cut -d. -f1 || echo "0")
 
-        echo "| $qid | without_mq | $without_input | $without_output | $without_duration | $without_wall |" >> "$summary_file"
-        echo "| $qid | with_mq | $with_input | $with_output | $with_duration | $with_wall |" >> "$summary_file"
+        echo "| $qid | without_mq | $without_input | $without_output | $without_wall |" >> "$summary_file"
+        echo "| $qid | with_mq | $with_input | $with_output | $with_wall |" >> "$summary_file"
 
         # Accumulate totals for averages
         total_without_input=$((total_without_input + without_input))
@@ -270,6 +285,10 @@ EOF
 main() {
     check_deps
     setup_repo
+
+    # Hide CLAUDE.md to force agents to search (restore on exit)
+    trap restore_claude_md EXIT
+    hide_claude_md
 
     mkdir -p "$RESULTS_DIR"
 

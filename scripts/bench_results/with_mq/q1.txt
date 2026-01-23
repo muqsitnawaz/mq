@@ -1,13 +1,12 @@
-The `mq` tool is not installed. However, I already have the answer from the CLAUDE.md content provided in the system context. The commit standards are clearly documented there.
+The commit standards for the LangChain monorepo are:
 
-## Commit Standards for LangChain Monorepo
+## Commit Standards
 
-The commit messages should follow **Conventional Commits format**. Key rules:
+The repository uses **Conventional Commits** format for PR titles. Key requirements:
 
 1. **Format**: `type(scope): description`
-2. **Case**: All lowercase except for proper nouns/named entities
-3. **Scope**: Required for all commits - no exceptions
-4. **Types**: Refer to `.github/workflows/pr_lint` for allowed types
+2. **Lowercase**: All commit/PR titles should be lowercase (except proper nouns/named entities)
+3. **Scope required**: All PR titles MUST include a scope - no exceptions
 
 ### Examples:
 ```txt
@@ -16,10 +15,10 @@ fix(core): resolve type hinting issue in vector store
 chore(anthropic): update infrastructure dependencies
 ```
 
-Note: Even for the main `langchain` package, the scope must be included (e.g., `feat(langchain):` not just `feat:`).
+For allowed types and scopes, refer to `.github/workflows/pr_lint`.
 
 ```metrics
-MQ_COMMANDS: [mq . .tree (failed - tool not installed)]
-TOTAL_CHARS: 0 (from mq), answer derived from CLAUDE.md in system context
-ANSWER: LangChain uses Conventional Commits format: type(scope): description. All lowercase (except proper nouns), scope is always required. Examples: feat(langchain): add feature, fix(core): resolve issue, chore(anthropic): update deps.
+MQ_COMMANDS: ["/home/muqsit/src/github.com/muqsitnawaz/mq/mq /tmp/langchain-bench .tree", "/home/muqsit/src/github.com/muqsitnawaz/mq/mq /tmp/langchain-bench '.search(\"commit\")'", "/home/muqsit/src/github.com/muqsitnawaz/mq/mq /tmp/langchain-bench/AGENTS.md '.section(\"Commit standards\") | .text'", "/home/muqsit/src/github.com/muqsitnawaz/mq/mq /tmp/langchain-bench '.search(\"Conventional\")'"]
+TOTAL_CHARS: 4553
+ANSWER: LangChain uses Conventional Commits format: type(scope): description. All lowercase (except proper nouns), scope is always required. Examples: feat(langchain):, fix(core):, chore(anthropic):
 ```

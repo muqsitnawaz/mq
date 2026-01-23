@@ -1,0 +1,36 @@
+Based on the documentation, here's how to install and use the langchain-anthropic partner package:
+
+## Installation
+
+```bash
+pip install langchain-anthropic
+```
+
+## What it provides
+
+The `langchain-anthropic` package contains the LangChain integration for Anthropic's generative models (Claude).
+
+## Documentation
+
+- **API Reference**: https://reference.langchain.com/python/integrations/langchain_anthropic/
+- **Conceptual guides, tutorials & examples**: https://docs.langchain.com/oss/python/integrations/providers/anthropic
+
+## Basic Usage
+
+After installation, you can import and use the ChatAnthropic class:
+
+```python
+from langchain_anthropic import ChatAnthropic
+
+# Create a chat model instance
+llm = ChatAnthropic(model="claude-3-opus-20240229")
+
+# Use it in your LangChain chains and agents
+response = llm.invoke("Hello, how are you?")
+```
+
+```metrics
+MQ_COMMANDS: ["/home/muqsit/src/github.com/muqsitnawaz/mq/mq /tmp/langchain-bench .tree", "/home/muqsit/src/github.com/muqsitnawaz/mq/mq /tmp/langchain-bench/libs/partners/anthropic/README.md .tree", "/home/muqsit/src/github.com/muqsitnawaz/mq/mq /tmp/langchain-bench/libs/partners/anthropic/README.md '.section(\"langchain-anthropic\") | .text'", "/home/muqsit/src/github.com/muqsitnawaz/mq/mq /tmp/langchain-bench '.search(\"ChatAnthropic\")'", "/home/muqsit/src/github.com/muqsitnawaz/mq/mq /tmp/langchain-bench '.search(\"anthropic\")'"]
+TOTAL_CHARS: 6543
+ANSWER: Install with `pip install langchain-anthropic`, then import ChatAnthropic from langchain_anthropic. Full docs at reference.langchain.com/python/integrations/langchain_anthropic/
+```

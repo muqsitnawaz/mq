@@ -1,0 +1,62 @@
+I have all the information needed from the AGENTS.md file. Here's the answer:
+
+## LangChain Documentation Standards
+
+LangChain uses **Google-style docstrings** with Args sections for all public functions.
+
+### Key Documentation Rules:
+
+1. **Types go in function signatures, NOT in docstrings**
+2. **Use Google-style docstrings** with Args, Returns, and Raises sections
+3. **Focus on "why" rather than "what"** in descriptions
+4. **Document all parameters, return values, and exceptions**
+5. **Keep descriptions concise but clear**
+6. **Use American English spelling** (e.g., "behavior", not "behaviour")
+7. **Don't repeat default values** in docstrings unless there's post-processing or conditional logic
+
+### Example of Proper Docstring Format:
+
+```python
+def send_email(to: str, msg: str, *, priority: str = "normal") -> bool:
+    """Send an email to a recipient with specified priority.
+
+    Any additional context about the function can go here.
+
+    Args:
+        to: The email address of the recipient.
+        msg: The message body to send.
+        priority: Email priority level.
+
+    Returns:
+        `True` if email was sent successfully, `False` otherwise.
+
+    Raises:
+        InvalidEmailError: If the email address format is invalid.
+        SMTPConnectionError: If unable to connect to email server.
+    """
+```
+
+### Another Example (simpler function):
+
+```python
+def filter_unknown_users(users: list[str], known_users: set[str]) -> list[str]:
+    """Single line description of the function.
+
+    Any additional context about the function can go here.
+
+    Args:
+        users: List of user identifiers to filter.
+        known_users: Set of known/valid user identifiers.
+
+    Returns:
+        List of users that are not in the known_users set.
+    """
+```
+
+For experimental features, use MkDocs Material admonitions like `!!! warning` in the docstring.
+
+```metrics
+FILES_READ: [/tmp/langchain-bench/AGENTS.md]
+TOTAL_CHARS: 7276
+ANSWER: LangChain uses Google-style docstrings with Args sections. Types go in function signatures (not docstrings), focus on "why" rather than "what", document all params/returns/exceptions, use American English. Example format includes a single-line summary, optional additional context, Args section (param: description), Returns section, and Raises section for exceptions.
+```

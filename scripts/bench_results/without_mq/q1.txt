@@ -1,39 +1,42 @@
-I now have all the information about commit standards.
+I now have all the information needed about commit standards. Here's the answer:
 
-## Commit Standards for LangChain Monorepo
+## LangChain Commit Standards
 
-The LangChain monorepo follows the **Conventional Commits 1.0.0** specification for commit messages and PR titles.
+The LangChain monorepo uses **Conventional Commits 1.0.0** format for PR titles and commit messages.
 
 ### Format
 ```
 <type>[optional scope]: <description>
+[optional body]
+[optional footer(s)]
 ```
+
+### Rules
+1. All commit/PR titles should be in **lowercase** (except proper nouns)
+2. All PR titles should **include a scope** (no exceptions)
+3. Breaking changes: append `!` after type/scope (e.g., `feat!: drop x support`)
+4. Release commits: `release(scope): x.y.z`
 
 ### Allowed Types
 | Type | Description |
 |------|-------------|
-| `feat` | A new feature (MINOR version) |
-| `fix` | A bug fix (PATCH version) |
+| `feat` | A new feature (MINOR) |
+| `fix` | A bug fix (PATCH) |
 | `docs` | Documentation only changes |
 | `style` | Formatting, linting; no code change |
 | `refactor` | Code change that neither fixes a bug nor adds a feature |
 | `perf` | Code change that improves performance |
-| `test` | Adding or correcting tests |
+| `test` | Adding tests or correcting existing |
 | `build` | Changes affecting build system/external dependencies |
 | `ci` | Continuous integration/configuration changes |
-| `chore` | Other changes not modifying source or test files |
+| `chore` | Other changes that don't modify source or test files |
 | `revert` | Reverts a previous commit |
 | `release` | Prepare a new release |
 
 ### Allowed Scopes
 `core`, `cli`, `langchain`, `langchain-classic`, `model-profiles`, `standard-tests`, `text-splitters`, `docs`, `anthropic`, `chroma`, `deepseek`, `exa`, `fireworks`, `groq`, `huggingface`, `mistralai`, `nomic`, `ollama`, `openai`, `perplexity`, `prompty`, `qdrant`, `xai`, `infra`, `deps`
 
-### Key Rules
-1. All commit/PR titles should be **lowercase** (except proper nouns)
-2. All PR titles should **include a scope** (even for `langchain` package)
-3. Breaking changes: append `!` after type/scope (e.g., `feat!: drop x support`)
-4. Multiple scopes can be comma-separated: `feat(core,cli): description`
-5. Release commits: `release(scope): x.y.z`
+Multiple scopes can be separated by comma: `feat(core,cli): add feature`
 
 ### Examples
 ```
@@ -41,10 +44,11 @@ feat(langchain): add new chat completion feature
 fix(core): resolve type hinting issue in vector store
 chore(anthropic): update infrastructure dependencies
 docs(openai): update API usage examples
+release(core): 1.2.0
 ```
 
 ```metrics
-FILES_READ: [/tmp/langchain-bench/CLAUDE.md, /tmp/langchain-bench/.github/PULL_REQUEST_TEMPLATE.md, /tmp/langchain-bench/.github/workflows/pr_lint.yml]
-TOTAL_CHARS: 9553
-ANSWER: LangChain follows Conventional Commits 1.0.0 format: `<type>(scope): description`. Allowed types are feat, fix, docs, style, refactor, perf, test, build, ci, chore, revert, release. Scopes include core, cli, langchain, and partner packages. Titles must be lowercase (except proper nouns), and scopes are required for all PRs.
+FILES_READ: [/tmp/langchain-bench/AGENTS.md, /tmp/langchain-bench/.github/workflows/pr_lint.yml]
+TOTAL_CHARS: 8954
+ANSWER: LangChain uses Conventional Commits format: `<type>(scope): description` in lowercase. Required types include feat, fix, docs, style, refactor, perf, test, build, ci, chore, revert, release. Scopes are required and include core, cli, langchain, anthropic, openai, etc. Breaking changes use `!` suffix.
 ```

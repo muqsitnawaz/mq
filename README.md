@@ -171,6 +171,46 @@ qmd query "authentication"
 mq docs/auth.md '.section("OAuth") | .text'
 ```
 
+## Benchmark: Agent Performance
+
+We benchmarked AI agent performance answering questions about the [LangChain](https://github.com/langchain-ai/langchain) monorepo (50+ markdown files). Agents were given identical questions and asked to find answers by reading documentation.
+
+| Question | Mode | Input Tokens | Latency | Token Savings |
+|----------|------|--------------|---------|---------------|
+| Commit standards | without mq | 192,667 | 24s | - |
+| | with mq | 140,822 | 28s | 27% |
+| Package installation | without mq | 383,244 | 39s | - |
+| | with mq | 190,591 | 30s | 50% |
+| Testing requirements | without mq | 236,929 | 25s | - |
+| | with mq | 146,334 | 33s | 38% |
+| CLI integration guide | without mq | 337,225 | 31s | - |
+| | with mq | 516,897 | 85s | -53% |
+| Documentation standards | without mq | 187,768 | 21s | - |
+| | with mq | 92,334 | 21s | 51% |
+
+### Summary
+
+| Metric | Without mq | With mq | Improvement |
+|--------|------------|---------|-------------|
+| Total input tokens | 1,337,833 | 1,086,978 | **19% fewer** |
+| Total latency | 140s | 197s | 41% slower |
+| Excluding outlier (q4) | | | |
+| - Input tokens | 1,000,608 | 570,081 | **43% fewer** |
+| - Latency | 109s | 112s | ~same |
+
+**Key findings:**
+- 4 of 5 questions showed 27-51% token reduction
+- Latency is similar when mq is used efficiently (q2 was actually 23% faster)
+- One outlier (q4) where the agent made excessive mq queries, hurting both metrics
+- Token savings directly translate to cost savings on API calls
+
+The "with mq" agent uses `.tree` to see document structure, `.search()` to find relevant sections, and `.section() | .text` to extract only what's needed. The "without mq" agent reads entire files.
+
+Run the benchmark yourself:
+```bash
+./scripts/bench.sh
+```
+
 ## Library Usage
 
 ```go

@@ -1,0 +1,38 @@
+Now I have all the information needed. Let me compile the answer.
+
+## Testing Requirements for LangChain Contributions
+
+Based on the documentation, here are the testing requirements for contributing to LangChain:
+
+### Core Requirement
+**Every new feature or bugfix MUST be covered by unit tests.**
+
+### Test Types
+- **Unit tests:** Located in `tests/unit_tests/` - no network calls allowed
+- **Integration tests:** Located in `tests/integration_tests/` - network calls permitted
+
+### Test Coverage Checklist
+The following criteria must be met:
+1. Tests fail when your new logic is broken
+2. Happy path is covered
+3. Edge cases and error conditions are tested
+4. Use fixtures/mocks for external dependencies
+5. Tests are deterministic (no flaky tests)
+6. Test suite fails if new logic is broken
+
+### Additional Requirements
+- Use `pytest` as the testing framework
+- Testing file structure should mirror the source code structure
+- Run `make test` from the root of the package you've modified
+- PRs will not be considered unless tests pass in CI (along with `make format` and `make lint`)
+
+### For Integration Packages
+Partner integrations should use the standard test library (`langchain-tests`) and create:
+1. A unit test class inheriting from base classes (e.g., `ChatModelUnitTests`)
+2. An integration test class inheriting from integration test base classes (e.g., `ChatModelIntegrationTests`)
+
+```metrics
+FILES_READ: [/tmp/langchain-bench/libs/langchain/tests/README.md, /tmp/langchain-bench/.github/PULL_REQUEST_TEMPLATE.md, /tmp/langchain-bench/AGENTS.md, /tmp/langchain-bench/libs/standard-tests/README.md]
+TOTAL_CHARS: 8546
+ANSWER: Every new feature or bugfix MUST be covered by unit tests. Expected test coverage includes: (1) tests that fail when logic is broken, (2) happy path coverage, (3) edge cases and error conditions tested, (4) fixtures/mocks for external dependencies, (5) deterministic tests with no flakiness. Unit tests go in tests/unit_tests/ (no network), integration tests in tests/integration_tests/ (network allowed). Test file structure should mirror source code. For partner integrations, use langchain-tests standard test classes.
+```

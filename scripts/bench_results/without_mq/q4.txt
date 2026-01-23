@@ -1,0 +1,54 @@
+Now I have all the information needed. Let me summarize how to create a new integration package using the LangChain CLI.
+
+## Creating a New Integration Package with LangChain CLI
+
+To create a new integration package using the LangChain CLI, use the `langchain integration new` command:
+
+```bash
+langchain integration new --name <integration-name>
+```
+
+### Command Options:
+
+| Option | Description |
+|--------|-------------|
+| `--name` | The name of the integration (e.g., `my-integration`). Will be prompted if not provided. |
+| `--name-class` | The PascalCase name for classes (e.g., `MyIntegration`). Used for naming classes like `MyIntegrationVectorStore`. |
+| `--src` | Path to a single template file to copy (can be used multiple times) |
+| `--dst` | Relative path to place the new file (must match number of `--src` arguments) |
+
+### Example:
+
+```bash
+# Interactive mode (will prompt for name and PascalCase name)
+langchain integration new
+
+# Non-interactive with explicit options
+langchain integration new --name openai --name-class OpenAI
+```
+
+### What happens:
+
+1. Creates a folder named `langchain-<name>` in the current directory
+2. Copies the integration template with standard structure including:
+   - Chat models, embeddings, LLMs, document loaders, tools, retrievers, vectorstores
+   - Unit tests and integration tests
+   - README.md with usage examples
+3. Replaces template placeholders with your integration name
+4. Runs `uv sync --dev` to install dependencies (if `uv` is available)
+
+### Additional Command:
+
+There's also `langchain integration create-doc` to create documentation for your integration:
+
+```bash
+langchain integration create-doc --name <name> --component-type ChatModel
+```
+
+Supported component types: `ChatModel`, `DocumentLoader`, `Tool`, `VectorStore`, `Embeddings`, `ByteStore`, `LLM`, `Provider`, `Toolkit`, `Retriever`.
+
+```metrics
+FILES_READ: [/tmp/langchain-bench/libs/cli/DOCS.md, /tmp/langchain-bench/libs/cli/README.md, /tmp/langchain-bench/libs/cli/langchain_cli/integration_template/README.md, /tmp/langchain-bench/libs/cli/langchain_cli/namespaces/integration.py, /tmp/langchain-bench/libs/cli/langchain_cli/cli.py]
+TOTAL_CHARS: 12163
+ANSWER: Use `langchain integration new --name <integration-name>` to create a new integration package. The command creates a `langchain-<name>` folder with the full package structure including chat models, embeddings, tests, and documentation templates. It supports options like `--name-class` for PascalCase class naming. The CLI also provides `langchain integration create-doc` to generate integration documentation.
+```
