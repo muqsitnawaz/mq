@@ -1,0 +1,27 @@
+# qmd Query Benchmarks - Fri Jan 23 12:33:42 PM PST 2026
+
+## Query 1: BM25 search "commit standards"
+$ time bun .refs/qmd/src/qmd.ts search "commit standards" -n 3
+
+qmd://langchain/claude.md:73 #7b7a4b
+Title: Global development guidelines for the LangChain monorepo
+Score: 100%
+
+@@ -72,4 @@ (71 before, 116 after)
+
+#### Commit standards
+
+Suggest PR titles that follow Conventional Commits format. Refer to .github/workflows/pr_lint for allowed types and scopes. Note that all commit/PR titles should be in lowercase with the exception of proper nouns/named entities. All PR titles should include a scope with no exceptions. For example:
+
+
+qmd://langchain/agents.md:73 #7b7a4b
+Title: Global development guidelines for the LangChain monorepo
+Score: 100%
+
+@@ -72,4 @@ (71 before, 116 after)
+
+#### Commit standards
+
+Suggest PR titles that follow Conventional Commits format. Refer to .github/workflows/pr_lint for allowed types and scopes. Note that all commit/PR titles should be in lowercase with the exception of proper nouns/named entities. All PR titles should include a scope with no exceptions. For example:
+
+Latency: 154ms

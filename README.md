@@ -21,6 +21,23 @@ AI agents waste tokens reading entire files. mq lets them query structure first,
 
 Any AI agent or coding assistant that can execute shell commands.
 
+### Why mq?
+
+| | mq | qmd | PageIndex |
+|--|:--:|:--:|:--:|
+| Zero external API calls | **Yes** | No | No |
+| No pre-built index | **Yes** | No | No |
+| Single binary, no deps | **Yes** | No | No |
+| Deterministic output | **Yes** | No | No |
+
+<details>
+<summary>See full comparison</summary>
+
+- **vs qmd**: No 3GB models to download, no SQLite database, no embedding step
+- **vs PageIndex**: No OpenAI API costs, no pre-processing, works offline
+- **vs both**: Agent reasons in its own context - no external computation
+</details>
+
 ```bash
 # Agent sees the structure (this IS the index)
 mq docs/ '.tree("full")'
@@ -37,25 +54,30 @@ mq docs/auth.md '.section("OAuth Flow") | .text'
 
 ## Why This Works
 
-Traditional retrieval computes results for you. mq externalizes structure so the agent computes results itself:
+Traditional retrieval adds external API hops. mq keeps everything in the agent's context:
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
 │  Traditional RAG                                                        │
-│  Documents → Embeddings → Vector DB → Query → System computes → Results │
+│                                                                         │
+│  Agent → Embedding API → Vector DB → Reranker API → back to Agent       │
+│            (hop 1)         (hop 2)      (hop 3)        (hop 4)          │
 └─────────────────────────────────────────────────────────────────────────┘
 
 ┌─────────────────────────────────────────────────────────────────────────┐
 │  mq                                                                     │
-│  Documents → Agent queries structure → Agent reasons → Agent extracts   │
-│                    ↑                                                    │
-│              (zero LLM cost)                                            │
+│                                                                         │
+│  Agent ←→ mq (local binary)                                             │
+│    ↓                                                                    │
+│  Agent reasons over structure in its own context                        │
+│                                                                         │
+│  No external APIs. No round trips. One context.                         │
 └─────────────────────────────────────────────────────────────────────────┘
 ```
 
 mq is an **interface**, not an answer engine. It extracts structure into the agent's context, where the agent can reason over it directly.
 
-**The insight**: LLMs already have semantic understanding and reasoning. They don't need another system to compute relevance - they need to **see** the structure so they can reason to answers themselves. mq makes documents legible to agents.
+**The insight**: Agents like Claude Code and Codex are already LLMs with reasoning capability. Adding embedding APIs and rerankers just adds latency and cost. The agent can find what it needs - it just needs to **see** the structure.
 
 ## Benchmark: Up to 83% Token Reduction
 

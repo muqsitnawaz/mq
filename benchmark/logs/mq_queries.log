@@ -1,0 +1,500 @@
+# mq Query Benchmarks - Fri Jan 23 12:34:26 PM PST 2026
+
+## Query 1: Directory tree
+$ time ./mq /tmp/langchain-bench .tree
+
+/tmp/langchain-bench (33 files, 1702 lines total)
+├── libs/
+│   ├── cli/
+│   │   ├── langchain_cli/
+│   │   │   ├── integration_template/
+│   │   │   │   └── README.md (47 lines, 5 sections)
+│   │   │   ├── package_template/
+│   │   │   │   └── README.md (65 lines, 3 sections)
+│   │   │   └── project_template/
+│   │   │       ├── packages/
+│   │   │       │   └── README.md (1 lines, no sections)
+│   │   │       └── README.md (80 lines, 8 sections)
+│   │   ├── DOCS.md (190 lines, 10 sections)
+│   │   └── README.md (31 lines, 6 sections)
+│   ├── core/
+│   │   └── README.md (48 lines, 7 sections)
+│   ├── langchain/
+│   │   ├── tests/
+│   │   │   └── README.md (4 lines, 1 sections)
+│   │   └── README.md (38 lines, 6 sections)
+│   ├── langchain_v1/
+│   │   └── README.md (40 lines, 6 sections)
+│   ├── model-profiles/
+│   │   └── README.md (44 lines, 6 sections)
+│   ├── partners/
+│   │   ├── anthropic/
+│   │   │   └── README.md (33 lines, 6 sections)
+│   │   ├── chroma/
+│   │   │   └── README.md (23 lines, 4 sections)
+│   │   ├── deepseek/
+│   │   │   └── README.md (33 lines, 6 sections)
+│   │   ├── exa/
+│   │   │   └── README.md (23 lines, 4 sections)
+│   │   ├── fireworks/
+│   │   │   └── README.md (33 lines, 6 sections)
+│   │   ├── groq/
+│   │   │   └── README.md (29 lines, 5 sections)
+│   │   ├── huggingface/
+│   │   │   └── README.md (33 lines, 6 sections)
+│   │   ├── mistralai/
+│   │   │   └── README.md (29 lines, 5 sections)
+│   │   ├── nomic/
+│   │   │   └── README.md (23 lines, 4 sections)
+│   │   ├── ollama/
+│   │   │   └── README.md (33 lines, 6 sections)
+│   │   ├── openai/
+│   │   │   └── README.md (33 lines, 6 sections)
+│   │   ├── perplexity/
+│   │   │   └── README.md (33 lines, 6 sections)
+│   │   ├── prompty/
+│   │   │   └── README.md (70 lines, 5 sections)
+│   │   ├── qdrant/
+│   │   │   └── README.md (23 lines, 4 sections)
+│   │   ├── xai/
+│   │   │   └── README.md (33 lines, 6 sections)
+│   │   └── README.md (8 lines, 2 sections)
+│   ├── standard-tests/
+│   │   └── README.md (94 lines, 8 sections)
+│   ├── text-splitters/
+│   │   └── README.md (37 lines, 6 sections)
+│   └── README.md (33 lines, 2 sections)
+├── AGENTS.md (191 lines, 14 sections)
+├── CLAUDE.md (191 lines, 14 sections)
+└── README.md (76 lines, 3 sections)
+
+Latency: 13ms
+
+## Query 2: Directory tree full
+$ time ./mq /tmp/langchain-bench .tree("full")
+
+/tmp/langchain-bench (33 files, 1702 lines total)
+├── libs/
+│   ├── cli/
+│   │   ├── langchain_cli/
+│   │   │   ├── integration_template/
+│   │   │   │   └── README.md (47 lines, 5 sections)
+│   │   │   │       ├── # package_name
+│   │   │   │       │        "This package contains the LangChain integration..."
+│   │   │   │       ├── ## Installation
+│   │   │   │       │        "pip install -U package_name"
+│   │   │   │       ├── ## Chat Models
+│   │   │   │       │        "ChatModuleName class exposes chat models from..."
+│   │   │   │       ├── ## Embeddings
+│   │   │   │       │        "ModuleNameEmbeddings class exposes embeddings..."
+│   │   │   │       └── ## LLMs
+│   │   │   │                "ModuleNameLLM class exposes LLMs from ModuleName."
+│   │   │   ├── package_template/
+│   │   │   │   └── README.md (65 lines, 3 sections)
+│   │   │   │       ├── # package_name
+│   │   │   │       │        "TODO: What does this package do"
+│   │   │   │       ├── ## Environment Setup
+│   │   │   │       │        "TODO: What environment variables need to be set..."
+│   │   │   │       └── ## Usage
+│   │   │   │                "To use this package, you should first have the..."
+│   │   │   └── project_template/
+│   │   │       ├── packages/
+│   │   │       │   └── README.md (1 lines, no sections)
+│   │   │       └── README.md (80 lines, 8 sections)
+│   │   │           ├── # app_name
+│   │   │           │        "## Installation"
+│   │   │           ├── ## Installation
+│   │   │           │        "Install the LangChain CLI if you haven't yet"
+│   │   │           ├── ## Adding packages
+│   │   │           │        "# adding packages from"
+│   │   │           ├── ## Setup LangSmith (Optional)
+│   │   │           │        "LangSmith will help us trace, monitor and debug..."
+│   │   │           ├── ## Launch LangServe
+│   │   │           │        "langchain serve"
+│   │   │           └── ## Running in Docker
+│   │   │                    "This project folder includes a Dockerfile that..."
+│   │   ├── DOCS.md (190 lines, 10 sections)
+│   │   │   ├── # langchain
+│   │   │   │        "Usage:"
+│   │   │   ├── ## langchain app
+│   │   │   │        "Manage LangChain apps"
+│   │   │   ├── ## langchain serve
+│   │   │   │        "Start the LangServe app, whether it's a template..."
+│   │   │   └── ## langchain template
+│   │   │            "Develop installable templates."
+│   │   └── README.md (31 lines, 6 sections)
+│   │       ├── # langchain-cli
+│   │       │        "## Quick Install"
+│   │       ├── ## Quick Install
+│   │       │        "pip install langchain-cli"
+│   │       ├── ## 🤔 What is this?
+│   │       │        "This package implements the official CLI for..."
+│   │       ├── ## 📖 Documentation
+│   │       ├── ## 📕 Releases & Versioning
+│   │       │        "See our [Releases](https://docs.langchain.com/oss/..."
+│   │       └── ## 💁 Contributing
+│   │                "As an open-source project in a rapidly developing..."
+│   ├── core/
+│   │   └── README.md (48 lines, 7 sections)
+│   │       ├── # 🦜🍎️ LangChain Core
+│   │       │        "Looking for the JS/TS version? Check out..."
+│   │       ├── ## Quick Install
+│   │       │        "pip install langchain-core"
+│   │       ├── ## 🤔 What is this?
+│   │       │        "LangChain Core contains the base abstractions..."
+│   │       ├── ## ⛰️ Why build on top of LangChain Core?
+│   │       │        "The LangChain ecosystem is built on top of..."
+│   │       ├── ## 📖 Documentation
+│   │       │        "For full documentation, see the [API..."
+│   │       ├── ## 📕 Releases & Versioning
+│   │       │        "See our [Releases](https://docs.langchain.com/oss/..."
+│   │       └── ## 💁 Contributing
+│   │                "As an open-source project in a rapidly developing..."
+│   ├── langchain/
+│   │   ├── tests/
+│   │   │   └── README.md (4 lines, 1 sections)
+│   │   │       └── # LangChain Tests
+│   │   └── README.md (38 lines, 6 sections)
+│   │       ├── # 🦜️🔗 LangChain Classic
+│   │       │        "Looking for the JS/TS version? Check out..."
+│   │       ├── ## Quick Install
+│   │       │        "pip install langchain-classic"
+│   │       ├── ## 🤔 What is this?
+│   │       │        "Legacy chains, langchain-community re-exports,..."
+│   │       ├── ## 📖 Documentation
+│   │       │        "For full documentation, see the [API..."
+│   │       ├── ## 📕 Releases & Versioning
+│   │       │        "See our [Releases](https://docs.langchain.com/oss/..."
+│   │       └── ## 💁 Contributing
+│   │                "As an open-source project in a rapidly developing..."
+│   ├── langchain_v1/
+│   │   └── README.md (40 lines, 6 sections)
+│   │       ├── # 🦜️🔗 LangChain
+│   │       │        "Looking for the JS/TS version? Check out..."
+│   │       ├── ## Quick Install
+│   │       │        "pip install langchain"
+│   │       ├── ## 🤔 What is this?
+│   │       │        "LangChain is the easiest way to start building..."
+│   │       ├── ## 📖 Documentation
+│   │       │        "For full documentation, see the [API..."
+│   │       ├── ## 📕 Releases & Versioning
+│   │       │        "See our [Releases](https://docs.langchain.com/oss/..."
+│   │       └── ## 💁 Contributing
+│   │                "As an open-source project in a rapidly developing..."
+│   ├── model-profiles/
+│   │   └── README.md (44 lines, 6 sections)
+│   │       ├── # 🦜🪪 langchain-model-profiles
+│   │       │        "> [!WARNING]"
+│   │       ├── ## Quick Install
+│   │       │        "pip install langchain-model-profiles"
+│   │       ├── ## 🤔 What is this?
+│   │       │        "langchain-model-profiles is a CLI tool for..."
+│   │       ├── ## Data sources
+│   │       │        "This package is built on top of the excellent..."
+│   │       ├── ## 📖 Documentation
+│   │       │        "For full documentation, see the [API..."
+│   │       └── ## Usage
+│   │                "Update model profile data for a specific provider:"
+│   ├── partners/
+│   │   ├── anthropic/
+│   │   │   └── README.md (33 lines, 6 sections)
+│   │   │       ├── # langchain-anthropic
+│   │   │       │        "Looking for the JS/TS version? Check out..."
+│   │   │       ├── ## Quick Install
+│   │   │       │        "pip install langchain-anthropic"
+│   │   │       ├── ## 🤔 What is this?
+│   │   │       │        "This package contains the LangChain integration..."
+│   │   │       ├── ## 📖 Documentation
+│   │   │       │        "For full documentation, see the [API..."
+│   │   │       ├── ## 📕 Releases & Versioning
+│   │   │       │        "See our [Releases](https://docs.langchain.com/oss/..."
+│   │   │       └── ## 💁 Contributing
+│   │   │                "As an open-source project in a rapidly developing..."
+│   │   ├── chroma/
+│   │   │   └── README.md (23 lines, 4 sections)
+│   │   │       ├── # langchain-chroma
+│   │   │       │        "Looking for the JS/TS version? Check out..."
+│   │   │       ├── ## Quick Install
+│   │   │       │        "pip install langchain-chroma"
+│   │   │       ├── ## 🤔 What is this?
+│   │   │       │        "This package contains the LangChain integration..."
+│   │   │       └── ## 📖 Documentation
+│   │   │                "View the [documentation](https://docs.langchain.co..."
+│   │   ├── deepseek/
+│   │   │   └── README.md (33 lines, 6 sections)
+│   │   │       ├── # langchain-deepseek
+│   │   │       │        "Looking for the JS/TS version? Check out..."
+│   │   │       ├── ## Quick Install
+│   │   │       │        "pip install langchain-deepseek"
+│   │   │       ├── ## 🤔 What is this?
+│   │   │       │        "This package contains the LangChain integration..."
+│   │   │       ├── ## 📖 Documentation
+│   │   │       │        "For full documentation, see the [API..."
+│   │   │       ├── ## 📕 Releases & Versioning
+│   │   │       │        "See our [Releases](https://docs.langchain.com/oss/..."
+│   │   │       └── ## 💁 Contributing
+│   │   │                "As an open-source project in a rapidly developing..."
+│   │   ├── exa/
+│   │   │   └── README.md (23 lines, 4 sections)
+│   │   │       ├── # langchain-exa
+│   │   │       │        "Looking for the JS/TS version? Check out..."
+│   │   │       ├── ## Quick Install
+│   │   │       │        "pip install langchain-exa"
+│   │   │       ├── ## 🤔 What is this?
+│   │   │       │        "This package contains the LangChain integration..."
+│   │   │       └── ## 📖 Documentation
+│   │   │                "View the [documentation](https://docs.langchain.co..."
+│   │   ├── fireworks/
+│   │   │   └── README.md (33 lines, 6 sections)
+│   │   │       ├── # langchain-fireworks
+│   │   │       │        "Looking for the JS/TS version? Check out..."
+│   │   │       ├── ## Quick Install
+│   │   │       │        "pip install langchain-fireworks"
+│   │   │       ├── ## 🤔 What is this?
+│   │   │       │        "This is the partner package for tying..."
+│   │   │       ├── ## 📖 Documentation
+│   │   │       │        "For full documentation, see the [API..."
+│   │   │       ├── ## 📕 Releases & Versioning
+│   │   │       │        "See our [Releases](https://docs.langchain.com/oss/..."
+│   │   │       └── ## 💁 Contributing
+│   │   │                "As an open-source project in a rapidly developing..."
+│   │   ├── groq/
+│   │   │   └── README.md (29 lines, 5 sections)
+│   │   │       ├── # langchain-groq
+│   │   │       │        "Looking for the JS/TS version? Check out..."
+│   │   │       ├── ## Quick Install
+│   │   │       │        "pip install langchain-groq"
+│   │   │       ├── ## 📖 Documentation
+│   │   │       │        "For full documentation, see the [API..."
+│   │   │       ├── ## 📕 Releases & Versioning
+│   │   │       │        "See our [Releases](https://docs.langchain.com/oss/..."
+│   │   │       └── ## 💁 Contributing
+│   │   │                "As an open-source project in a rapidly developing..."
+│   │   ├── huggingface/
+│   │   │   └── README.md (33 lines, 6 sections)
+│   │   │       ├── # langchain-huggingface
+│   │   │       │        "Looking for the JS/TS version? Check out..."
+│   │   │       ├── ## Quick Install
+│   │   │       │        "pip install langchain-huggingface"
+│   │   │       ├── ## 🤔 What is this?
+│   │   │       │        "This package contains the LangChain integrations..."
+│   │   │       ├── ## 📖 Documentation
+│   │   │       │        "For full documentation, see the [API..."
+│   │   │       ├── ## 📕 Releases & Versioning
+│   │   │       │        "See our [Releases](https://docs.langchain.com/oss/..."
+│   │   │       └── ## 💁 Contributing
+│   │   │                "As an open-source project in a rapidly developing..."
+│   │   ├── mistralai/
+│   │   │   └── README.md (29 lines, 5 sections)
+│   │   │       ├── # langchain-mistralai
+│   │   │       │        "Looking for the JS/TS version? Check out..."
+│   │   │       ├── ## Quick Install
+│   │   │       │        "pip install langchain-mistralai"
+│   │   │       ├── ## 📖 Documentation
+│   │   │       │        "For full documentation, see the [API..."
+│   │   │       ├── ## 📕 Releases & Versioning
+│   │   │       │        "See our [Releases](https://docs.langchain.com/oss/..."
+│   │   │       └── ## 💁 Contributing
+│   │   │                "As an open-source project in a rapidly developing..."
+│   │   ├── nomic/
+│   │   │   └── README.md (23 lines, 4 sections)
+│   │   │       ├── # langchain-nomic
+│   │   │       │        "Looking for the JS/TS version? Check out..."
+│   │   │       ├── ## Quick Install
+│   │   │       │        "pip install langchain-nomic"
+│   │   │       ├── ## 🤔 What is this?
+│   │   │       │        "This package contains the LangChain integration..."
+│   │   │       └── ## 📖 Documentation
+│   │   │                "View the [documentation](https://docs.langchain.co..."
+│   │   ├── ollama/
+│   │   │   └── README.md (33 lines, 6 sections)
+│   │   │       ├── # langchain-ollama
+│   │   │       │        "Looking for the JS/TS version? Check out..."
+│   │   │       ├── ## Quick Install
+│   │   │       │        "pip install langchain-ollama"
+│   │   │       ├── ## 🤔 What is this?
+│   │   │       │        "This package contains the LangChain integration..."
+│   │   │       ├── ## 📖 Documentation
+│   │   │       │        "For full documentation, see the [API..."
+│   │   │       ├── ## 📕 Releases & Versioning
+│   │   │       │        "See our [Releases](https://docs.langchain.com/oss/..."
+│   │   │       └── ## 💁 Contributing
+│   │   │                "As an open-source project in a rapidly developing..."
+│   │   ├── openai/
+│   │   │   └── README.md (33 lines, 6 sections)
+│   │   │       ├── # langchain-openai
+│   │   │       │        "Looking for the JS/TS version? Check out..."
+│   │   │       ├── ## Quick Install
+│   │   │       │        "pip install langchain-openai"
+│   │   │       ├── ## 🤔 What is this?
+│   │   │       │        "This package contains the LangChain integrations..."
+│   │   │       ├── ## 📖 Documentation
+│   │   │       │        "For full documentation, see the [API..."
+│   │   │       ├── ## 📕 Releases & Versioning
+│   │   │       │        "See our [Releases](https://docs.langchain.com/oss/..."
+│   │   │       └── ## 💁 Contributing
+│   │   │                "As an open-source project in a rapidly developing..."
+│   │   ├── perplexity/
+│   │   │   └── README.md (33 lines, 6 sections)
+│   │   │       ├── # langchain-perplexity
+│   │   │       │        "Looking for the JS/TS version? Check out..."
+│   │   │       ├── ## Quick Install
+│   │   │       │        "pip install langchain-perplexity"
+│   │   │       ├── ## 🤔 What is this?
+│   │   │       │        "This package contains the LangChain integration..."
+│   │   │       ├── ## 📖 Documentation
+│   │   │       │        "For full documentation, see the [API..."
+│   │   │       ├── ## 📕 Releases & Versioning
+│   │   │       │        "See our [Releases](https://docs.langchain.com/oss/..."
+│   │   │       └── ## 💁 Contributing
+│   │   │                "As an open-source project in a rapidly developing..."
+│   │   ├── prompty/
+│   │   │   └── README.md (70 lines, 5 sections)
+│   │   │       ├── # langchain-prompty
+│   │   │       │        "Looking for the JS/TS version? Check out..."
+│   │   │       ├── ## Quick Install
+│   │   │       │        "pip install langchain-prompty"
+│   │   │       ├── ## 🤔 What is this?
+│   │   │       │        "This package contains the LangChain integration..."
+│   │   │       ├── ## 📖 Documentation
+│   │   │       │        "View the [documentation](https://docs.langchain.co..."
+│   │   │       └── ## Usage
+│   │   │                "Use the create_chat_prompt function to load..."
+│   │   ├── qdrant/
+│   │   │   └── README.md (23 lines, 4 sections)
+│   │   │       ├── # langchain-qdrant
+│   │   │       │        "Looking for the JS/TS version? Check out..."
+│   │   │       ├── ## Quick Install
+│   │   │       │        "pip install langchain-qdrant"
+│   │   │       ├── ## 🤔 What is this?
+│   │   │       │        "This package contains the LangChain integration..."
+│   │   │       └── ## 📖 Documentation
+│   │   │                "View the [documentation](https://docs.langchain.co..."
+│   │   ├── xai/
+│   │   │   └── README.md (33 lines, 6 sections)
+│   │   │       ├── # langchain-xai
+│   │   │       │        "Looking for the JS/TS version? Check out..."
+│   │   │       ├── ## Quick Install
+│   │   │       │        "pip install langchain-xai"
+│   │   │       ├── ## 🤔 What is this?
+│   │   │       │        "This package contains the LangChain integrations..."
+│   │   │       ├── ## 📖 Documentation
+│   │   │       │        "For full documentation, see the [API..."
+│   │   │       ├── ## 📕 Releases & Versioning
+│   │   │       │        "See our [Releases](https://docs.langchain.com/oss/..."
+│   │   │       └── ## 💁 Contributing
+│   │   │                "As an open-source project in a rapidly developing..."
+│   │   └── README.md (8 lines, 2 sections)
+│   │       ├── # FAQ
+│   │       │        "Looking for an integration not listed here? Check..."
+│   │       └── ## Integration docs
+│   │                "For full documentation, see the..."
+│   ├── standard-tests/
+│   │   └── README.md (94 lines, 8 sections)
+│   │       ├── # 🦜️🔗 langchain-tests
+│   │       │        "Looking for the JS/TS version? Check out..."
+│   │       ├── ## Quick Install
+│   │       │        "pip install langchain-tests"
+│   │       ├── ## 🤔 What is this?
+│   │       │        "This is a testing library for LangChain..."
+│   │       ├── ## 📖 Documentation
+│   │       │        "For full documentation, see the [API..."
+│   │       ├── ## 📕 Releases & Versioning
+│   │       │        "See our [Releases](https://docs.langchain.com/oss/..."
+│   │       ├── ## 💁 Contributing
+│   │       │        "As an open-source project in a rapidly developing..."
+│   │       ├── ## Usage
+│   │       │        "To add standard tests to an integration package..."
+│   │       └── ## Reference
+│   │                "The following fixtures are configurable in the..."
+│   ├── text-splitters/
+│   │   └── README.md (37 lines, 6 sections)
+│   │       ├── # 🦜✂️ LangChain Text Splitters
+│   │       │        "Looking for the JS/TS version? Check out..."
+│   │       ├── ## Quick Install
+│   │       │        "pip install langchain-text-splitters"
+│   │       ├── ## 🤔 What is this?
+│   │       │        "LangChain Text Splitters contains utilities for..."
+│   │       ├── ## 📖 Documentation
+│   │       │        "For full documentation, see the [API..."
+│   │       ├── ## 📕 Releases & Versioning
+│   │       │        "See our [Releases](https://docs.langchain.com/oss/..."
+│   │       └── ## 💁 Contributing
+│   │                "As an open-source project in a rapidly developing..."
+│   └── README.md (33 lines, 2 sections)
+│       ├── # Packages
+│       │        "> [!IMPORTANT]"
+│       └── ## Integrations (partners/)
+│                "The partners/ directory contains a small subset..."
+├── AGENTS.md (191 lines, 14 sections)
+│   ├── # Global development guidelines for the LangChain monorepo
+│   │        "This document provides context to understand the..."
+│   ├── ## Project architecture and context
+│   │        "### Monorepo structure"
+│   ├── ## Core development principles
+│   │        "### Maintain stable public interfaces"
+│   └── ## Additional resources
+│            "- Documentation: https://docs.langchain.com/oss/py..."
+├── CLAUDE.md (191 lines, 14 sections)
+│   ├── # Global development guidelines for the LangChain monorepo
+│   │        "This document provides context to understand the..."
+│   ├── ## Project architecture and context
+│   │        "### Monorepo structure"
+│   ├── ## Core development principles
+│   │        "### Maintain stable public interfaces"
+│   └── ## Additional resources
+│            "- Documentation: https://docs.langchain.com/oss/py..."
+└── README.md (76 lines, 3 sections)
+    ├── ## Why use LangChain?
+    │        "LangChain helps developers build applications..."
+    ├── ## LangChain ecosystem
+    │        "While the LangChain framework can be used..."
+    └── ## Additional resources
+             "- [API Reference](https://reference.langchain.com/..."
+
+Latency: 15ms
+
+## Query 3: Search
+$ time ./mq /tmp/langchain-bench .search("commit standards")
+
+Found 8 matches for "commit standards":
+
+/tmp/langchain-bench/AGENTS.md:
+  ## Development tools & commands** (lines 36-90)
+     "...for reproducible builds - Makefile: Development tasks #### Commit standards Suggest PR titles that follow Conventional Commits format...."
+  ## Global development guidelines for the LangChain monorepo (lines 1-191)
+     "...for reproducible builds - Makefile: Development tasks #### Commit standards Suggest PR titles that follow Conventional Commits format...."
+  ## Project architecture and context (lines 5-90)
+     "...for reproducible builds - Makefile: Development tasks #### Commit standards Suggest PR titles that follow Conventional Commits format...."
+  ## Commit standards (lines 73-84)
+     "#### Commit standards Suggest PR titles that follow Conventional Commits format...."
+
+/tmp/langchain-bench/CLAUDE.md:
+  ## Development tools & commands** (lines 36-90)
+     "...for reproducible builds - Makefile: Development tasks #### Commit standards Suggest PR titles that follow Conventional Commits format...."
+  ## Commit standards (lines 73-84)
+     "#### Commit standards Suggest PR titles that follow Conventional Commits format...."
+  ## Global development guidelines for the LangChain monorepo (lines 1-191)
+     "...for reproducible builds - Makefile: Development tasks #### Commit standards Suggest PR titles that follow Conventional Commits format...."
+  ## Project architecture and context (lines 5-90)
+     "...for reproducible builds - Makefile: Development tasks #### Commit standards Suggest PR titles that follow Conventional Commits format...."
+
+Latency: 22ms
+
+## Query 4: Section extraction
+$ time ./mq /tmp/langchain-bench/AGENTS.md .section("Commit standards") | .text
+
+#### Commit standards
+
+Suggest PR titles that follow Conventional Commits format. Refer to .github/workflows/pr_lint for allowed types and scopes. Note that all commit/PR titles should be in lowercase with the exception of proper nouns/named entities. All PR titles should include a scope with no exceptions. For example:
+
+```txt
+feat(langchain): add new chat completion feature
+fix(core): resolve type hinting issue in vector store
+chore(anthropic): update infrastructure dependencies
+```
+
+Note how `feat(langchain)` includes a scope even though it is the main package and name of the repo.
+
+
+Latency: 3ms

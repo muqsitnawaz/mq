@@ -1,0 +1,49 @@
+# qmd Setup Log
+# Date: 2025-01-23
+# Corpus: LangChain monorepo (36 markdown files, 1,804 lines)
+
+## Step 1: Install dependencies
+$ bun install --cwd /home/muqsit/src/github.com/muqsitnawaz/mq/.refs/qmd
+
++ @types/bun@1.3.5
++ @modelcontextprotocol/sdk@1.25.1
++ node-llama-cpp@3.14.5
++ sqlite-vec@0.1.7-alpha.2
++ yaml@2.8.2
++ zod@4.2.1
++ typescript@5.9.3
+259 packages installed [804.00ms]
+
+## Step 2: Create collection and index
+$ time bun .refs/qmd/src/qmd.ts collection add /tmp/langchain-bench --name langchain
+
+Creating collection 'langchain'...
+Collection: /tmp/langchain-bench (**/*.md)
+Indexed: 32 new, 0 updated, 0 unchanged, 0 removed
+Run 'qmd embed' to update embeddings (31 unique hashes need vectors)
+✓ Collection 'langchain' created successfully
+
+real    0m0.467s
+
+## Step 3: Generate embeddings (downloads models)
+$ time bun .refs/qmd/src/qmd.ts embed
+
+Chunking 31 documents by token count...
+[node-llama-cpp] A prebuilt binary was not found, falling back to using no GPU
+Downloading to ~/.cache/qmd/models
+✔ hf_ggml-org_embeddinggemma-300M-Q8_0.gguf downloaded 328.58MB in 11s
+Downloaded to ~/.cache/qmd/models/hf_ggml-org_embeddinggemma-300M-Q8_0.gguf
+Embedding 31 documents (37 chunks, 64.8 KB)
+4 documents split into multiple chunks
+Model: embeddinggemma
+✓ Done! Embedded 37 chunks from 31 documents in 16s (4.2 KB/s)
+
+real    0m28.852s
+user    1m38.41s
+sys     0m5.60s
+
+## Models downloaded during queries:
+# - embeddinggemma-300M-Q8_0.gguf: 328.58 MB (for embeddings)
+# - Qwen3-1.7B-Q8_0.gguf: 2.17 GB (for query expansion)
+# - qwen3-reranker-0.6b-q8_0.gguf: 639.15 MB (for reranking)
+# Total: ~3.14 GB
