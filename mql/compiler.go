@@ -877,7 +877,7 @@ func (v *compilerVisitor) handlePropertyAccess(property string) (interface{}, bo
 			return item.Start, true
 		case "end":
 			return item.End, true
-		// Note: "code" is handled specially in VisitSelector to support arguments
+			// Note: "code" is handled specially in VisitSelector to support arguments
 		}
 
 	case *mq.CodeBlock:

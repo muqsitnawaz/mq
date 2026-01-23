@@ -3,12 +3,13 @@
 [![CI](https://github.com/muqsitnawaz/mq/actions/workflows/ci.yml/badge.svg)](https://github.com/muqsitnawaz/mq/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/muqsitnawaz/mq)](https://github.com/muqsitnawaz/mq/releases/latest)
 [![Go Report Card](https://goreportcard.com/badge/github.com/muqsitnawaz/mq)](https://goreportcard.com/report/github.com/muqsitnawaz/mq)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 AI agents waste tokens reading entire files. mq lets them query structure first, then extract only what they need. The agent's context window becomes the working index.
 
 **Result: Up to 83% fewer tokens when scoped correctly.**
 
-[Install](#installation) | [Usage](#usage) | [Query Language](#query-language)
+[Install](#installation) | [Agent Skill](#agent-skill) | [Usage](#usage) | [Query Language](#query-language)
 
 ### Works With
 
@@ -182,19 +183,21 @@ This extends the mq philosophy: let agents reason over structure, but use sub-ag
 curl -fsSL https://raw.githubusercontent.com/muqsitnawaz/mq/main/install.sh | bash
 ```
 
-### Agent Integration
+### Agent Skill
 
-Add to your `CLAUDE.md` or system prompt:
+Install the mq skill for Claude Code, Cursor, Codex, and other agents:
 
-```markdown
-# Markdown Queries (mq)
-- mq <path> '.tree("full")' shows structure with content previews
-- mq <file> '.section("Name") | .text' extracts specific content
-- Scope matters: tree on a single file is cheap, tree on 1000 files is expensive
-- Use judgment: small repo? tree directly. Large repo? explore briefly to find the right subdir first.
+```bash
+npx skills add muqsitnawaz/mq
 ```
 
-The insight: agents that scope their queries save 80%+ tokens. But don't over-prescribe - let the agent judge based on repo size.
+See [skills.sh](https://skills.sh) for more.
+
+Skills aren't always loaded into context. Add this line to your `CLAUDE.md` for optimal performance:
+
+```markdown
+Use `mq` to query markdown files - run `mq <path> .tree` to see structure before reading.
+```
 
 ## Usage
 

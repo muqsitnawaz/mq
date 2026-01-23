@@ -66,10 +66,10 @@ func (t Token) String() string {
 // Lexer tokenizes MQL query strings.
 type Lexer struct {
 	input  string
-	pos    int    // current position in input
-	start  int    // start of current token
-	line   int    // current line number
-	col    int    // current column number
+	pos    int     // current position in input
+	start  int     // start of current token
+	line   int     // current line number
+	col    int     // current column number
 	tokens []Token // accumulated tokens
 }
 
@@ -399,7 +399,7 @@ func (l *Lexer) scanRegex() (Token, error) {
 		}
 
 		if ch == '/' {
-			l.advance() // skip closing '/'
+			l.advance()                                          // skip closing '/'
 			return l.makeToken(TokenString, value.String()), nil // Treat regex as string
 		}
 

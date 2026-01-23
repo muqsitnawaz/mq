@@ -15,7 +15,7 @@ type Document struct {
 	// Pre-computed indexes for O(1) lookups
 	mu              sync.RWMutex
 	headingIndex    map[string]*Heading     // by text
-	headingsByLevel map[int][]*Heading     // by level
+	headingsByLevel map[int][]*Heading      // by level
 	sectionIndex    map[string]*Section     // by title
 	codeBlocks      []*CodeBlock            // all code blocks
 	codeByLang      map[string][]*CodeBlock // by language

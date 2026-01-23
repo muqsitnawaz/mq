@@ -22,10 +22,10 @@ import (
 var version = "dev"
 
 const (
-	repo           = "muqsitnawaz/mq"
-	releaseAPIURL  = "https://api.github.com/repos/" + repo + "/releases/latest"
-	yellow         = "\033[33m"
-	reset          = "\033[0m"
+	repo          = "muqsitnawaz/mq"
+	releaseAPIURL = "https://api.github.com/repos/" + repo + "/releases/latest"
+	yellow        = "\033[33m"
+	reset         = "\033[0m"
 )
 
 func main() {
