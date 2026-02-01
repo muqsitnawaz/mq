@@ -130,7 +130,7 @@ type extractor struct {
 
 // structureResult holds the JSON output from extract_structure.py
 type structureResult struct {
-	Title        string `json:"title"`
+	Title        string  `json:"title"`
 	BodyFontSize float64 `json:"body_font_size"`
 	Headings     []struct {
 		Level    int     `json:"level"`
@@ -334,7 +334,6 @@ func (e *extractor) extractBasicText() string {
 
 	return stdout.String()
 }
-
 
 // Ensure Parser implements mq.FormatParser
 var _ mq.FormatParser = (*Parser)(nil)

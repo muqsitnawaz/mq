@@ -9,9 +9,9 @@ import (
 
 // Engine provides the MQL query language on top of mq.MultiFormatEngine.
 type Engine struct {
-	mqEngine      *mq.Engine            // For backwards compatibility
-	multiEngine   *mq.MultiFormatEngine // For multi-format support
-	executor      *QueryExecutor
+	mqEngine    *mq.Engine            // For backwards compatibility
+	multiEngine *mq.MultiFormatEngine // For multi-format support
+	executor    *QueryExecutor
 }
 
 // New creates a new MQL engine with multi-format support.

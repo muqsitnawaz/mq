@@ -186,8 +186,8 @@ func BenchmarkJSONLParsing(b *testing.B) {
 
 func BenchmarkHeadingsQuery(b *testing.B) {
 	sizes := []struct {
-		name           string
-		size           int
+		name             string
+		size             int
 		expectedHeadings int
 	}{
 		{"1KB", 1024, 5},
