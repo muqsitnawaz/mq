@@ -1,0 +1,41 @@
+goos: darwin
+goarch: arm64
+pkg: github.com/muqsitnawaz/mq/lib
+cpu: Apple M3 Max
+BenchmarkMarkdownParsing/1KB-16  	   38930	     32991 ns/op	  44.10 MB/s	   38954 B/op	     404 allocs/op
+BenchmarkMarkdownParsing/10KB-16 	    5127	    236062 ns/op	  44.23 MB/s	  273660 B/op	    2669 allocs/op
+BenchmarkMarkdownParsing/100KB-16         	     494	   2514224 ns/op	  40.77 MB/s	 2647665 B/op	   25291 allocs/op
+BenchmarkMarkdownParsing/1MB-16           	      49	  21838482 ns/op	  48.02 MB/s	27179815 B/op	  255070 allocs/op
+BenchmarkMarkdownParsing/10MB-16          	       5	 209761000 ns/op	  49.99 MB/s	269060153 B/op	 2533480 allocs/op
+BenchmarkJSONParsing/1KB-16               	 4099875	       287.6 ns/op	3779.90 MB/s	    1440 B/op	       2 allocs/op
+BenchmarkJSONParsing/10KB-16              	  782425	      1616 ns/op	6383.12 MB/s	   11168 B/op	       2 allocs/op
+BenchmarkJSONParsing/100KB-16             	   96502	     12102 ns/op	8467.49 MB/s	  106784 B/op	       2 allocs/op
+BenchmarkJSONParsing/1MB-16               	   14828	     81108 ns/op	12929.70 MB/s	 1057060 B/op	       2 allocs/op
+BenchmarkJSONLParsing/1KB-16              	 2390188	       498.9 ns/op	2128.86 MB/s	    1625 B/op	       4 allocs/op
+BenchmarkJSONLParsing/10KB-16             	  422079	      3008 ns/op	3409.06 MB/s	   12613 B/op	       4 allocs/op
+BenchmarkJSONLParsing/100KB-16            	   42404	     26859 ns/op	3814.90 MB/s	  120519 B/op	       5 allocs/op
+BenchmarkJSONLParsing/1MB-16              	    6672	    186791 ns/op	5613.81 MB/s	 1196956 B/op	       5 allocs/op
+BenchmarkJSONLParsing/10MB-16             	     859	   1446774 ns/op	7247.77 MB/s	11797647 B/op	       6 allocs/op
+BenchmarkHeadingsQuery/1KB-16             	10894473	       110.3 ns/op	      96 B/op	       3 allocs/op
+BenchmarkHeadingsQuery/10KB-16            	 6812844	       191.9 ns/op	     520 B/op	       3 allocs/op
+BenchmarkHeadingsQuery/100KB-16           	  828244	      1519 ns/op	    5384 B/op	       3 allocs/op
+BenchmarkHeadingsQuery/1MB-16             	  188264	      6293 ns/op	   53256 B/op	       3 allocs/op
+BenchmarkCodeBlockQuery/1KB-16            	45078040	        29.16 ns/op	      16 B/op	       1 allocs/op
+BenchmarkCodeBlockQuery/10KB-16           	24539792	        50.55 ns/op	     128 B/op	       1 allocs/op
+BenchmarkCodeBlockQuery/100KB-16          	 2994442	       407.1 ns/op	    1280 B/op	       1 allocs/op
+BenchmarkCodeBlockQuery/1MB-16            	  732421	      1620 ns/op	   12288 B/op	       1 allocs/op
+BenchmarkSectionQuery/GetSection-16       	125168118	         9.747 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSectionQuery/GetSectionFuzzy-16  	100000000	        11.05 ns/op	       0 B/op	       0 allocs/op
+BenchmarkReadableText/1KB-16              	1000000000	         0.2936 ns/op	       0 B/op	       0 allocs/op
+BenchmarkReadableText/10KB-16             	1000000000	         0.2909 ns/op	       0 B/op	       0 allocs/op
+BenchmarkReadableText/100KB-16            	1000000000	         0.3107 ns/op	       0 B/op	       0 allocs/op
+BenchmarkReadableText/1MB-16              	1000000000	         0.2930 ns/op	       0 B/op	       0 allocs/op
+BenchmarkMultipleDocuments/10_docs-16     	     500	   2385971 ns/op	 2745196 B/op	   26739 allocs/op
+BenchmarkMultipleDocuments/100_docs-16    	      50	  22687783 ns/op	27411412 B/op	  267329 allocs/op
+BenchmarkMultipleDocuments/1000_docs-16   	       5	 212376792 ns/op	273992772 B/op	 2673812 allocs/op
+BenchmarkMemoryUsage/1KB-16               	   38878	     31665 ns/op	   39116 B/op	     408 allocs/op
+BenchmarkMemoryUsage/10KB-16              	    5265	    238239 ns/op	  274571 B/op	    2673 allocs/op
+BenchmarkMemoryUsage/100KB-16             	     472	   2632562 ns/op	 2657233 B/op	   25295 allocs/op
+BenchmarkMemoryUsage/1024KB-16            	      45	  22893249 ns/op	27275203 B/op	  255077 allocs/op
+PASS
+ok  	github.com/muqsitnawaz/mq/lib	47.064s

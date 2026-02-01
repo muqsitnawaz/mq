@@ -1,0 +1,7 @@
+# Effective Go
+# The Go Authors
+
+Download: https://go.dev/doc/effective_go
+Source: https://go.dev/doc/effective_go
+
+Note: Save as complete HTML page

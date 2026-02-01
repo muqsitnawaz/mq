@@ -1,16 +1,29 @@
 package mq
 
 import (
-	"github.com/yuin/goldmark/ast"
 	"sync"
+
+	"github.com/yuin/goldmark/ast"
 )
 
-// Document represents a parsed markdown document with pre-computed indexes.
+// Document represents a parsed document with pre-computed indexes.
+// Documents can be created from multiple formats (Markdown, HTML, PDF)
+// but expose the same structural interface for querying.
+//
+// The structural types (Heading, Section, CodeBlock, etc.) are format-agnostic.
+// This allows the same MQL queries to work on any document regardless of source format.
 type Document struct {
 	source   []byte
 	path     string
-	root     ast.Node
+	format   Format
 	metadata Metadata
+
+	// Markdown-specific: AST from goldmark (nil for other formats)
+	root ast.Node
+
+	// Format-agnostic content
+	title        string // Document title (HTML: <title>, PDF: metadata, MD: first H1)
+	readableText string // Main content as plain text (for LLM context)
 
 	// Pre-computed indexes for O(1) lookups
 	mu              sync.RWMutex
@@ -25,17 +38,128 @@ type Document struct {
 	lists           []*List                 // all lists
 }
 
+// NewDocument creates a Document from pre-extracted structural elements.
+// This is the constructor used by HTML and PDF parsers.
+//
+// The parser is responsible for:
+//   - Extracting structural elements from the source format
+//   - Building the section hierarchy (parent/children relationships)
+//   - Determining the readable text content
+func NewDocument(
+	source []byte,
+	path string,
+	format Format,
+	title string,
+	headings []*Heading,
+	sections []*Section,
+	codeBlocks []*CodeBlock,
+	links []*Link,
+	images []*Image,
+	tables []*Table,
+	lists []*List,
+	readableText string,
+) *Document {
+	doc := &Document{
+		source:          source,
+		path:            path,
+		format:          format,
+		title:           title,
+		readableText:    readableText,
+		headingIndex:    make(map[string]*Heading),
+		headingsByLevel: make(map[int][]*Heading),
+		sectionIndex:    make(map[string]*Section),
+		codeBlocks:      codeBlocks,
+		codeByLang:      make(map[string][]*CodeBlock),
+		links:           links,
+		images:          images,
+		tables:          tables,
+		lists:           lists,
+	}
+
+	// Build heading indexes
+	for _, h := range headings {
+		doc.headingIndex[h.Text] = h
+		doc.headingsByLevel[h.Level] = append(doc.headingsByLevel[h.Level], h)
+	}
+
+	// Build section index
+	for _, s := range sections {
+		if s.Heading != nil {
+			doc.sectionIndex[s.Heading.Text] = s
+		}
+	}
+
+	// Build code block language index
+	for _, cb := range codeBlocks {
+		if cb.Language != "" {
+			doc.codeByLang[cb.Language] = append(doc.codeByLang[cb.Language], cb)
+		}
+	}
+
+	return doc
+}
+
+// NewHTMLDocument is a convenience constructor for HTML documents.
+// Deprecated: Use NewDocument with FormatHTML instead.
+func NewHTMLDocument(
+	source []byte,
+	path string,
+	title string,
+	headings []*Heading,
+	sections []*Section,
+	codeBlocks []*CodeBlock,
+	links []*Link,
+	images []*Image,
+	tables []*Table,
+	lists []*List,
+	readableText string,
+) *Document {
+	return NewDocument(source, path, FormatHTML, title, headings, sections, codeBlocks, links, images, tables, lists, readableText)
+}
+
 // Path returns the document's file path.
 func (d *Document) Path() string {
 	return d.path
 }
 
-// Source returns the raw markdown source.
+// Format returns the document's source format.
+func (d *Document) Format() Format {
+	return d.format
+}
+
+// Source returns the raw source content.
 func (d *Document) Source() []byte {
 	return d.source
 }
 
-// AST returns the root AST node.
+// Title returns the document title.
+// For HTML: <title> tag
+// For PDF: document metadata
+// For Markdown: first H1 heading or empty
+func (d *Document) Title() string {
+	if d.title != "" {
+		return d.title
+	}
+	// Fall back to first H1 for markdown
+	if headings := d.headingsByLevel[1]; len(headings) > 0 {
+		return headings[0].Text
+	}
+	return ""
+}
+
+// ReadableText returns the main content as plain text.
+// This is the content suitable for LLM context - stripped of
+// navigation, ads, scripts, and other non-content elements.
+//
+// For Markdown: full text content
+// For HTML: Readability-extracted main content
+// For PDF: extracted text content
+func (d *Document) ReadableText() string {
+	return d.readableText
+}
+
+// AST returns the root AST node (Markdown only).
+// Returns nil for HTML and PDF documents.
 func (d *Document) AST() ast.Node {
 	return d.root
 }

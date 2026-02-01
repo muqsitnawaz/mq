@@ -1,0 +1,5 @@
+# Deep Residual Learning for Image Recognition (ResNet)
+# He et al., 2015
+
+Download: https://arxiv.org/pdf/1512.03385.pdf
+ArXiv: https://arxiv.org/abs/1512.03385

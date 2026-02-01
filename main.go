@@ -417,7 +417,8 @@ func handleDirectory(path string, query string) {
 
 func showDocumentInfo(doc *mq.Document) {
 	fmt.Printf("Document: %s\n", doc.Path())
-	fmt.Println("=" + strings.Repeat("=", len(doc.Path())+9))
+	fmt.Printf("Format: %s\n", doc.Format())
+	fmt.Println(strings.Repeat("=", len(doc.Path())+10))
 
 	// Show metadata
 	if meta := doc.Metadata(); meta != nil {
@@ -433,7 +434,14 @@ func showDocumentInfo(doc *mq.Document) {
 		}
 	}
 
-	// Show structure
+	// For data formats (JSON, JSONL, YAML), show data-specific info
+	format := doc.Format()
+	if format == mq.FormatJSON || format == mq.FormatJSONL || format == mq.FormatYAML {
+		showDataInfo(doc)
+		return
+	}
+
+	// Show structure for document formats
 	fmt.Println("\nStructure:")
 	headings := doc.GetHeadings()
 	fmt.Printf("  Headings: %d\n", len(headings))
@@ -480,6 +488,70 @@ func showDocumentInfo(doc *mq.Document) {
 	for _, heading := range headings {
 		indent := strings.Repeat("  ", heading.Level-1)
 		fmt.Printf("%s- %s\n", indent, heading.Text)
+	}
+}
+
+func showDataInfo(doc *mq.Document) {
+	title := doc.Title()
+	if title != "" {
+		fmt.Printf("\nTitle: %s\n", title)
+	}
+
+	// Show top-level keys (H1 headings only)
+	headings := doc.GetHeadings(1)
+	tables := doc.GetTables()
+
+	if len(tables) > 0 {
+		// It's tabular data (array of uniform objects)
+		fmt.Println("\nData Type: Table (array of uniform objects)")
+		for _, table := range tables {
+			fmt.Printf("  Columns: %d\n", len(table.Headers))
+			fmt.Printf("  Rows: %d\n", len(table.Rows))
+			fmt.Printf("  Headers: %v\n", table.Headers)
+
+			// Show sample rows
+			if len(table.Rows) > 0 {
+				fmt.Println("\nSample (first 3 rows):")
+				for i, row := range table.Rows {
+					if i >= 3 {
+						fmt.Printf("  ... and %d more rows\n", len(table.Rows)-3)
+						break
+					}
+					fmt.Printf("  %d. %v\n", i+1, row)
+				}
+			}
+		}
+	} else if len(headings) > 0 {
+		// It's structured data (object with keys)
+		fmt.Println("\nData Type: Object")
+		fmt.Printf("  Top-level keys: %d\n", len(headings))
+		fmt.Println("\nKeys:")
+		for i, h := range headings {
+			if i >= 20 {
+				fmt.Printf("  ... and %d more keys\n", len(headings)-20)
+				break
+			}
+			fmt.Printf("  - %s\n", h.Text)
+		}
+	}
+
+	// Show preview of readable text
+	text := doc.ReadableText()
+	if len(text) > 0 {
+		fmt.Println("\nPreview:")
+		preview := text
+		if len(preview) > 500 {
+			preview = preview[:500] + "\n..."
+		}
+		// Indent the preview
+		lines := strings.Split(preview, "\n")
+		for i, line := range lines {
+			if i >= 15 {
+				fmt.Println("  ...")
+				break
+			}
+			fmt.Printf("  %s\n", line)
+		}
 	}
 }
 

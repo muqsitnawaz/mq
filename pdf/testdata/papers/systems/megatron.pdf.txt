@@ -1,0 +1,5 @@
+# Megatron-LM: Training Multi-Billion Parameter Language Models Using Model Parallelism
+# Shoeybi et al., 2019
+
+Download: https://arxiv.org/pdf/1909.08053.pdf
+ArXiv: https://arxiv.org/abs/1909.08053

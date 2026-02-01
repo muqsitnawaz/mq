@@ -1,0 +1,5 @@
+# Attention Is All You Need (Transformer paper)
+# Vaswani et al., 2017
+
+Download: https://arxiv.org/pdf/1706.03762.pdf
+ArXiv: https://arxiv.org/abs/1706.03762

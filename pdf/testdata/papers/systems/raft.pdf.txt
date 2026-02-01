@@ -1,0 +1,5 @@
+# In Search of an Understandable Consensus Algorithm (Raft)
+# Ongaro & Ousterhout, 2014
+
+Download: https://raft.github.io/raft.pdf
+Paper: https://raft.github.io/

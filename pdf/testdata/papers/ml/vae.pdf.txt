@@ -1,0 +1,5 @@
+# Auto-Encoding Variational Bayes (VAE)
+# Kingma & Welling, 2013
+
+Download: https://arxiv.org/pdf/1312.6114.pdf
+ArXiv: https://arxiv.org/abs/1312.6114

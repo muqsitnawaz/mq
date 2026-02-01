@@ -1,0 +1,5 @@
+# Generative Adversarial Networks
+# Goodfellow et al., 2014
+
+Download: https://arxiv.org/pdf/1406.2661.pdf
+ArXiv: https://arxiv.org/abs/1406.2661

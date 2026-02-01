@@ -3,3 +3,19 @@
 .claude
 CLAUDE.md
 mq
+
+# Large test files (downloaded from internet)
+# HTML
+html/testdata/w3c-html53.html
+html/testdata/effective-go.html
+
+# PDF - Papers
+pdf/testdata/papers/ml/*.pdf
+pdf/testdata/papers/systems/*.pdf
+pdf/testdata/papers/economics/*.pdf
+
+# PDF - Books
+pdf/testdata/books/**/*.pdf
+
+# PDF - Forms
+pdf/testdata/forms/**/*.pdf

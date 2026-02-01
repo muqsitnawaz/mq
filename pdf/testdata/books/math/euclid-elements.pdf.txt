@@ -1,0 +1,5 @@
+# Euclid's Elements
+# Euclid (edited by Richard Fitzpatrick)
+
+Download: http://farside.ph.utexas.edu/Books/Euclid/Elements.pdf
+Source: http://farside.ph.utexas.edu/Books/Euclid/Euclid.html

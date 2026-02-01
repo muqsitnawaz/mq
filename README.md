@@ -13,6 +13,17 @@ AI agents waste tokens reading entire files. mq lets them query structure first,
 
 [Install](#installation) | [Agent Skill](#agent-skill) | [Usage](#usage) | [Query Language](#query-language)
 
+## Supported Formats
+
+| Format | Extensions | Structure Extraction |
+|--------|------------|---------------------|
+| Markdown | `.md` | Headings, sections, code blocks, links, tables |
+| HTML | `.html`, `.htm` | Headings, readable content (Readability algorithm) |
+| PDF | `.pdf` | Headings (font-size inference), tables, text |
+| JSON | `.json` | Top-level keys as headings, nested structure |
+| JSONL | `.jsonl`, `.ndjson` | Uniform objects as tables, mixed as items |
+| YAML | `.yaml`, `.yml` | Keys as headings, nested structure |
+
 ### Works With
 
 <p>
@@ -44,17 +55,24 @@ Any AI agent or coding assistant that can execute shell commands.
 </details>
 
 ```bash
-# Agent sees the structure (this IS the index)
+# Markdown - structure and extraction
 mq docs/ '.tree("full")'
-# → docs/ (12 files, 2847 lines)
-# → ├── auth.md (234 lines, 8 sections)
-# → │   ├── ## Authentication
-# → │   │        "OAuth 2.0 and API key authentication..."
-# → │   └── ## OAuth Flow
-# → │            "Step-by-step OAuth implementation..."
-
-# Agent extracts only what it needs
 mq docs/auth.md '.section("OAuth Flow") | .text'
+
+# HTML - readable content from web pages
+mq page.html '.headings'
+mq page.html '.text'
+
+# PDF - extract structure from papers
+mq paper.pdf '.headings'
+mq paper.pdf '.tables'
+
+# JSON/YAML - query data files
+mq config.json '.headings'      # Top-level keys
+mq data.yaml '.text'            # Readable representation
+
+# JSONL - query ML datasets and logs
+mq users.jsonl '.tables'        # Uniform objects as tables
 ```
 
 ## Why This Works
@@ -279,6 +297,51 @@ mq doc.md '.section("Examples") | .code("python")'
 mq doc.md '.section("API") | .tree'
 ```
 
+## Architecture
+
+mq is built on a **Structural AST Pattern**: different formats are parsed into a common structural representation.
+
+```
+┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐
+│ Markdown │  │   HTML   │  │   PDF    │  │JSON/YAML │
+│  Parser  │  │  Parser  │  │  Parser  │  │  Parser  │
+└────┬─────┘  └────┬─────┘  └────┬─────┘  └────┬─────┘
+     │             │             │             │
+     └─────────────┴──────┬──────┴─────────────┘
+                          ▼
+          ┌───────────────────────────────┐
+          │     Unified Document          │
+          │   - Headings (h1-h6 levels)   │
+          │   - Sections (hierarchical)   │
+          │   - CodeBlocks (with lang)    │
+          │   - Links, Images, Tables     │
+          │   - ReadableText (for LLM)    │
+          └───────────────┬───────────────┘
+                          ▼
+          ┌───────────────────────────────┐
+          │       MQL Query Engine        │
+          │  .headings | .section("API")  │
+          └───────────────────────────────┘
+```
+
+### Core Components
+
+- **`lib/`** - Core document engine and unified types
+- **`mql/`** - Query language (lexer, parser, executor)
+- **`html/`** - HTML parser with Readability extraction
+- **`pdf/`** - PDF parser using PyMuPDF for structure
+- **`data/`** - JSON, JSONL, YAML parsers
+
+### Format-Agnostic Types
+
+| Type | Markdown | HTML | PDF | JSON/YAML |
+|------|----------|------|-----|-----------|
+| Heading | `# Title` | `<h1>` | Large/bold text | Top-level keys |
+| Section | Under heading | `<section>` | Chapter/page | Nested objects |
+| CodeBlock | Triple backticks | `<pre><code>` | Monospace | N/A |
+| Table | Pipe syntax | `<table>` | Aligned grid | Uniform arrays |
+| ReadableText | Full content | Main content | All text | Pretty-printed |
+
 ## Library Usage
 
 ```go
@@ -287,6 +350,80 @@ import "github.com/muqsitnawaz/mq/mql"
 engine := mql.New()
 doc, _ := engine.LoadDocument("README.md")
 result, _ := engine.Query(doc, `.section("API") | .code("go")`)
+```
+
+### Direct Document API
+
+```go
+// Load and parse document
+engine := mql.New()
+doc, err := engine.LoadDocument("doc.md")
+
+// Direct access methods
+headings := doc.GetHeadings()           // All headings
+section, _ := doc.GetSection("Intro")   // Specific section
+codeBlocks := doc.GetCodeBlocks("go")   // Go code blocks
+links := doc.GetLinks()                 // All links
+tables := doc.GetTables()               // All tables
+
+// Metadata access
+if owner, ok := doc.GetOwner(); ok {
+    fmt.Printf("Owner: %s\n", owner)
+}
+```
+
+## Performance
+
+Benchmarked on Apple M3 Max.
+
+### Parsing Speed by Format
+
+| Format | 100KB | 1MB | Throughput |
+|--------|-------|-----|------------|
+| Markdown | 2.4ms | 22ms | 45 MB/s |
+| HTML | 57ms | ~500ms | 2.5 MB/s |
+| JSON | 12us | 81us | 12 GB/s |
+| JSONL | 27us | 187us | 5.6 GB/s |
+| PDF | - | 1.9s | ~1 MB/s |
+
+### Context Window Budget (200k tokens = 800KB)
+
+| Format | Docs per Context | Total Parse Time | Use Case |
+|--------|------------------|------------------|----------|
+| PDF | 1-2 papers | 2-4s | Academic papers, reports |
+| Markdown | 80 docs (10KB each) | 16ms | Documentation, READMEs |
+| HTML | 40 pages | 2.3s | Web content |
+| JSON/JSONL | 800KB / 8000 lines | <1ms | ML data, configs, logs |
+
+### Query Performance (after parsing)
+
+| Query | Time | Notes |
+|-------|------|-------|
+| GetSection | 10ns | O(1) - pre-indexed |
+| ReadableText | 0.3ns | O(1) - cached |
+| GetHeadings | 6us | O(n) on heading count |
+| GetCodeBlocks | 1.6us | O(n) on block count |
+
+See [`bench/results.md`](bench/results.md) for full benchmarks.
+
+## Dependencies
+
+- **Markdown**: [goldmark](https://github.com/yuin/goldmark) - extensible markdown parser
+- **HTML**: [x/net/html](https://golang.org/x/net/html) + custom Readability
+- **PDF**: [PyMuPDF](https://pymupdf.readthedocs.io/) - structure extraction via Python
+- **JSON/YAML**: Go standard library + [yaml.v3](https://gopkg.in/yaml.v3)
+
+## Development
+
+```bash
+# Run tests
+go test ./...
+
+# Build CLI
+go build -o mq .
+
+# Install locally
+go install .
 ```
 
 ## License

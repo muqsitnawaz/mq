@@ -1,0 +1,5 @@
+# Neural Machine Translation by Jointly Learning to Align and Translate
+# Bahdanau et al., 2014
+
+Download: https://arxiv.org/pdf/1409.0473.pdf
+ArXiv: https://arxiv.org/abs/1409.0473

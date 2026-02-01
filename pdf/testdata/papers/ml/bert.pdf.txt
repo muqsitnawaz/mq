@@ -1,0 +1,5 @@
+# BERT: Pre-training of Deep Bidirectional Transformers
+# Devlin et al., 2018
+
+Download: https://arxiv.org/pdf/1810.04805.pdf
+ArXiv: https://arxiv.org/abs/1810.04805

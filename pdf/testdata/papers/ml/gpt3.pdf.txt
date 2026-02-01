@@ -1,0 +1,5 @@
+# Language Models are Few-Shot Learners (GPT-3)
+# Brown et al., 2020
+
+Download: https://arxiv.org/pdf/2005.14165.pdf
+ArXiv: https://arxiv.org/abs/2005.14165
