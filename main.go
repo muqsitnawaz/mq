@@ -365,20 +365,19 @@ func parseMethodCall(query string) (method string, arg string, ok bool) {
 		return "", "", false
 	}
 
-	// Find opening paren
-	parenIdx := strings.Index(query, "(")
-	if parenIdx == -1 {
-		// No paren, just method name like ".tree"
-		return query[1:], "", true
+	query = query[1:]
+
+	method, rest, found := strings.Cut(query, "(")
+	if !found {
+		return method, "", true
 	}
 
 	// Must end with closing paren
-	if !strings.HasSuffix(query, ")") {
+	if !strings.HasSuffix(rest, ")") {
 		return "", "", false
 	}
 
-	method = query[1:parenIdx]
-	arg = query[parenIdx+1 : len(query)-1]
+	arg = strings.TrimSuffix(rest, ")")
 
 	// Strip quotes from arg if present (handle ", ', or no quotes)
 	if len(arg) >= 2 {
