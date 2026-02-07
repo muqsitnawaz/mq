@@ -268,13 +268,41 @@ type SearchResults struct {
 	Matches []*SearchResult
 }
 
+type documentLoaderFunc func(path string) (*Document, error)
+
+var traversalExtensions = map[string]struct{}{
+	".md":       {},
+	".markdown": {},
+	".mdown":    {},
+	".mkd":      {},
+	".html":     {},
+	".htm":      {},
+	".xhtml":    {},
+	".pdf":      {},
+	".json":     {},
+	".jsonl":    {},
+	".ndjson":   {},
+	".yaml":     {},
+	".yml":      {},
+}
+
+func isTraversalFile(path string) bool {
+	_, ok := traversalExtensions[strings.ToLower(filepath.Ext(path))]
+	return ok
+}
+
 // Search finds sections containing the query term.
 func (d *Document) Search(query string) *SearchResults {
 	results := &SearchResults{Query: query}
 	query = strings.ToLower(query)
+	hasSectionText := false
 
 	for _, section := range d.GetSections() {
 		text := section.GetText()
+		if text == "" {
+			continue
+		}
+		hasSectionText = true
 		if strings.Contains(strings.ToLower(text), query) {
 			// Find a snippet around the match
 			snippet := extractSnippet(text, query, 60)
@@ -283,6 +311,24 @@ func (d *Document) Search(query string) *SearchResults {
 				Section: section.Heading.Text,
 				Lines:   fmt.Sprintf("%d-%d", section.Start, section.End),
 				Match:   snippet,
+			})
+		}
+	}
+
+	// Non-markdown parsers may not populate section line ranges/source slices.
+	// Fall back to readable text so directory search works across all formats.
+	if !hasSectionText {
+		text := d.ReadableText()
+		if strings.Contains(strings.ToLower(text), query) {
+			section := d.Title()
+			if section == "" {
+				section = "Document"
+			}
+			results.Matches = append(results.Matches, &SearchResult{
+				File:    d.path,
+				Section: section,
+				Lines:   "n/a",
+				Match:   extractSnippet(text, query, 60),
 			})
 		}
 	}
@@ -349,23 +395,28 @@ func (r *SearchResults) String() string {
 	return buf.String()
 }
 
-// SearchDir searches all markdown files in a directory.
+// SearchDir searches all supported document files in a directory.
 func SearchDir(dirPath string, query string) (*SearchResults, error) {
-	results := &SearchResults{Query: query}
 	parser := NewParser()
+	return SearchDirWithLoader(dirPath, query, parser.ParseFile)
+}
+
+// SearchDirWithLoader searches all supported document files using a custom loader.
+func SearchDirWithLoader(dirPath string, query string, load documentLoaderFunc) (*SearchResults, error) {
+	results := &SearchResults{Query: query}
 
 	err := filepath.WalkDir(dirPath, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return nil // Skip errors
 		}
-		if d.IsDir() || !strings.HasSuffix(strings.ToLower(path), ".md") {
+		if d.IsDir() || !isTraversalFile(path) {
 			return nil
 		}
 		if strings.HasPrefix(d.Name(), ".") {
 			return nil
 		}
 
-		doc, err := parser.ParseFile(path)
+		doc, err := load(path)
 		if err != nil {
 			return nil // Skip unparseable files
 		}
@@ -389,8 +440,11 @@ type DirFileNode struct {
 	Name        string         // File or directory name
 	Path        string         // Full path
 	IsDir       bool           // True if directory
+	Format      Format         // Parsed document format
 	Lines       int            // Line count (files only)
 	Sections    int            // Section count (files only)
+	Structure   string         // Format-aware structure label (e.g., sections, keys, records)
+	Count       int            // Count of structure units for this format
 	TopHeadings []*DirHeading  // Top-level headings for expand/full modes
 	Children    []*DirFileNode // Child files/directories
 }
@@ -398,21 +452,26 @@ type DirFileNode struct {
 // DirTreeResult represents the result of a directory tree query.
 type DirTreeResult struct {
 	Path       string         // Directory path
-	TotalFiles int            // Total .md files
+	TotalFiles int            // Total supported files
 	TotalLines int            // Total lines across all files
 	Mode       TreeMode       // Display mode
 	Root       []*DirFileNode // Top-level entries
 }
 
-// BuildDirTree creates a tree representation of markdown files in a directory.
+// BuildDirTree creates a tree representation of supported document files in a directory.
 func BuildDirTree(dirPath string, mode TreeMode) (*DirTreeResult, error) {
+	parser := NewParser()
+	return BuildDirTreeWithLoader(dirPath, mode, parser.ParseFile)
+}
+
+// BuildDirTreeWithLoader creates a tree representation using a custom loader.
+func BuildDirTreeWithLoader(dirPath string, mode TreeMode, load documentLoaderFunc) (*DirTreeResult, error) {
 	result := &DirTreeResult{
 		Path: dirPath,
 		Mode: mode,
 	}
 
-	parser := NewParser()
-	root, err := buildDirNode(dirPath, parser, mode, result)
+	root, err := buildDirNode(dirPath, mode, result, load)
 	if err != nil {
 		return nil, err
 	}
@@ -422,7 +481,7 @@ func BuildDirTree(dirPath string, mode TreeMode) (*DirTreeResult, error) {
 }
 
 // buildDirNode recursively builds directory tree nodes.
-func buildDirNode(path string, parser *Parser, mode TreeMode, result *DirTreeResult) (*DirFileNode, error) {
+func buildDirNode(path string, mode TreeMode, result *DirTreeResult, load documentLoaderFunc) (*DirFileNode, error) {
 	info, err := os.Stat(path)
 	if err != nil {
 		return nil, err
@@ -436,8 +495,8 @@ func buildDirNode(path string, parser *Parser, mode TreeMode, result *DirTreeRes
 
 	if !info.IsDir() {
 		// It's a file - parse it
-		if strings.HasSuffix(strings.ToLower(path), ".md") {
-			doc, err := parser.ParseFile(path)
+		if isTraversalFile(path) {
+			doc, err := load(path)
 			if err != nil {
 				// Skip files that can't be parsed
 				node.Lines = -1
@@ -447,6 +506,8 @@ func buildDirNode(path string, parser *Parser, mode TreeMode, result *DirTreeRes
 			node.Lines = doc.countLines()
 			sections := doc.GetSections()
 			node.Sections = len(sections)
+			node.Format = doc.Format()
+			node.Count, node.Structure = describeStructure(doc)
 
 			result.TotalFiles++
 			result.TotalLines += node.Lines
@@ -457,7 +518,7 @@ func buildDirNode(path string, parser *Parser, mode TreeMode, result *DirTreeRes
 				for _, section := range doc.GetTableOfContents() {
 					h := section.Heading
 					heading := &DirHeading{
-						Text: fmt.Sprintf("%s %s", strings.Repeat("#", h.Level), h.Text),
+						Text: formatTreeLabel(doc.Format(), h),
 					}
 					// Add preview for full mode
 					if mode == TreeModeFull {
@@ -469,7 +530,7 @@ func buildDirNode(path string, parser *Parser, mode TreeMode, result *DirTreeRes
 					for _, child := range section.Children {
 						if child.Heading.Level <= 2 {
 							childHeading := &DirHeading{
-								Text: fmt.Sprintf("%s %s", strings.Repeat("#", child.Heading.Level), child.Heading.Text),
+								Text: formatTreeLabel(doc.Format(), child.Heading),
 							}
 							if mode == TreeModeFull {
 								childHeading.Preview = ExtractPreview(child.GetText(), 50)
@@ -505,17 +566,17 @@ func buildDirNode(path string, parser *Parser, mode TreeMode, result *DirTreeRes
 
 		childPath := filepath.Join(path, entry.Name())
 
-		// For files, only include .md files
-		if !entry.IsDir() && !strings.HasSuffix(strings.ToLower(entry.Name()), ".md") {
+		// For files, only include supported formats
+		if !entry.IsDir() && !isTraversalFile(entry.Name()) {
 			continue
 		}
 
-		child, err := buildDirNode(childPath, parser, mode, result)
+		child, err := buildDirNode(childPath, mode, result, load)
 		if err != nil {
 			continue // Skip entries that error
 		}
 
-		// Skip empty directories (no .md files)
+		// Skip empty directories (no supported files)
 		if child.IsDir && len(child.Children) == 0 {
 			continue
 		}
@@ -554,10 +615,20 @@ func (t *DirTreeResult) renderNode(buf *strings.Builder, node *DirFileNode, pref
 	} else {
 		if node.Lines < 0 {
 			buf.WriteString(fmt.Sprintf("%s%s%s (parse error)\n", prefix, connector, node.Name))
-		} else if node.Sections == 0 {
-			buf.WriteString(fmt.Sprintf("%s%s%s (%d lines, no sections)\n", prefix, connector, node.Name, node.Lines))
 		} else {
-			buf.WriteString(fmt.Sprintf("%s%s%s (%d lines, %d sections)\n", prefix, connector, node.Name, node.Lines, node.Sections))
+			label := node.Structure
+			if label == "" {
+				label = "sections"
+			}
+
+			switch {
+			case node.Count == 0:
+				buf.WriteString(fmt.Sprintf("%s%s%s (%d lines, no %s)\n", prefix, connector, node.Name, node.Lines, label))
+			case node.Count == 1:
+				buf.WriteString(fmt.Sprintf("%s%s%s (%d lines, 1 %s)\n", prefix, connector, node.Name, node.Lines, singularLabel(label)))
+			default:
+				buf.WriteString(fmt.Sprintf("%s%s%s (%d lines, %d %s)\n", prefix, connector, node.Name, node.Lines, node.Count, label))
+			}
 		}
 	}
 
@@ -598,4 +669,55 @@ func (t *DirTreeResult) renderNode(buf *strings.Builder, node *DirFileNode, pref
 		childIsLast := i == len(node.Children)-1
 		t.renderNode(buf, child, childPrefix, childIsLast)
 	}
+}
+
+func formatTreeLabel(format Format, h *Heading) string {
+	switch format {
+	case FormatMarkdown:
+		return fmt.Sprintf("%s %s", strings.Repeat("#", h.Level), h.Text)
+	case FormatHTML, FormatPDF:
+		return fmt.Sprintf("H%d %s", h.Level, h.Text)
+	case FormatJSON, FormatYAML:
+		if h.Level <= 1 {
+			return fmt.Sprintf("key %s", h.Text)
+		}
+		return fmt.Sprintf("subkey %s", h.Text)
+	case FormatJSONL:
+		return fmt.Sprintf("field %s", h.Text)
+	default:
+		return fmt.Sprintf("H%d %s", h.Level, h.Text)
+	}
+}
+
+func describeStructure(doc *Document) (int, string) {
+	switch doc.Format() {
+	case FormatJSON, FormatYAML:
+		return len(doc.GetSections()), "keys"
+	case FormatJSONL:
+		return countJSONLRecords(doc.Source()), "records"
+	default:
+		return len(doc.GetSections()), "sections"
+	}
+}
+
+func countJSONLRecords(source []byte) int {
+	if len(source) == 0 {
+		return 0
+	}
+
+	count := 0
+	for _, line := range strings.Split(string(source), "\n") {
+		if strings.TrimSpace(line) == "" {
+			continue
+		}
+		count++
+	}
+	return count
+}
+
+func singularLabel(label string) string {
+	if strings.HasSuffix(label, "s") && len(label) > 1 {
+		return label[:len(label)-1]
+	}
+	return label
 }

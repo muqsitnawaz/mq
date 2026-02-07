@@ -70,7 +70,7 @@ func main() {
 		return
 	}
 
-	// Load the markdown file
+	// Load the document (auto-detect format)
 	engine := mql.New()
 	doc, err := engine.LoadDocument(path)
 	if err != nil {
@@ -94,7 +94,7 @@ func main() {
 }
 
 func printUsage() {
-	fmt.Printf("mq %s - Query markdown files without reading entire contents\n\n", version)
+	fmt.Printf("mq %s - Query structured documents without reading entire contents\n\n", version)
 	fmt.Println("Usage: mq <file|directory> [query]")
 	fmt.Println("\nWorkflow:")
 	fmt.Println("  1. See structure:  mq <path> '.tree(\"full\")'")
@@ -414,7 +414,7 @@ func handleDirectory(path string, query string) {
 		default:
 			log.Fatalf("Unknown tree mode: %q. Use: compact, preview, full", arg)
 		}
-		result, err := mq.BuildDirTree(path, mode)
+		result, err := mql.BuildDirTree(path, mode)
 		if err != nil {
 			log.Fatalf("Failed to build directory tree: %v", err)
 		}
@@ -424,7 +424,7 @@ func handleDirectory(path string, query string) {
 		if arg == "" {
 			log.Fatalf("Search requires a term: .search(\"term\")")
 		}
-		result, err := mq.SearchDir(path, arg)
+		result, err := mql.SearchDir(path, arg)
 		if err != nil {
 			log.Fatalf("Search failed: %v", err)
 		}
