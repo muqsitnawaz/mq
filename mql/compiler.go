@@ -1284,16 +1284,7 @@ func buildSectionNode(section *mq.Section, mode mq.TreeMode) *mq.TreeNode {
 	if mode == mq.TreeModeDefault {
 		codeBlocks := section.GetCodeBlocks()
 		if len(codeBlocks) > 0 {
-			// Group by language
-			langCounts := make(map[string]int)
-			for _, cb := range codeBlocks {
-				lang := cb.Language
-				if lang == "" {
-					lang = "plain"
-				}
-				langCounts[lang]++
-			}
-			for lang, count := range langCounts {
+			for lang, count := range mq.CountCodeByLanguage(codeBlocks) {
 				meta := fmt.Sprintf("%d block", count)
 				if count > 1 {
 					meta = fmt.Sprintf("%d blocks", count)
