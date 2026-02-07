@@ -265,6 +265,18 @@ func MapCodeBlocksToContent(blocks []*CodeBlock) []string {
 	})
 }
 
+func CountCodeByLanguage(blocks []*CodeBlock) map[string]int {
+	counts := make(map[string]int)
+	for _, cb := range blocks {
+		lang := cb.Language
+		if lang == "" {
+			lang = "plain"
+		}
+		counts[lang]++
+	}
+	return counts
+}
+
 // HeadingPredicate creates a predicate for filtering headings.
 type HeadingPredicate func(*Heading) bool
 

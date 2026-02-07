@@ -1,6 +1,7 @@
 package mq
 
 import (
+	"slices"
 	"strings"
 
 	"github.com/yuin/goldmark/ast"
@@ -59,7 +60,7 @@ func (s *Section) GetCodeBlocks(languages ...string) []*CodeBlock {
 
 	// Return stored code blocks for this section
 	for _, cb := range s.codeBlocks {
-		if len(languages) == 0 || contains(languages, cb.Language) {
+		if len(languages) == 0 || slices.Contains(languages, cb.Language) {
 			blocks = append(blocks, cb)
 		}
 	}
@@ -131,14 +132,6 @@ type ListItem struct {
 }
 
 // helper functions
-func contains(slice []string, item string) bool {
-	for _, s := range slice {
-		if s == item {
-			return true
-		}
-	}
-	return false
-}
 
 func extractText(node ast.Node, buf *strings.Builder) {
 	if node == nil {

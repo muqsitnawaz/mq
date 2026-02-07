@@ -93,16 +93,7 @@ func (d *Document) buildSectionTree(section *Section, mode TreeMode) *TreeNode {
 		// Code blocks in this section (not children)
 		codeBlocks := section.codeBlocks
 		if len(codeBlocks) > 0 {
-			// Group by language
-			langCounts := make(map[string]int)
-			for _, cb := range codeBlocks {
-				lang := cb.Language
-				if lang == "" {
-					lang = "plain"
-				}
-				langCounts[lang]++
-			}
-			for lang, count := range langCounts {
+			for lang, count := range CountCodeByLanguage(codeBlocks) {
 				meta := fmt.Sprintf("%d block", count)
 				if count > 1 {
 					meta = fmt.Sprintf("%d blocks", count)

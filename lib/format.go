@@ -166,10 +166,3 @@ func (e *ParseError) Error() string {
 func (e *ParseError) Unwrap() error {
 	return e.Err
 }
-
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
-}

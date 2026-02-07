@@ -113,6 +113,7 @@ func (p *Parser) Parse(source []byte, path string) (*Document, error) {
 func (p *Parser) buildIndexes(doc *Document) error {
 	var currentSection *Section
 	var sectionStack []*Section
+	var allSections []*Section
 
 	// Pre-compute line starts for efficient line number lookups
 	lineStarts := computeLineStarts(doc.source)
@@ -149,7 +150,10 @@ func (p *Parser) buildIndexes(doc *Document) error {
 			for len(sectionStack) > 0 && sectionStack[len(sectionStack)-1].Heading.Level >= heading.Level {
 				// Close previous section at the line before this heading
 				prev := sectionStack[len(sectionStack)-1]
-				prev.End = heading.Line - 1
+				if heading.Line > 0 {
+					prev.End = heading.Line - 1
+				}
+				// If heading.Line is 0, leave prev.End as 0 - it will be fixed in the final cleanup
 				sectionStack = sectionStack[:len(sectionStack)-1]
 			}
 
@@ -162,6 +166,7 @@ func (p *Parser) buildIndexes(doc *Document) error {
 
 			sectionStack = append(sectionStack, section)
 			currentSection = section
+			allSections = append(allSections, section)
 			doc.sectionIndex[heading.Text] = section
 
 		case *ast.FencedCodeBlock:
@@ -221,10 +226,10 @@ func (p *Parser) buildIndexes(doc *Document) error {
 		return ast.WalkContinue, nil
 	})
 
-	// Close remaining sections - set end to total line count
+	// Fix any sections with invalid End values (0 or negative)
 	totalLines := len(lineStarts)
-	for _, section := range sectionStack {
-		if section.End == 0 {
+	for _, section := range allSections {
+		if section.End <= 0 {
 			section.End = totalLines
 		}
 	}
