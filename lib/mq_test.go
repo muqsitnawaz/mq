@@ -306,6 +306,64 @@ func TestOperators(t *testing.T) {
 	}
 }
 
+func TestSectionEndLineNumbers(t *testing.T) {
+	const sectionEndTestMarkdown = `# First Section
+
+Content in first section.
+
+## Nested Section
+
+Content in nested section.
+
+# Second Section
+
+Content in second section.
+
+## Another Nested
+
+More content.
+`
+
+	engine := mq.New()
+	doc, err := engine.ParseDocument([]byte(sectionEndTestMarkdown), "test.md")
+	if err != nil {
+		t.Fatalf("Failed to parse document: %v", err)
+	}
+
+	sections := doc.GetSections()
+	if len(sections) == 0 {
+		t.Fatal("Expected sections, got none")
+	}
+
+	for _, section := range sections {
+		if section.End < 0 {
+			t.Errorf("Section %q has negative End: %d", section.Heading.Text, section.End)
+		}
+		if section.Start < 0 {
+			t.Errorf("Section %q has negative Start: %d", section.Heading.Text, section.Start)
+		}
+		if section.End < section.Start {
+			t.Errorf("Section %q has End (%d) < Start (%d)", section.Heading.Text, section.End, section.Start)
+		}
+	}
+
+	firstSection, ok := doc.GetSection("First Section")
+	if !ok {
+		t.Fatal("Expected to find 'First Section'")
+	}
+	if firstSection.End <= 0 {
+		t.Errorf("First Section should have positive End, got %d", firstSection.End)
+	}
+
+	secondSection, ok := doc.GetSection("Second Section")
+	if !ok {
+		t.Fatal("Expected to find 'Second Section'")
+	}
+	if secondSection.End <= 0 {
+		t.Errorf("Second Section should have positive End, got %d", secondSection.End)
+	}
+}
+
 func TestComplexQueries(t *testing.T) {
 	engine := mq.New()
 	doc, err := engine.ParseDocument([]byte(testMarkdown), "test.md")
