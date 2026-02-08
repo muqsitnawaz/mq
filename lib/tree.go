@@ -1,6 +1,7 @@
 package mq
 
 import (
+	"bytes"
 	"fmt"
 	"io/fs"
 	"os"
@@ -295,14 +296,14 @@ func isTraversalFile(path string) bool {
 func (d *Document) Search(query string) *SearchResults {
 	results := &SearchResults{Query: query}
 	query = strings.ToLower(query)
-	hasSectionText := false
+	hasSearchableSections := false
 
 	for _, section := range d.GetSections() {
 		text := section.GetText()
 		if text == "" {
 			continue
 		}
-		hasSectionText = true
+		hasSearchableSections = true
 		if strings.Contains(strings.ToLower(text), query) {
 			// Find a snippet around the match
 			snippet := extractSnippet(text, query, 60)
@@ -317,7 +318,7 @@ func (d *Document) Search(query string) *SearchResults {
 
 	// Non-markdown parsers may not populate section line ranges/source slices.
 	// Fall back to readable text so directory search works across all formats.
-	if !hasSectionText {
+	if !hasSearchableSections {
 		text := d.ReadableText()
 		if strings.Contains(strings.ToLower(text), query) {
 			section := d.Title()
@@ -706,8 +707,8 @@ func countJSONLRecords(source []byte) int {
 	}
 
 	count := 0
-	for _, line := range strings.Split(string(source), "\n") {
-		if strings.TrimSpace(line) == "" {
+	for _, line := range bytes.Split(source, []byte("\n")) {
+		if len(bytes.TrimSpace(line)) == 0 {
 			continue
 		}
 		count++

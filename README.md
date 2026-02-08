@@ -26,6 +26,43 @@ AI agents waste tokens reading entire files. mq lets them query structure first,
 | JSONL | `.jsonl`, `.ndjson` | Uniform objects as tables, mixed as items |
 | YAML | `.yaml`, `.yml` | Keys as headings, nested structure |
 
+### Directory Tree Labels
+
+When browsing directories, mq uses format-aware labels:
+
+```bash
+$ mq project/ .tree
+project/ (5 files, 14 lines total)
+├── config.json (12 lines, 3 keys)
+├── config.yaml (15 lines, 4 keys)
+├── README.md (80 lines, 5 sections)
+├── events.jsonl (100 lines, 98 records)
+└── index.html (45 lines, 3 sections)
+```
+
+Expanded trees show format-specific heading labels:
+
+```bash
+$ mq project/ '.tree("expand")'
+project/ (5 files)
+├── config.json (12 lines, 3 keys)
+│   ├── key name
+│   └── key database
+├── README.md (80 lines, 5 sections)
+│   ├── # Overview
+│   └── ## Install
+├── events.jsonl (100 lines, 98 records)
+└── index.html (45 lines, 3 sections)
+    └── H1 Welcome
+```
+
+| Format | Count Label | Heading Label |
+|--------|-------------|---------------|
+| Markdown | sections | `# Heading` |
+| HTML/PDF | sections | `H1 Heading` |
+| JSON/YAML | keys | `key name` / `subkey field` |
+| JSONL | records | `field name` |
+
 ### Works With
 
 <p>
