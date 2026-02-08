@@ -1,7 +1,6 @@
 package mq
 
 import (
-	"bytes"
 	"fmt"
 	"io/fs"
 	"os"
@@ -707,18 +706,32 @@ func countJSONLRecords(source []byte) int {
 	}
 
 	count := 0
-	for _, line := range bytes.Split(source, []byte("\n")) {
-		if len(bytes.TrimSpace(line)) == 0 {
-			continue
+	inLine := false
+	for _, b := range source {
+		if b == '\n' {
+			if inLine {
+				count++
+				inLine = false
+			}
+		} else if !inLine && b != ' ' && b != '\t' && b != '\r' {
+			inLine = true
 		}
+	}
+	if inLine {
 		count++
 	}
 	return count
 }
 
+var pluralToSingular = map[string]string{
+	"keys":     "key",
+	"records":  "record",
+	"sections": "section",
+}
+
 func singularLabel(label string) string {
-	if strings.HasSuffix(label, "s") && len(label) > 1 {
-		return label[:len(label)-1]
+	if s, ok := pluralToSingular[label]; ok {
+		return s
 	}
 	return label
 }
