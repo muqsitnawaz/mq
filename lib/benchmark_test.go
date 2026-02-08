@@ -384,6 +384,77 @@ func BenchmarkMemoryUsage(b *testing.B) {
 	}
 }
 
+func BenchmarkBuildTree(b *testing.B) {
+	sizes := []struct {
+		name string
+		size int
+	}{
+		{"1KB", 1024},
+		{"10KB", 10 * 1024},
+		{"100KB", 100 * 1024},
+	}
+
+	modes := []struct {
+		name string
+		mode TreeMode
+	}{
+		{"compact", TreeModeCompact},
+		{"preview", TreeModePreview},
+		{"full", TreeModeFull},
+	}
+
+	engine := New()
+
+	for _, size := range sizes {
+		content := generateMarkdown(size.size)
+		doc, err := engine.ParseDocument(content, "test.md")
+		if err != nil {
+			b.Fatal(err)
+		}
+
+		for _, mode := range modes {
+			b.Run(size.name+"/"+mode.name, func(b *testing.B) {
+				b.ResetTimer()
+
+				for i := 0; i < b.N; i++ {
+					result := doc.BuildTree(mode.mode)
+					_ = result
+				}
+			})
+		}
+	}
+}
+
+func BenchmarkSearch(b *testing.B) {
+	sizes := []struct {
+		name string
+		size int
+	}{
+		{"1KB", 1024},
+		{"10KB", 10 * 1024},
+		{"100KB", 100 * 1024},
+	}
+
+	engine := New()
+
+	for _, size := range sizes {
+		content := generateMarkdown(size.size)
+		doc, err := engine.ParseDocument(content, "test.md")
+		if err != nil {
+			b.Fatal(err)
+		}
+
+		b.Run(size.name, func(b *testing.B) {
+			b.ResetTimer()
+
+			for i := 0; i < b.N; i++ {
+				results := doc.Search("example")
+				_ = results
+			}
+		})
+	}
+}
+
 // DetectAndParse is a helper for benchmarking - parses based on extension
 func DetectAndParse(content []byte, path string) (*Document, error) {
 	format := DetectFormat(path, content)

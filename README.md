@@ -437,16 +437,17 @@ if owner, ok := doc.GetOwner(); ok {
 
 ## Performance
 
-Benchmarked on Apple M3 Max.
+Benchmarked on Apple M4.
 
 ### Parsing Speed by Format
 
 | Format | 100KB | 1MB | Throughput |
 |--------|-------|-----|------------|
-| Markdown | 2.4ms | 22ms | 45 MB/s |
-| HTML | 57ms | ~500ms | 2.5 MB/s |
-| JSON | 12us | 81us | 12 GB/s |
-| JSONL | 27us | 187us | 5.6 GB/s |
+| Markdown | 1.7ms | 17ms | 65 MB/s |
+| HTML | 67ms | ~600ms | 1.7 MB/s |
+| YAML | 5.7ms | ~50ms | 19 MB/s |
+| JSON | 7.3us | 52us | 20 GB/s |
+| JSONL | 17us | 133us | 8 GB/s |
 | PDF | - | 1.9s | ~1 MB/s |
 
 ### Context Window Budget (200k tokens = 800KB)
@@ -466,10 +467,12 @@ The agent loads ~1KB structure per PDF (vs ~50KB full text), reasons over 800 st
 
 | Query | Time | Notes |
 |-------|------|-------|
-| GetSection | 10ns | O(1) - pre-indexed |
-| ReadableText | 0.3ns | O(1) - cached |
+| GetSection | 7ns | O(1) - pre-indexed |
+| ReadableText | 0.2ns | O(1) - cached |
 | GetHeadings | 6us | O(n) on heading count |
 | GetCodeBlocks | 1.6us | O(n) on block count |
+| MQL `.headings` | 327ns | Full lex/parse/compile/exec |
+| MQL `.section("X") \| .text` | 5.6us | Piped query with extraction |
 
 See [`bench/results.md`](bench/results.md) for full benchmarks.
 

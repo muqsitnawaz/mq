@@ -1,41 +1,201 @@
 goos: darwin
 goarch: arm64
 pkg: github.com/muqsitnawaz/mq/lib
-cpu: Apple M3 Max
-BenchmarkMarkdownParsing/1KB-16  	   38930	     32991 ns/op	  44.10 MB/s	   38954 B/op	     404 allocs/op
-BenchmarkMarkdownParsing/10KB-16 	    5127	    236062 ns/op	  44.23 MB/s	  273660 B/op	    2669 allocs/op
-BenchmarkMarkdownParsing/100KB-16         	     494	   2514224 ns/op	  40.77 MB/s	 2647665 B/op	   25291 allocs/op
-BenchmarkMarkdownParsing/1MB-16           	      49	  21838482 ns/op	  48.02 MB/s	27179815 B/op	  255070 allocs/op
-BenchmarkMarkdownParsing/10MB-16          	       5	 209761000 ns/op	  49.99 MB/s	269060153 B/op	 2533480 allocs/op
-BenchmarkJSONParsing/1KB-16               	 4099875	       287.6 ns/op	3779.90 MB/s	    1440 B/op	       2 allocs/op
-BenchmarkJSONParsing/10KB-16              	  782425	      1616 ns/op	6383.12 MB/s	   11168 B/op	       2 allocs/op
-BenchmarkJSONParsing/100KB-16             	   96502	     12102 ns/op	8467.49 MB/s	  106784 B/op	       2 allocs/op
-BenchmarkJSONParsing/1MB-16               	   14828	     81108 ns/op	12929.70 MB/s	 1057060 B/op	       2 allocs/op
-BenchmarkJSONLParsing/1KB-16              	 2390188	       498.9 ns/op	2128.86 MB/s	    1625 B/op	       4 allocs/op
-BenchmarkJSONLParsing/10KB-16             	  422079	      3008 ns/op	3409.06 MB/s	   12613 B/op	       4 allocs/op
-BenchmarkJSONLParsing/100KB-16            	   42404	     26859 ns/op	3814.90 MB/s	  120519 B/op	       5 allocs/op
-BenchmarkJSONLParsing/1MB-16              	    6672	    186791 ns/op	5613.81 MB/s	 1196956 B/op	       5 allocs/op
-BenchmarkJSONLParsing/10MB-16             	     859	   1446774 ns/op	7247.77 MB/s	11797647 B/op	       6 allocs/op
-BenchmarkHeadingsQuery/1KB-16             	10894473	       110.3 ns/op	      96 B/op	       3 allocs/op
-BenchmarkHeadingsQuery/10KB-16            	 6812844	       191.9 ns/op	     520 B/op	       3 allocs/op
-BenchmarkHeadingsQuery/100KB-16           	  828244	      1519 ns/op	    5384 B/op	       3 allocs/op
-BenchmarkHeadingsQuery/1MB-16             	  188264	      6293 ns/op	   53256 B/op	       3 allocs/op
-BenchmarkCodeBlockQuery/1KB-16            	45078040	        29.16 ns/op	      16 B/op	       1 allocs/op
-BenchmarkCodeBlockQuery/10KB-16           	24539792	        50.55 ns/op	     128 B/op	       1 allocs/op
-BenchmarkCodeBlockQuery/100KB-16          	 2994442	       407.1 ns/op	    1280 B/op	       1 allocs/op
-BenchmarkCodeBlockQuery/1MB-16            	  732421	      1620 ns/op	   12288 B/op	       1 allocs/op
-BenchmarkSectionQuery/GetSection-16       	125168118	         9.747 ns/op	       0 B/op	       0 allocs/op
-BenchmarkSectionQuery/GetSectionFuzzy-16  	100000000	        11.05 ns/op	       0 B/op	       0 allocs/op
-BenchmarkReadableText/1KB-16              	1000000000	         0.2936 ns/op	       0 B/op	       0 allocs/op
-BenchmarkReadableText/10KB-16             	1000000000	         0.2909 ns/op	       0 B/op	       0 allocs/op
-BenchmarkReadableText/100KB-16            	1000000000	         0.3107 ns/op	       0 B/op	       0 allocs/op
-BenchmarkReadableText/1MB-16              	1000000000	         0.2930 ns/op	       0 B/op	       0 allocs/op
-BenchmarkMultipleDocuments/10_docs-16     	     500	   2385971 ns/op	 2745196 B/op	   26739 allocs/op
-BenchmarkMultipleDocuments/100_docs-16    	      50	  22687783 ns/op	27411412 B/op	  267329 allocs/op
-BenchmarkMultipleDocuments/1000_docs-16   	       5	 212376792 ns/op	273992772 B/op	 2673812 allocs/op
-BenchmarkMemoryUsage/1KB-16               	   38878	     31665 ns/op	   39116 B/op	     408 allocs/op
-BenchmarkMemoryUsage/10KB-16              	    5265	    238239 ns/op	  274571 B/op	    2673 allocs/op
-BenchmarkMemoryUsage/100KB-16             	     472	   2632562 ns/op	 2657233 B/op	   25295 allocs/op
-BenchmarkMemoryUsage/1024KB-16            	      45	  22893249 ns/op	27275203 B/op	  255077 allocs/op
+cpu: Apple M4
+BenchmarkMarkdownParsing/1KB-10  	   59881	     20011 ns/op	  72.71 MB/s	   40181 B/op	     414 allocs/op
+BenchmarkMarkdownParsing/1KB-10  	   60334	     19897 ns/op	  73.13 MB/s	   40181 B/op	     414 allocs/op
+BenchmarkMarkdownParsing/1KB-10  	   60129	     20009 ns/op	  72.72 MB/s	   40181 B/op	     414 allocs/op
+BenchmarkMarkdownParsing/10KB-10 	    8325	    141377 ns/op	  73.85 MB/s	  283496 B/op	    2685 allocs/op
+BenchmarkMarkdownParsing/10KB-10 	    8493	    141352 ns/op	  73.87 MB/s	  283495 B/op	    2685 allocs/op
+BenchmarkMarkdownParsing/10KB-10 	    8600	    148206 ns/op	  70.45 MB/s	  283497 B/op	    2685 allocs/op
+BenchmarkMarkdownParsing/100KB-10         	     685	   1891253 ns/op	  54.21 MB/s	 2791442 B/op	   25316 allocs/op
+BenchmarkMarkdownParsing/100KB-10         	     680	   1682764 ns/op	  60.92 MB/s	 2791446 B/op	   25316 allocs/op
+BenchmarkMarkdownParsing/100KB-10         	     728	   1634682 ns/op	  62.71 MB/s	 2791444 B/op	   25316 allocs/op
+BenchmarkMarkdownParsing/1MB-10           	      73	  17706268 ns/op	  59.23 MB/s	28917516 B/op	  255109 allocs/op
+BenchmarkMarkdownParsing/1MB-10           	      69	  16062494 ns/op	  65.29 MB/s	28917495 B/op	  255109 allocs/op
+BenchmarkMarkdownParsing/1MB-10           	      70	  17641788 ns/op	  59.45 MB/s	28917604 B/op	  255109 allocs/op
+BenchmarkMarkdownParsing/10MB-10          	       7	 162322167 ns/op	  64.60 MB/s	288218768 B/op	 2533530 allocs/op
+BenchmarkMarkdownParsing/10MB-10          	       7	 159295107 ns/op	  65.83 MB/s	288216978 B/op	 2533522 allocs/op
+BenchmarkMarkdownParsing/10MB-10          	       7	 160605845 ns/op	  65.29 MB/s	288216746 B/op	 2533522 allocs/op
+BenchmarkJSONParsing/1KB-10               	 7751149	       153.2 ns/op	7097.08 MB/s	    1440 B/op	       2 allocs/op
+BenchmarkJSONParsing/1KB-10               	 7927585	       151.5 ns/op	7175.06 MB/s	    1440 B/op	       2 allocs/op
+BenchmarkJSONParsing/1KB-10               	 8066263	       153.4 ns/op	7087.09 MB/s	    1440 B/op	       2 allocs/op
+BenchmarkJSONParsing/10KB-10              	 1360830	       879.3 ns/op	11727.47 MB/s	   11168 B/op	       2 allocs/op
+BenchmarkJSONParsing/10KB-10              	 1321508	       878.5 ns/op	11738.05 MB/s	   11168 B/op	       2 allocs/op
+BenchmarkJSONParsing/10KB-10              	 1282502	       888.9 ns/op	11601.45 MB/s	   11168 B/op	       2 allocs/op
+BenchmarkJSONParsing/100KB-10             	  163098	      7310 ns/op	14018.59 MB/s	  106785 B/op	       2 allocs/op
+BenchmarkJSONParsing/100KB-10             	  163444	      7319 ns/op	14001.52 MB/s	  106785 B/op	       2 allocs/op
+BenchmarkJSONParsing/100KB-10             	  165813	      7344 ns/op	13953.49 MB/s	  106785 B/op	       2 allocs/op
+BenchmarkJSONParsing/1MB-10               	   23571	     52303 ns/op	20050.33 MB/s	 1057059 B/op	       2 allocs/op
+BenchmarkJSONParsing/1MB-10               	   23274	     50462 ns/op	20782.03 MB/s	 1057059 B/op	       2 allocs/op
+BenchmarkJSONParsing/1MB-10               	   22656	     53743 ns/op	19513.21 MB/s	 1057058 B/op	       2 allocs/op
+BenchmarkJSONLParsing/1KB-10              	 4283941	       274.1 ns/op	3874.58 MB/s	    1624 B/op	       4 allocs/op
+BenchmarkJSONLParsing/1KB-10              	 4288929	       281.2 ns/op	3776.71 MB/s	    1624 B/op	       4 allocs/op
+BenchmarkJSONLParsing/1KB-10              	 4319346	       278.6 ns/op	3811.26 MB/s	    1624 B/op	       4 allocs/op
+BenchmarkJSONLParsing/10KB-10             	  650060	      1802 ns/op	5690.51 MB/s	   12607 B/op	       4 allocs/op
+BenchmarkJSONLParsing/10KB-10             	  664773	      1790 ns/op	5727.55 MB/s	   12607 B/op	       4 allocs/op
+BenchmarkJSONLParsing/10KB-10             	  670014	      1794 ns/op	5717.87 MB/s	   12607 B/op	       4 allocs/op
+BenchmarkJSONLParsing/100KB-10            	   68881	     17397 ns/op	5890.00 MB/s	  120463 B/op	       5 allocs/op
+BenchmarkJSONLParsing/100KB-10            	   68976	     17310 ns/op	5919.61 MB/s	  120462 B/op	       5 allocs/op
+BenchmarkJSONLParsing/100KB-10            	   70326	     17273 ns/op	5932.08 MB/s	  120462 B/op	       5 allocs/op
+BenchmarkJSONLParsing/1MB-10              	    7992	    136855 ns/op	7662.23 MB/s	 1196731 B/op	       5 allocs/op
+BenchmarkJSONLParsing/1MB-10              	    8900	    130836 ns/op	8014.71 MB/s	 1196733 B/op	       5 allocs/op
+BenchmarkJSONLParsing/1MB-10              	    9018	    130579 ns/op	8030.49 MB/s	 1196734 B/op	       5 allocs/op
+BenchmarkJSONLParsing/10MB-10             	    1057	   1125202 ns/op	9319.11 MB/s	11797358 B/op	       6 allocs/op
+BenchmarkJSONLParsing/10MB-10             	    1069	   1123797 ns/op	9330.76 MB/s	11797356 B/op	       6 allocs/op
+BenchmarkJSONLParsing/10MB-10             	    1064	   1120341 ns/op	9359.54 MB/s	11797359 B/op	       6 allocs/op
+BenchmarkHeadingsQuery/1KB-10             	17505405	        68.58 ns/op	      96 B/op	       3 allocs/op
+BenchmarkHeadingsQuery/1KB-10             	17550850	        68.78 ns/op	      96 B/op	       3 allocs/op
+BenchmarkHeadingsQuery/1KB-10             	17558384	        68.54 ns/op	      96 B/op	       3 allocs/op
+BenchmarkHeadingsQuery/10KB-10            	11085744	       109.0 ns/op	     520 B/op	       3 allocs/op
+BenchmarkHeadingsQuery/10KB-10            	11021619	       109.3 ns/op	     520 B/op	       3 allocs/op
+BenchmarkHeadingsQuery/10KB-10            	10953852	       109.0 ns/op	     520 B/op	       3 allocs/op
+BenchmarkHeadingsQuery/100KB-10           	 1000000	      1002 ns/op	    5384 B/op	       3 allocs/op
+BenchmarkHeadingsQuery/100KB-10           	 1000000	      1062 ns/op	    5384 B/op	       3 allocs/op
+BenchmarkHeadingsQuery/100KB-10           	 1000000	      1009 ns/op	    5384 B/op	       3 allocs/op
+BenchmarkHeadingsQuery/1MB-10             	  211136	      5967 ns/op	   53256 B/op	       3 allocs/op
+BenchmarkHeadingsQuery/1MB-10             	  209791	      6079 ns/op	   53256 B/op	       3 allocs/op
+BenchmarkHeadingsQuery/1MB-10             	  185148	      5959 ns/op	   53256 B/op	       3 allocs/op
+BenchmarkCodeBlockQuery/1KB-10            	57545792	        21.09 ns/op	      16 B/op	       1 allocs/op
+BenchmarkCodeBlockQuery/1KB-10            	58251366	        20.84 ns/op	      16 B/op	       1 allocs/op
+BenchmarkCodeBlockQuery/1KB-10            	58004640	        20.78 ns/op	      16 B/op	       1 allocs/op
+BenchmarkCodeBlockQuery/10KB-10           	37342413	        31.08 ns/op	     128 B/op	       1 allocs/op
+BenchmarkCodeBlockQuery/10KB-10           	36934060	        31.68 ns/op	     128 B/op	       1 allocs/op
+BenchmarkCodeBlockQuery/10KB-10           	33569758	        32.13 ns/op	     128 B/op	       1 allocs/op
+BenchmarkCodeBlockQuery/100KB-10          	 3827136	       287.6 ns/op	    1280 B/op	       1 allocs/op
+BenchmarkCodeBlockQuery/100KB-10          	 4238220	       267.2 ns/op	    1280 B/op	       1 allocs/op
+BenchmarkCodeBlockQuery/100KB-10          	 3714678	       276.9 ns/op	    1280 B/op	       1 allocs/op
+BenchmarkCodeBlockQuery/1MB-10            	  886090	      1709 ns/op	   12288 B/op	       1 allocs/op
+BenchmarkCodeBlockQuery/1MB-10            	  704047	      1577 ns/op	   12288 B/op	       1 allocs/op
+BenchmarkCodeBlockQuery/1MB-10            	  702132	      1519 ns/op	   12288 B/op	       1 allocs/op
+BenchmarkSectionQuery/GetSection-10       	171772412	         6.973 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSectionQuery/GetSection-10       	172519582	         7.033 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSectionQuery/GetSection-10       	172620991	         6.994 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSectionQuery/GetSectionFuzzy-10  	147425407	         8.042 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSectionQuery/GetSectionFuzzy-10  	150495482	         7.860 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSectionQuery/GetSectionFuzzy-10  	156082333	         7.698 ns/op	       0 B/op	       0 allocs/op
+BenchmarkReadableText/1KB-10              	1000000000	         0.2391 ns/op	       0 B/op	       0 allocs/op
+BenchmarkReadableText/1KB-10              	1000000000	         0.2389 ns/op	       0 B/op	       0 allocs/op
+BenchmarkReadableText/1KB-10              	1000000000	         0.2419 ns/op	       0 B/op	       0 allocs/op
+BenchmarkReadableText/10KB-10             	1000000000	         0.2475 ns/op	       0 B/op	       0 allocs/op
+BenchmarkReadableText/10KB-10             	1000000000	         0.2388 ns/op	       0 B/op	       0 allocs/op
+BenchmarkReadableText/10KB-10             	1000000000	         0.2413 ns/op	       0 B/op	       0 allocs/op
+BenchmarkReadableText/100KB-10            	1000000000	         0.2364 ns/op	       0 B/op	       0 allocs/op
+BenchmarkReadableText/100KB-10            	1000000000	         0.2469 ns/op	       0 B/op	       0 allocs/op
+BenchmarkReadableText/100KB-10            	1000000000	         0.2372 ns/op	       0 B/op	       0 allocs/op
+BenchmarkReadableText/1MB-10              	1000000000	         0.2416 ns/op	       0 B/op	       0 allocs/op
+BenchmarkReadableText/1MB-10              	1000000000	         0.2439 ns/op	       0 B/op	       0 allocs/op
+BenchmarkReadableText/1MB-10              	1000000000	         0.2445 ns/op	       0 B/op	       0 allocs/op
+BenchmarkMultipleDocuments/10_docs-10     	     770	   1498655 ns/op	 2841959 B/op	   26897 allocs/op
+BenchmarkMultipleDocuments/10_docs-10     	     781	   1537080 ns/op	 2842005 B/op	   26897 allocs/op
+BenchmarkMultipleDocuments/10_docs-10     	     729	   1521721 ns/op	 2841907 B/op	   26897 allocs/op
+BenchmarkMultipleDocuments/100_docs-10    	      66	  17254615 ns/op	28399057 B/op	  268928 allocs/op
+BenchmarkMultipleDocuments/100_docs-10    	      68	  17234439 ns/op	28399666 B/op	  268930 allocs/op
+BenchmarkMultipleDocuments/100_docs-10    	      69	  17253786 ns/op	28399250 B/op	  268929 allocs/op
+BenchmarkMultipleDocuments/1000_docs-10   	       7	 165059357 ns/op	283900928 B/op	 2689786 allocs/op
+BenchmarkMultipleDocuments/1000_docs-10   	       7	 167183970 ns/op	283903098 B/op	 2689790 allocs/op
+BenchmarkMultipleDocuments/1000_docs-10   	       6	 168161229 ns/op	283905908 B/op	 2689798 allocs/op
+BenchmarkMemoryUsage/1KB-10               	   57495	     21185 ns/op	   40341 B/op	     418 allocs/op
+BenchmarkMemoryUsage/1KB-10               	   57974	     21044 ns/op	   40341 B/op	     418 allocs/op
+BenchmarkMemoryUsage/1KB-10               	   58071	     20887 ns/op	   40341 B/op	     418 allocs/op
+BenchmarkMemoryUsage/10KB-10              	    7605	    148398 ns/op	  284401 B/op	    2689 allocs/op
+BenchmarkMemoryUsage/10KB-10              	    8196	    148431 ns/op	  284402 B/op	    2689 allocs/op
+BenchmarkMemoryUsage/10KB-10              	    8301	    148575 ns/op	  284401 B/op	    2689 allocs/op
+BenchmarkMemoryUsage/100KB-10             	     727	   1672245 ns/op	 2800944 B/op	   25320 allocs/op
+BenchmarkMemoryUsage/100KB-10             	     687	   1684844 ns/op	 2800933 B/op	   25320 allocs/op
+BenchmarkMemoryUsage/100KB-10             	     717	   1704095 ns/op	 2800965 B/op	   25320 allocs/op
+BenchmarkMemoryUsage/1024KB-10            	      68	  16681754 ns/op	29011661 B/op	  255113 allocs/op
+BenchmarkMemoryUsage/1024KB-10            	      70	  16730652 ns/op	29011527 B/op	  255113 allocs/op
+BenchmarkMemoryUsage/1024KB-10            	      63	  16798830 ns/op	29011917 B/op	  255113 allocs/op
+BenchmarkBuildTree/1KB/compact-10         	 2646178	       457.8 ns/op	    2504 B/op	      17 allocs/op
+BenchmarkBuildTree/1KB/compact-10         	 2643872	       455.7 ns/op	    2504 B/op	      17 allocs/op
+BenchmarkBuildTree/1KB/compact-10         	 2651332	       457.4 ns/op	    2504 B/op	      17 allocs/op
+BenchmarkBuildTree/1KB/preview-10         	  145729	      8271 ns/op	   27288 B/op	      59 allocs/op
+BenchmarkBuildTree/1KB/preview-10         	  146365	      8325 ns/op	   27288 B/op	      59 allocs/op
+BenchmarkBuildTree/1KB/preview-10         	  147312	      8297 ns/op	   27288 B/op	      59 allocs/op
+BenchmarkBuildTree/1KB/full-10            	  137134	      8267 ns/op	   27288 B/op	      59 allocs/op
+BenchmarkBuildTree/1KB/full-10            	  146673	      8290 ns/op	   27288 B/op	      59 allocs/op
+BenchmarkBuildTree/1KB/full-10            	  146894	      8319 ns/op	   27288 B/op	      59 allocs/op
+BenchmarkBuildTree/10KB/compact-10        	  433066	      2801 ns/op	   16752 B/op	      85 allocs/op
+BenchmarkBuildTree/10KB/compact-10        	  432331	      2778 ns/op	   16752 B/op	      85 allocs/op
+BenchmarkBuildTree/10KB/compact-10        	  431310	      2804 ns/op	   16752 B/op	      85 allocs/op
+BenchmarkBuildTree/10KB/preview-10        	    4756	    253470 ns/op	  884617 B/op	     361 allocs/op
+BenchmarkBuildTree/10KB/preview-10        	    4792	    251665 ns/op	  884617 B/op	     361 allocs/op
+BenchmarkBuildTree/10KB/preview-10        	    4665	    254010 ns/op	  884617 B/op	     361 allocs/op
+BenchmarkBuildTree/10KB/full-10           	    4938	    251696 ns/op	  884617 B/op	     361 allocs/op
+BenchmarkBuildTree/10KB/full-10           	    4873	    253505 ns/op	  884617 B/op	     361 allocs/op
+BenchmarkBuildTree/10KB/full-10           	    4830	    253299 ns/op	  884616 B/op	     361 allocs/op
+BenchmarkBuildTree/100KB/compact-10       	   38995	     31234 ns/op	  164113 B/op	     749 allocs/op
+BenchmarkBuildTree/100KB/compact-10       	   39214	     31049 ns/op	  164113 B/op	     749 allocs/op
+BenchmarkBuildTree/100KB/compact-10       	   39216	     30687 ns/op	  164113 B/op	     749 allocs/op
+BenchmarkBuildTree/100KB/preview-10       	      49	  23195069 ns/op	80315543 B/op	    3410 allocs/op
+BenchmarkBuildTree/100KB/preview-10       	      54	  23126847 ns/op	80315504 B/op	    3409 allocs/op
+BenchmarkBuildTree/100KB/preview-10       	      48	  23500760 ns/op	80315414 B/op	    3408 allocs/op
+BenchmarkBuildTree/100KB/full-10          	      50	  23203931 ns/op	80315529 B/op	    3410 allocs/op
+BenchmarkBuildTree/100KB/full-10          	      52	  23399163 ns/op	80315507 B/op	    3409 allocs/op
+BenchmarkBuildTree/100KB/full-10          	      51	  23125669 ns/op	80315412 B/op	    3408 allocs/op
+BenchmarkSearch/1KB-10                    	   63049	     19036 ns/op	   35890 B/op	      86 allocs/op
+BenchmarkSearch/1KB-10                    	   64573	     18916 ns/op	   35890 B/op	      86 allocs/op
+BenchmarkSearch/1KB-10                    	   64191	     18945 ns/op	   35890 B/op	      86 allocs/op
+BenchmarkSearch/10KB-10                   	    3439	    324562 ns/op	  945909 B/op	     571 allocs/op
+BenchmarkSearch/10KB-10                   	    3754	    321823 ns/op	  945909 B/op	     571 allocs/op
+BenchmarkSearch/10KB-10                   	    3745	    322412 ns/op	  945909 B/op	     571 allocs/op
+BenchmarkSearch/100KB-10                  	      50	  24140612 ns/op	80945277 B/op	    5995 allocs/op
+BenchmarkSearch/100KB-10                  	      50	  24336562 ns/op	80945360 B/op	    5997 allocs/op
+BenchmarkSearch/100KB-10                  	      50	  24129082 ns/op	80944908 B/op	    5993 allocs/op
 PASS
-ok  	github.com/muqsitnawaz/mq/lib	47.064s
+ok  	github.com/muqsitnawaz/mq/lib	181.223s
+goos: darwin
+goarch: arm64
+pkg: github.com/muqsitnawaz/mq/html
+cpu: Apple M4
+BenchmarkHTMLParsing/1KB-10    	    2032	    507161 ns/op	   2.11 MB/s	 1228016 B/op	    8098 allocs/op
+BenchmarkHTMLParsing/1KB-10    	    2412	    509363 ns/op	   2.10 MB/s	 1227233 B/op	    8098 allocs/op
+BenchmarkHTMLParsing/1KB-10    	    2343	    516737 ns/op	   2.07 MB/s	 1227544 B/op	    8098 allocs/op
+BenchmarkHTMLParsing/10KB-10   	     219	   5517871 ns/op	   1.94 MB/s	12870705 B/op	   84269 allocs/op
+BenchmarkHTMLParsing/10KB-10   	     213	   5501364 ns/op	   1.94 MB/s	12874816 B/op	   84269 allocs/op
+BenchmarkHTMLParsing/10KB-10   	     214	   5492449 ns/op	   1.95 MB/s	12880612 B/op	   84270 allocs/op
+BenchmarkHTMLParsing/100KB-10  	      18	  67353609 ns/op	   1.53 MB/s	124458891 B/op	  810820 allocs/op
+BenchmarkHTMLParsing/100KB-10  	      18	  66878333 ns/op	   1.54 MB/s	124558392 B/op	  810830 allocs/op
+BenchmarkHTMLParsing/100KB-10  	      16	  67883935 ns/op	   1.52 MB/s	124723584 B/op	  810841 allocs/op
+BenchmarkHTMLReadability-10    	     968	   1231745 ns/op	  10.82 MB/s	 2425271 B/op	   14716 allocs/op
+BenchmarkHTMLReadability-10    	     978	   1237088 ns/op	  10.77 MB/s	 2427337 B/op	   14716 allocs/op
+BenchmarkHTMLReadability-10    	     978	   1246205 ns/op	  10.69 MB/s	 2427995 B/op	   14717 allocs/op
+PASS
+ok  	github.com/muqsitnawaz/mq/html	16.752s
+goos: darwin
+goarch: arm64
+pkg: github.com/muqsitnawaz/mq/data
+cpu: Apple M4
+BenchmarkYAMLParsing/1KB-10         	   18814	     64128 ns/op	  19.80 MB/s	   74667 B/op	    1218 allocs/op
+BenchmarkYAMLParsing/1KB-10         	   18924	     64266 ns/op	  19.76 MB/s	   74662 B/op	    1218 allocs/op
+BenchmarkYAMLParsing/1KB-10         	   18788	     63799 ns/op	  19.91 MB/s	   74661 B/op	    1218 allocs/op
+BenchmarkYAMLParsing/10KB-10        	    2458	    496468 ns/op	  20.65 MB/s	  536545 B/op	    9166 allocs/op
+BenchmarkYAMLParsing/10KB-10        	    2335	    498957 ns/op	  20.54 MB/s	  537253 B/op	    9167 allocs/op
+BenchmarkYAMLParsing/10KB-10        	    2379	    493196 ns/op	  20.78 MB/s	  536979 B/op	    9166 allocs/op
+BenchmarkYAMLParsing/100KB-10       	     211	   5663282 ns/op	  18.12 MB/s	 5575151 B/op	   89706 allocs/op
+BenchmarkYAMLParsing/100KB-10       	     213	   5701829 ns/op	  18.00 MB/s	 5575057 B/op	   89706 allocs/op
+BenchmarkYAMLParsing/100KB-10       	     210	   5630877 ns/op	  18.23 MB/s	 5575064 B/op	   89706 allocs/op
+PASS
+ok  	github.com/muqsitnawaz/mq/data	14.731s
+goos: darwin
+goarch: arm64
+pkg: github.com/muqsitnawaz/mq/mql
+cpu: Apple M4
+BenchmarkMQLQuery/headings-10         	 3612222	       323.9 ns/op	    1201 B/op	      12 allocs/op
+BenchmarkMQLQuery/headings-10         	 3674550	       329.6 ns/op	    1201 B/op	      12 allocs/op
+BenchmarkMQLQuery/headings-10         	 3642278	       328.0 ns/op	    1201 B/op	      12 allocs/op
+BenchmarkMQLQuery/sections-10         	 2203242	       546.1 ns/op	    1017 B/op	      10 allocs/op
+BenchmarkMQLQuery/sections-10         	 2189298	       553.3 ns/op	    1017 B/op	      10 allocs/op
+BenchmarkMQLQuery/sections-10         	 2157822	       557.5 ns/op	    1017 B/op	      10 allocs/op
+BenchmarkMQLQuery/code_go-10          	 3379244	       352.8 ns/op	    1120 B/op	      15 allocs/op
+BenchmarkMQLQuery/code_go-10          	 3403825	       355.6 ns/op	    1120 B/op	      15 allocs/op
+BenchmarkMQLQuery/code_go-10          	 3328280	       355.4 ns/op	    1120 B/op	      15 allocs/op
+BenchmarkMQLQuery/section_pipe_text-10         	  216627	      5528 ns/op	   16568 B/op	      21 allocs/op
+BenchmarkMQLQuery/section_pipe_text-10         	  218839	      5567 ns/op	   16568 B/op	      21 allocs/op
+BenchmarkMQLQuery/section_pipe_text-10         	  203077	      5588 ns/op	   16568 B/op	      21 allocs/op
+BenchmarkMQLQuery/headings_filter-10           	  798260	      1516 ns/op	    3161 B/op	      27 allocs/op
+BenchmarkMQLQuery/headings_filter-10           	  799364	      1499 ns/op	    3161 B/op	      27 allocs/op
+BenchmarkMQLQuery/headings_filter-10           	  792405	      1507 ns/op	    3161 B/op	      27 allocs/op
+PASS
+ok  	github.com/muqsitnawaz/mq/mql	22.094s
