@@ -5,8 +5,8 @@
 .refs
 .claude
 CLAUDE.md
-mq
-mq_test
+/mq
+/mq_test
 
 # Large test files (downloaded from internet)
 # HTML
