@@ -43,7 +43,7 @@ project/ (5 files, 14 lines total)
 Expanded trees show format-specific heading labels:
 
 ```bash
-$ mq project/ '.tree("expand")'
+$ mq project/ ".tree('expand')"
 project/ (5 files)
 ├── config.json (12 lines, 3 keys)
 │   ├── key name
@@ -95,8 +95,8 @@ Any AI agent or coding assistant that can execute shell commands.
 
 ```bash
 # Markdown - structure and extraction
-mq docs/ '.tree("full")'
-mq docs/auth.md '.section("OAuth Flow") | .text'
+mq docs/ ".tree('full')"
+mq docs/auth.md ".section('OAuth Flow') | .text"
 
 # HTML - readable content from web pages
 mq page.html '.headings'
@@ -261,10 +261,12 @@ See [skills.sh](https://skills.sh) for more.
 Skills aren't always loaded into context. Add this line to your `CLAUDE.md` for optimal performance:
 
 ```markdown
-Use `mq` to query markdown files. Narrow down to a specific file/subdir first, then run `mq <path> '.tree("full")'` to see structure before reading.
+Use `mq` to query markdown files. Narrow down to a specific file/subdir first, then run `mq <path> ".tree('full')"` to see structure before reading.
 ```
 
 ## Usage
+
+> **Shell quoting:** Examples use double quotes for the outer string (`"..."`), which works on all platforms including Windows. On macOS and Linux, single quotes also work: `mq doc.md '.tree("full")'`.
 
 ### See Structure
 
@@ -273,34 +275,34 @@ Use `mq` to query markdown files. Narrow down to a specific file/subdir first, t
 mq README.md .tree
 
 # With content previews
-mq README.md '.tree("preview")'
+mq README.md ".tree('preview')"
 
 # Directory overview
 mq docs/ .tree
 
 # Directory with sections + previews (best for agents)
-mq docs/ '.tree("full")'
+mq docs/ ".tree('full')"
 ```
 
 ### Search
 
 ```bash
 # Search in file
-mq README.md '.search("OAuth")'
+mq README.md ".search('OAuth')"
 
 # Search across directory
-mq docs/ '.search("authentication")'
+mq docs/ ".search('authentication')"
 ```
 
 ### Extract Content
 
 ```bash
 # Get section content
-mq doc.md '.section("API") | .text'
+mq doc.md ".section('API') | .text"
 
 # Get code blocks
-mq doc.md '.code("python")'
-mq doc.md '.section("Examples") | .code("go")'
+mq doc.md ".code('python')"
+mq doc.md ".section('Examples') | .code('go')"
 
 # Get links, metadata
 mq doc.md .links
@@ -339,9 +341,9 @@ mq uses a jq-inspired query syntax with piping and selectors. If you're familiar
 ### Examples
 
 ```bash
-mq doc.md '.headings | filter(.level == 2) | .text'
-mq doc.md '.section("Examples") | .code("python")'
-mq doc.md '.section("API") | .tree'
+mq doc.md ".headings | filter(.level == 2) | .text"
+mq doc.md ".section('Examples') | .code('python')"
+mq doc.md ".section('API') | .tree"
 ```
 
 ## Architecture

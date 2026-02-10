@@ -8,8 +8,8 @@ mq is inspired by jq's piping model and query syntax, but designed specifically 
 
 **Piping** - Chain operations with `|`:
 ```bash
-mq doc.md '.section("API") | .code("go")'
-mq doc.md '.headings | filter(.level == 2)'
+mq doc.md ".section('API') | .code('go')"
+mq doc.md ".headings | filter(.level == 2)"
 ```
 
 **Indexing** - Access elements by position:
@@ -26,7 +26,7 @@ mq doc.md '.code | filter(.lang == "python")'
 
 **Chaining** - Compose multiple operations:
 ```bash
-mq doc.md '.section("Examples") | .code("python") | .[0]'
+mq doc.md ".section('Examples') | .code('python') | .[0]"
 ```
 
 ## Key Differences (and Why)
@@ -39,8 +39,8 @@ mq doc.md '.section("Examples") | .code("python") | .[0]'
 ```bash
 # This is necessary because markdown sections are identified by heading text,
 # not implicit keys like JSON fields
-mq doc.md '.section("Installation")'
-mq doc.md '.code("python")'
+mq doc.md ".section('Installation')"
+mq doc.md ".code('python')"
 ```
 
 **Why**: In JSON, fields have explicit keys. In markdown, sections are identified by their heading text. We can't magically know which section you want without the title.
@@ -53,8 +53,8 @@ mq doc.md '.code("python")'
 ```bash
 # mq syntax
 mq doc.md .tree
-mq doc.md '.tree("full")'
-mq doc.md '.section("API") | .text'
+mq doc.md ".tree('full')"
+mq doc.md ".section('API') | .text"
 
 # We chose this because it's cleaner - not every operation needs to be piped
 ```
@@ -67,7 +67,7 @@ mq doc.md '.section("API") | .text'
 **mq**: `| .text` is a selector
 
 ```bash
-mq doc.md '.section("API") | .text'
+mq doc.md ".section('API') | .text"
 ```
 
 **Why**: Same reason as above - cleaner syntax. Text extraction is so common in markdown querying that making it a selector reduces verbosity.
@@ -79,20 +79,20 @@ mq doc.md '.section("API") | .text'
 | Selector | Description | Example |
 |----------|-------------|---------|
 | `.tree` | Document structure | `mq doc.md .tree` |
-| `.tree("compact")` | Headings only | `mq doc.md '.tree("compact")'` |
-| `.tree("preview")` | Headings + preview | `mq doc.md '.tree("preview")'` |
-| `.tree("full")` | Sections + previews (dirs) | `mq docs/ '.tree("full")'` |
+| `.tree("compact")` | Headings only | `mq doc.md ".tree('compact')"` |
+| `.tree("preview")` | Headings + preview | `mq doc.md ".tree('preview')"` |
+| `.tree("full")` | Sections + previews (dirs) | `mq docs/ ".tree('full')"` |
 
 ### Content Selectors
 
 | Selector | Description | Example |
 |----------|-------------|---------|
-| `.section("name")` | Section by heading | `mq doc.md '.section("API")'` |
+| `.section("name")` | Section by heading | `mq doc.md ".section('API')"` |
 | `.sections` | All sections | `mq doc.md .sections` |
 | `.headings` | All headings | `mq doc.md .headings` |
 | `.headings(N)` | Headings at level N | `mq doc.md '.headings(2)'` |
 | `.code` | All code blocks | `mq doc.md .code` |
-| `.code("lang")` | Code blocks by language | `mq doc.md '.code("python")'` |
+| `.code("lang")` | Code blocks by language | `mq doc.md ".code('python')"` |
 | `.links` | All links | `mq doc.md .links` |
 | `.images` | All images | `mq doc.md .images` |
 | `.tables` | All tables | `mq doc.md .tables` |
@@ -101,7 +101,7 @@ mq doc.md '.section("API") | .text'
 
 | Selector | Description | Example |
 |----------|-------------|---------|
-| `.search("term")` | Find sections with term | `mq doc.md '.search("auth")'` |
+| `.search("term")` | Find sections with term | `mq doc.md ".search('auth')"` |
 | `.metadata` | YAML frontmatter | `mq doc.md .metadata` |
 | `.owner` | Owner field from metadata | `mq doc.md .owner` |
 | `.tags` | Tags from metadata | `mq doc.md .tags` |
@@ -110,7 +110,7 @@ mq doc.md '.section("API") | .text'
 
 | Selector | Description | Example |
 |----------|-------------|---------|
-| `.text` | Extract raw text | `mq doc.md '.section("API") \| .text'` |
+| `.text` | Extract raw text | `mq doc.md ".section('API') \| .text"` |
 
 ## Operations
 
@@ -118,8 +118,8 @@ mq doc.md '.section("API") | .text'
 
 Chain selectors with `|`:
 ```bash
-mq doc.md '.section("Examples") | .code("go")'
-mq doc.md '.headings | filter(.level == 2) | .text'
+mq doc.md ".section('Examples') | .code('go')"
+mq doc.md ".headings | filter(.level == 2) | .text"
 ```
 
 ### Indexing
@@ -148,16 +148,16 @@ mq doc.md '.links | filter(.text contains "API")'
 mq docs/api.md .tree
 
 # Then extract specific section
-mq docs/api.md '.section("Authentication") | .text'
+mq docs/api.md ".section('Authentication') | .text"
 ```
 
 ### Search then Refine
 ```bash
 # Search for sections about auth
-mq docs/ '.search("authentication")'
+mq docs/ ".search('authentication')"
 
 # Refine to specific file and section
-mq docs/auth.md '.section("OAuth Flow") | .code("javascript")'
+mq docs/auth.md ".section('OAuth Flow') | .code('javascript')"
 ```
 
 ### Filter by Level
@@ -175,10 +175,10 @@ mq doc.md '.sections | filter(.level == 1)'
 mq docs/ .tree
 
 # Full structure with previews (best for agents)
-mq docs/ '.tree("full")'
+mq docs/ ".tree('full')"
 
 # Search across directory
-mq docs/ '.search("error handling")'
+mq docs/ ".search('error handling')"
 ```
 
 ## For Agent Integration
@@ -197,7 +197,7 @@ When integrating mq into agent workflows, follow this pattern:
 
 3. **Extract only what's needed** - Pull specific sections
    ```bash
-   mq docs/api.md '.section("Error Codes") | .text'
+   mq docs/api.md ".section('Error Codes') | .text"
    ```
 
 This structure-first approach reduces token usage by 50-83% compared to reading full files.
