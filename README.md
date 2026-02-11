@@ -23,7 +23,7 @@ AI agents waste tokens reading entire files. mq lets them query structure first,
 | HTML | `.html`, `.htm` | Headings, readable content (Readability algorithm) |
 | PDF | `.pdf` | Headings (font-size inference), tables, text |
 | JSON | `.json` | Top-level keys as headings, nested structure |
-| JSONL | `.jsonl`, `.ndjson` | Uniform objects as tables, mixed as items |
+| JSONL | `.jsonl`, `.ndjson` | Line-level search, per-record drill-in |
 | YAML | `.yaml`, `.yml` | Keys as headings, nested structure |
 
 ### Directory Tree Labels
@@ -110,8 +110,9 @@ mq paper.pdf '.tables'
 mq config.json '.headings'      # Top-level keys
 mq data.yaml '.text'            # Readable representation
 
-# JSONL - query ML datasets and logs
-mq users.jsonl '.tables'        # Uniform objects as tables
+# JSONL - search logs and session files
+mq session.jsonl '.search("auth")'  # Line-level search with record context
+mq session.jsonl '.record(7)'       # Pretty-print specific record
 ```
 
 ## Why This Works
@@ -292,6 +293,15 @@ mq README.md ".search('OAuth')"
 
 # Search across directory
 mq docs/ ".search('authentication')"
+
+# JSONL: line-level search with record type + structure
+mq session.jsonl ".search('auth')"
+# → [line 3] assistant/tool_use: Grep
+#     ts: 2026-02-01T20:25:34Z
+#     > ...searching for auth configuration...
+
+# Drill into a specific record
+mq session.jsonl ".record(3)"
 ```
 
 ### Extract Content
@@ -321,7 +331,8 @@ mq uses a jq-inspired query syntax with piping and selectors. If you're familiar
 | `.tree("compact")` | Headings only |
 | `.tree("preview")` | Headings + content preview |
 | `.tree("full")` | Sections + previews (directories) |
-| `.search("term")` | Find sections containing term |
+| `.search("term")` | Find sections containing term (JSONL: line-level) |
+| `.record(N)` | Get JSONL record at line N (pretty-printed) |
 | `.section("name")` | Section by heading |
 | `.sections` | All sections |
 | `.headings` | All headings |

@@ -247,6 +247,7 @@ result, err := engine.Query(doc, `.section("API") | .code("go")`)
 | `.links` | All links |
 | `.images` | All images |
 | `.tables` | All tables |
+| `.record(N)` | JSONL record at line N |
 | `.metadata` | Frontmatter metadata |
 | `.text` | Extract text content |
 | `.tree` | Document structure |
