@@ -275,6 +275,16 @@ func (v *compilerVisitor) VisitSelector(node *SelectorNode) (interface{}, error)
 		}
 		return doc.Search(query), nil
 
+	case "record":
+		if len(args) == 0 {
+			return nil, fmt.Errorf("Error: .record requires a line number\nUsage: .record(7)\nHint: use .search(\"term\") to find line numbers first")
+		}
+		lineNum, ok := toInt(args[0])
+		if !ok {
+			return nil, fmt.Errorf("Error: .record requires an integer line number, got %T\nUsage: .record(7)", args[0])
+		}
+		return doc.GetRecord(lineNum)
+
 	default:
 		return nil, formatUnknownSelectorError(node.Name)
 	}
@@ -286,7 +296,7 @@ func formatUnknownSelectorError(name string) error {
 	knownSelectors := []string{
 		"headings", "section", "sections", "code", "links", "images",
 		"tables", "lists", "metadata", "owner", "tags", "priority",
-		"text", "length", "tree", "search",
+		"text", "length", "tree", "search", "record",
 	}
 
 	// Find closest match using simple string distance
