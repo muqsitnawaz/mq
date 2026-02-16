@@ -17,6 +17,7 @@ Documents → mq query → Structure enters your context → You reason → Resu
 1. See structure    →  mq <path> .tree            → Map enters your context
 2. Find relevant    →  mq <path> ".search('x')"   → Locations enter your context
 3. Extract content  →  mq <path> ".section('Y') | .text"  → Content enters your context
+                       mq <path> ".record(N)"     → (JSONL: full record at line N)
 4. Reason           →  You compute the answer from what's now in your context
 ```
 
@@ -34,12 +35,14 @@ mq dir/ ".tree('full')"             # All files with sections + previews
 # Search
 mq file.md ".search('term')"        # Find sections containing term
 mq dir/ ".search('term')"           # Search across all files
+mq log.jsonl ".search('error')"     # JSONL: line-level search with record context
 
 # Extract
 mq file.md ".section('Name') | .text"   # Get section content
 mq file.md ".code('python')"            # Get code blocks by language
 mq file.md .links                       # Get all links
 mq file.md .metadata                    # Get YAML frontmatter
+mq log.jsonl '.record(7)'               # JSONL: pretty-print record at line 7
 ```
 
 ## Efficient Workflow
@@ -143,6 +146,18 @@ Query 3: mq docs/auth.md ".section('OAuth Flow') | .text"
 mq externalizes structure. You do the thinking. Don't re-query what you already see.
 
 ## Examples by Task
+
+### "Find something in a JSONL session file"
+```bash
+mq session.jsonl ".search('deploy')"  # Line-level matches with record type
+# → [line 5] user/user
+#     content: Can you deploy the new version?
+#     ts: 2026-02-01T20:25:29Z
+# → [line 8] assistant/tool_use: Bash
+#     ts: 2026-02-01T20:25:34Z
+
+mq session.jsonl '.record(8)'         # Full pretty-printed JSON of that record
+```
 
 ### "Find how authentication works"
 ```bash

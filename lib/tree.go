@@ -1,6 +1,9 @@
 package mq
 
 import (
+	"bufio"
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"io/fs"
 	"os"
@@ -256,10 +259,11 @@ func getPrefix(depth int, hasMore bool) string {
 
 // SearchResult represents a search match with section context.
 type SearchResult struct {
-	File    string // File path
-	Section string // Section heading
-	Lines   string // Line range (e.g., "34-89")
-	Match   string // Snippet with match context
+	File    string   // File path
+	Section string   // Section heading or record label
+	Lines   string   // Line range (e.g., "34-89") or single line
+	Match   string   // Snippet with match context
+	Fields  []string // Key-value fields from the record (JSONL only)
 }
 
 // SearchResults holds all search matches.
@@ -292,9 +296,15 @@ func isTraversalFile(path string) bool {
 }
 
 // Search finds sections containing the query term.
+// For JSONL files, searches line by line for per-record granularity.
+// For other formats, searches by section.
 func (d *Document) Search(query string) *SearchResults {
+	if d.format == FormatJSONL {
+		return d.searchJSONL(query)
+	}
+
 	results := &SearchResults{Query: query}
-	query = strings.ToLower(query)
+	queryLower := strings.ToLower(query)
 	hasSearchableSections := false
 
 	for _, section := range d.GetSections() {
@@ -303,8 +313,7 @@ func (d *Document) Search(query string) *SearchResults {
 			continue
 		}
 		hasSearchableSections = true
-		if strings.Contains(strings.ToLower(text), query) {
-			// Find a snippet around the match
+		if strings.Contains(strings.ToLower(text), queryLower) {
 			snippet := extractSnippet(text, query, 60)
 			results.Matches = append(results.Matches, &SearchResult{
 				File:    d.path,
@@ -319,7 +328,7 @@ func (d *Document) Search(query string) *SearchResults {
 	// Fall back to readable text so directory search works across all formats.
 	if !hasSearchableSections {
 		text := d.ReadableText()
-		if strings.Contains(strings.ToLower(text), query) {
+		if strings.Contains(strings.ToLower(text), queryLower) {
 			section := d.Title()
 			if section == "" {
 				section = "Document"
@@ -334,6 +343,165 @@ func (d *Document) Search(query string) *SearchResults {
 	}
 
 	return results
+}
+
+// searchJSONL searches a JSONL file line by line for per-record matches.
+// Pure text search first, then JSON parse only on matching lines to extract
+// record structure for display.
+func (d *Document) searchJSONL(query string) *SearchResults {
+	results := &SearchResults{Query: query}
+	queryLower := strings.ToLower(query)
+
+	scanner := bufio.NewScanner(bytes.NewReader(d.source))
+	scanner.Buffer(make([]byte, 1024*1024), 10*1024*1024)
+
+	lineNum := 0
+	for scanner.Scan() {
+		lineNum++
+		line := scanner.Text()
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" {
+			continue
+		}
+
+		if !strings.Contains(strings.ToLower(trimmed), queryLower) {
+			continue
+		}
+
+		// Only parse JSON for matching lines to extract structure
+		label, fields := jsonlRecordInfo(trimmed)
+		snippet := extractSnippet(trimmed, query, 80)
+
+		results.Matches = append(results.Matches, &SearchResult{
+			File:    d.path,
+			Section: label,
+			Lines:   fmt.Sprintf("%d", lineNum),
+			Match:   snippet,
+			Fields:  fields,
+		})
+	}
+
+	return results
+}
+
+// jsonlRecordInfo extracts a label and key fields from a JSONL record.
+// Returns a short label for the heading and a list of "key: value" strings
+// showing the record's structure. Only parses JSON for matched lines.
+func jsonlRecordInfo(line string) (string, []string) {
+	var obj map[string]interface{}
+	if err := json.Unmarshal([]byte(line), &obj); err != nil {
+		return "record", nil
+	}
+
+	var label string
+	var fields []string
+
+	// Claude session format detection
+	typ, hasType := obj["type"].(string)
+	if hasType {
+		label = typ
+		msg, hasMsg := obj["message"].(map[string]interface{})
+
+		if hasMsg {
+			role, _ := msg["role"].(string)
+			if role != "" {
+				label = typ + "/" + role
+			}
+
+			// Dig into content blocks for tool info
+			if content, ok := msg["content"].([]interface{}); ok {
+				for _, block := range content {
+					m, ok := block.(map[string]interface{})
+					if !ok {
+						continue
+					}
+					blockType, _ := m["type"].(string)
+					switch blockType {
+					case "tool_use":
+						name, _ := m["name"].(string)
+						if name != "" {
+							label = fmt.Sprintf("%s/tool_use: %s", typ, name)
+						}
+					case "tool_result":
+						label = typ + "/tool_result"
+					case "text":
+						// Show a preview of the text content
+						if text, ok := m["text"].(string); ok && len(text) > 0 {
+							preview := text
+							if len(preview) > 120 {
+								preview = preview[:120] + "..."
+							}
+							fields = append(fields, "text: "+preview)
+						}
+					case "thinking":
+						fields = append(fields, "thinking: (present)")
+					}
+				}
+			}
+
+			// String content (user messages)
+			if content, ok := msg["content"].(string); ok && len(content) > 0 {
+				preview := content
+				if len(preview) > 120 {
+					preview = preview[:120] + "..."
+				}
+				fields = append(fields, "content: "+preview)
+			}
+		}
+
+		// Add timestamp if present
+		if ts, ok := obj["timestamp"].(string); ok {
+			fields = append(fields, "ts: "+ts)
+		}
+
+		return label, fields
+	}
+
+	// Generic JSONL: show top-level scalar fields
+	label = "record"
+	for _, key := range []string{"name", "id", "type", "role", "action", "event", "level", "status"} {
+		if v, ok := obj[key].(string); ok {
+			if label == "record" {
+				label = key + ": " + v
+			}
+			fields = append(fields, key+": "+v)
+		}
+	}
+
+	// Show remaining scalar fields (up to a few)
+	shown := len(fields)
+	for k, v := range obj {
+		if shown >= 6 {
+			break
+		}
+		switch val := v.(type) {
+		case string:
+			entry := k + ": " + val
+			if len(val) > 80 {
+				entry = k + ": " + val[:80] + "..."
+			}
+			// Avoid duplicating keys already shown
+			dup := false
+			for _, f := range fields {
+				if strings.HasPrefix(f, k+": ") {
+					dup = true
+					break
+				}
+			}
+			if !dup {
+				fields = append(fields, entry)
+				shown++
+			}
+		case float64:
+			fields = append(fields, fmt.Sprintf("%s: %v", k, val))
+			shown++
+		case bool:
+			fields = append(fields, fmt.Sprintf("%s: %v", k, val))
+			shown++
+		}
+	}
+
+	return label, fields
 }
 
 // extractSnippet extracts text around the first match.
@@ -386,9 +554,12 @@ func (r *SearchResults) String() string {
 			buf.WriteString(fmt.Sprintf("%s:\n", m.File))
 			currentFile = m.File
 		}
-		buf.WriteString(fmt.Sprintf("  ## %s (lines %s)\n", m.Section, m.Lines))
+		buf.WriteString(fmt.Sprintf("  [line %s] %s\n", m.Lines, m.Section))
+		for _, field := range m.Fields {
+			buf.WriteString(fmt.Sprintf("    %s\n", field))
+		}
 		if m.Match != "" {
-			buf.WriteString(fmt.Sprintf("     %q\n", m.Match))
+			buf.WriteString(fmt.Sprintf("    > %s\n", m.Match))
 		}
 	}
 
