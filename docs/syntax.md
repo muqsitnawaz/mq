@@ -97,11 +97,12 @@ mq doc.md ".section('API') | .text"
 | `.images` | All images | `mq doc.md .images` |
 | `.tables` | All tables | `mq doc.md .tables` |
 
-### Search & Metadata
+### Search & Navigation
 
 | Selector | Description | Example |
 |----------|-------------|---------|
 | `.search("term")` | Find sections with term | `mq doc.md ".search('auth')"` |
+| `.record(N)` | JSONL: get record at line N | `mq log.jsonl '.record(7)'` |
 | `.metadata` | YAML frontmatter | `mq doc.md .metadata` |
 | `.owner` | Owner field from metadata | `mq doc.md .owner` |
 | `.tags` | Tags from metadata | `mq doc.md .tags` |
@@ -158,6 +159,18 @@ mq docs/ ".search('authentication')"
 
 # Refine to specific file and section
 mq docs/auth.md ".section('OAuth Flow') | .code('javascript')"
+```
+
+### JSONL: Search then Drill In
+```bash
+# Search returns line numbers with record type context
+mq session.jsonl ".search('error')"
+# → [line 14] assistant/tool_use: Bash
+#     ts: 2026-02-01T20:25:38Z
+#     > ...command failed with error...
+
+# Drill into the full record
+mq session.jsonl '.record(14)'
 ```
 
 ### Filter by Level
