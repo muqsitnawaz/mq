@@ -344,14 +344,44 @@ func (c *Cache) DirChanged(dirPath string) bool {
 
 // UpdateDirHash stores the current Merkle hash for a directory and all subdirectories.
 func (c *Cache) UpdateDirHash(dirPath string) {
-	c.updateDirHashRecursive(dirPath)
+	c.computeAndStoreDirHash(dirPath)
 }
 
-func (c *Cache) updateDirHashRecursive(dirPath string) string {
-	hash := c.computeDirHash(dirPath)
-	if hash == "" {
+// computeAndStoreDirHash computes the Merkle hash of a directory, stores it (and all
+// subdirectory hashes) in the DB, and returns the hash. Each directory is visited
+// exactly once — no double recursion.
+func (c *Cache) computeAndStoreDirHash(dirPath string) string {
+	entries, err := os.ReadDir(dirPath)
+	if err != nil {
 		return ""
 	}
+
+	var parts []string
+	for _, entry := range entries {
+		name := entry.Name()
+		if strings.HasPrefix(name, ".") {
+			continue // Skip hidden files
+		}
+
+		childPath := filepath.Join(dirPath, name)
+		if entry.IsDir() {
+			childHash := c.computeAndStoreDirHash(childPath)
+			if childHash != "" {
+				parts = append(parts, name+":d:"+childHash)
+			}
+		} else {
+			info, err := entry.Info()
+			if err != nil {
+				continue
+			}
+			statHash := fmt.Sprintf("%s:f:%d:%d", name, info.ModTime().UnixNano(), info.Size())
+			parts = append(parts, statHash)
+		}
+	}
+
+	sort.Strings(parts)
+	h := sha256.Sum256([]byte(strings.Join(parts, "\n")))
+	hash := hex.EncodeToString(h[:])
 
 	dm := dirMeta{
 		Mtime:      time.Now().UnixNano(),
@@ -364,23 +394,11 @@ func (c *Cache) updateDirHashRecursive(dirPath string) string {
 		return tx.Bucket(bucketDirs).Put(pathHash(dirPath), data)
 	})
 
-	// Recursively store hashes for subdirectories
-	entries, err := os.ReadDir(dirPath)
-	if err != nil {
-		return hash
-	}
-	for _, entry := range entries {
-		if entry.IsDir() && !strings.HasPrefix(entry.Name(), ".") {
-			c.updateDirHashRecursive(filepath.Join(dirPath, entry.Name()))
-		}
-	}
-
 	return hash
 }
 
-// computeDirHash computes the Merkle hash of a directory.
-// File nodes: SHA256(mtime_bytes + size_bytes) for a fast stat-only check.
-// Dir nodes: SHA256(sorted(child_name + ":" + child_hash + "\n"))
+// computeDirHash computes the Merkle hash of a directory (read-only, no DB writes).
+// Used by DirChanged to check current state against stored hash.
 func (c *Cache) computeDirHash(dirPath string) string {
 	entries, err := os.ReadDir(dirPath)
 	if err != nil {
@@ -405,7 +423,6 @@ func (c *Cache) computeDirHash(dirPath string) string {
 			if err != nil {
 				continue
 			}
-			// Use mtime+size as a fast proxy for content change
 			statHash := fmt.Sprintf("%s:f:%d:%d", name, info.ModTime().UnixNano(), info.Size())
 			parts = append(parts, statHash)
 		}
