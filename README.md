@@ -515,6 +515,25 @@ The agent loads ~1KB structure per PDF (vs ~50KB full text), reasons over 800 st
 | MQL `.headings` | 327ns | Full lex/parse/compile/exec |
 | MQL `.section("X") \| .text` | 5.6us | Piped query with extraction |
 
+### Parse Cache (v0.2.1+)
+
+Parsed documents are cached in a content-addressed bbolt database (`~/Library/Caches/mq/cache.db` on macOS). Subsequent queries on the same file skip parsing entirely.
+
+| Scenario | Time | Speedup |
+|----------|------|---------|
+| PDF query (cold cache) | 1.69s | - |
+| PDF query (cached) | 0.02s | **85x** |
+| HTML query (cold cache) | 600ms | - |
+| HTML query (cached) | 0.02s | **30x** |
+
+**How it works:**
+1. **Stat check**: mtime + size compared against cache — if unchanged, skip reading the file entirely
+2. **Content hash**: SHA256 of file content used as cache key for the parsed Document
+3. **Merkle directory tree**: Each directory stores a hash of its children's hashes. When re-scanning, unchanged subtrees are pruned — `O(changed dirs)` instead of `O(all files)`
+4. **Auto-eviction**: Entries unused for 5+ days are trimmed on startup
+
+Cache can be cleared by deleting the database file or running `rm ~/Library/Caches/mq/cache.db`.
+
 See [`bench/results.md`](bench/results.md) for full benchmarks.
 
 ## Dependencies
@@ -523,6 +542,8 @@ See [`bench/results.md`](bench/results.md) for full benchmarks.
 - **HTML**: [x/net/html](https://golang.org/x/net/html) + custom Readability
 - **PDF**: [PyMuPDF](https://pymupdf.readthedocs.io/) - structure extraction via Python
 - **JSON/YAML**: Go standard library + [yaml.v3](https://gopkg.in/yaml.v3)
+- **Cache**: [bbolt](https://github.com/etcd-io/bbolt) - single-file embedded database
+- **Serialization**: [msgpack](https://github.com/vmihailenco/msgpack) - fast binary encoding (5x faster than gob)
 
 ## Development
 
