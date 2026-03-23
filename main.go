@@ -107,6 +107,10 @@ func printUsage() {
 	fmt.Println("  .tree(\"preview\")   Structure + content preview")
 	fmt.Println("  .tree(\"full\")      Structure + previews (best for directories)")
 	fmt.Println("")
+	fmt.Println("Tree modifiers (pipe after .tree):")
+	fmt.Println("  | depth(N)         Limit traversal to N levels")
+	fmt.Println("  | limit(N)         Show max N entries per directory")
+	fmt.Println("")
 	fmt.Println("Selectors:")
 	fmt.Println("  .section(\"Name\")   Get section by heading")
 	fmt.Println("  .search(\"term\")    Find sections containing term")
@@ -122,6 +126,7 @@ func printUsage() {
 	fmt.Println("  mq docs/ '.tree(\"full\")'                    # See all docs structure")
 	fmt.Println("  mq README.md '.section(\"Install\") | .text'  # Get install instructions")
 	fmt.Println("  mq src/ '.search(\"auth\")'                   # Find auth-related sections")
+	fmt.Println("  mq corpus/ '.tree | depth(2) | limit(50)'   # Bounded traversal for large dirs")
 	fmt.Println("")
 	fmt.Println("Commands:")
 	fmt.Println("  upgrade            Upgrade to latest version")
@@ -396,25 +401,58 @@ func handleDirectory(path string, query string) {
 		query = ".tree"
 	}
 
-	method, arg, ok := parseMethodCall(query)
+	// Parse the query, handling piped modifiers like depth(N) and limit(N)
+	opts := mq.TreeOptions{}
+	parts := splitPipeline(query)
+
+	// First part should be the main method
+	method, arg, ok := parseMethodCall(parts[0])
 	if !ok {
 		log.Fatalf("Invalid query format. Supported: .tree, .tree(\"mode\"), .search(\"term\")")
 	}
 
+	// Parse remaining parts as modifiers
+	for _, part := range parts[1:] {
+		modMethod, modArg, ok := parseMethodCall(part)
+		if !ok {
+			// Try parsing as bare function call like depth(3)
+			modMethod, modArg, ok = parseFunctionCall(part)
+			if !ok {
+				log.Fatalf("Invalid modifier: %s", part)
+			}
+		}
+
+		switch modMethod {
+		case "depth":
+			if n, err := parseInt(modArg); err == nil {
+				opts.Depth = n
+			} else {
+				log.Fatalf("depth() requires an integer argument")
+			}
+		case "limit":
+			if n, err := parseInt(modArg); err == nil {
+				opts.Limit = n
+			} else {
+				log.Fatalf("limit() requires an integer argument")
+			}
+		default:
+			log.Fatalf("Unknown modifier: %s. Supported: depth(N), limit(N)", modMethod)
+		}
+	}
+
 	switch method {
 	case "tree":
-		mode := mq.TreeModeDefault
 		switch arg {
 		case "", "compact":
-			mode = mq.TreeModeDefault
+			opts.Mode = mq.TreeModeDefault
 		case "expand", "preview":
-			mode = mq.TreeModePreview
+			opts.Mode = mq.TreeModePreview
 		case "full":
-			mode = mq.TreeModeFull
+			opts.Mode = mq.TreeModeFull
 		default:
 			log.Fatalf("Unknown tree mode: %q. Use: compact, preview, full", arg)
 		}
-		result, err := mql.BuildDirTree(path, mode)
+		result, err := mql.BuildDirTreeWithOptions(path, opts)
 		if err != nil {
 			log.Fatalf("Failed to build directory tree: %v", err)
 		}
@@ -433,6 +471,61 @@ func handleDirectory(path string, query string) {
 	default:
 		log.Fatalf("Unknown method: .%s. Supported: .tree, .search", method)
 	}
+}
+
+// splitPipeline splits a query on | while respecting parentheses.
+func splitPipeline(query string) []string {
+	var parts []string
+	var current strings.Builder
+	depth := 0
+
+	for _, ch := range query {
+		switch ch {
+		case '(':
+			depth++
+			current.WriteRune(ch)
+		case ')':
+			depth--
+			current.WriteRune(ch)
+		case '|':
+			if depth == 0 {
+				if s := strings.TrimSpace(current.String()); s != "" {
+					parts = append(parts, s)
+				}
+				current.Reset()
+			} else {
+				current.WriteRune(ch)
+			}
+		default:
+			current.WriteRune(ch)
+		}
+	}
+
+	if s := strings.TrimSpace(current.String()); s != "" {
+		parts = append(parts, s)
+	}
+
+	return parts
+}
+
+// parseFunctionCall parses function calls like depth(3) or limit(50).
+func parseFunctionCall(s string) (name string, arg string, ok bool) {
+	name, rest, found := strings.Cut(s, "(")
+	if !found {
+		return "", "", false
+	}
+	if !strings.HasSuffix(rest, ")") {
+		return "", "", false
+	}
+	arg = strings.TrimSuffix(rest, ")")
+	return strings.TrimSpace(name), strings.TrimSpace(arg), true
+}
+
+// parseInt parses an integer from a string.
+func parseInt(s string) (int, error) {
+	var n int
+	_, err := fmt.Sscanf(s, "%d", &n)
+	return n, err
 }
 
 func showDocumentInfo(doc *mq.Document) {

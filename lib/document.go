@@ -35,6 +35,7 @@ type Document struct {
 	headingIndex    map[string]*Heading     // by text
 	headingsByLevel map[int][]*Heading      // by level
 	sectionIndex    map[string]*Section     // by title
+	sectionList     []*Section              // ordered list of all sections
 	codeBlocks      []*CodeBlock            // all code blocks
 	codeByLang      map[string][]*CodeBlock // by language
 	links           []*Link                 // all links
@@ -87,7 +88,8 @@ func NewDocument(
 		doc.headingsByLevel[h.Level] = append(doc.headingsByLevel[h.Level], h)
 	}
 
-	// Build section index
+	// Build section index and ordered list
+	doc.sectionList = sections
 	for _, s := range sections {
 		if s.Heading != nil {
 			doc.sectionIndex[s.Heading.Text] = s
@@ -275,11 +277,16 @@ func (d *Document) GetSection(title string) (*Section, bool) {
 	return section, ok
 }
 
-// GetSections returns all sections.
+// GetSections returns all sections in document order.
 func (d *Document) GetSections() []*Section {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
 
+	if len(d.sectionList) > 0 {
+		return d.sectionList
+	}
+
+	// Fallback for documents that didn't populate sectionList
 	sections := make([]*Section, 0, len(d.sectionIndex))
 	for _, section := range d.sectionIndex {
 		sections = append(sections, section)
@@ -345,14 +352,23 @@ func (d *Document) GetLists(ordered *bool) []*List {
 	return result
 }
 
-// GetTableOfContents returns the hierarchical structure of headings.
+// GetTableOfContents returns the hierarchical structure of headings in document order.
 func (d *Document) GetTableOfContents() []*Section {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
 
-	// Return top-level sections
+	// Use ordered list if available, otherwise fall back to map
+	source := d.sectionList
+	if len(source) == 0 {
+		source = make([]*Section, 0, len(d.sectionIndex))
+		for _, section := range d.sectionIndex {
+			source = append(source, section)
+		}
+	}
+
+	// Return top-level sections in order
 	var toc []*Section
-	for _, section := range d.sectionIndex {
+	for _, section := range source {
 		if section.Parent == nil {
 			toc = append(toc, section)
 		}

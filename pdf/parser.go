@@ -20,14 +20,20 @@ package pdf
 
 import (
 	"bytes"
+	_ "embed"
 	"encoding/json"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"sort"
+	"strings"
 
 	mq "github.com/muqsitnawaz/mq/lib"
 )
+
+//go:embed extract_structure.py
+var extractStructurePy string
 
 // Parser parses PDF documents into mq.Document.
 type Parser struct {
@@ -168,8 +174,8 @@ func (e *extractor) extract() (*mq.Document, error) {
 			})
 		}
 
-		// Build sections from headings
-		sections = e.buildSections(headings)
+		// Build sections from headings with text content
+		sections = e.buildSections(headings, text)
 
 		// Convert tables
 		for _, t := range structure.Tables {
@@ -203,13 +209,23 @@ func (e *extractor) extractStructure() *structureResult {
 		return nil
 	}
 
-	// Find the Python script relative to this Go file
+	// Find the Python script: on-disk first, then write embedded copy to temp
 	scriptPath := e.findPythonScript()
 	if scriptPath == "" {
-		return nil
+		// Write embedded script to a temp file
+		tmpFile, err := os.CreateTemp("", "mq_extract_structure_*.py")
+		if err != nil {
+			return nil
+		}
+		defer os.Remove(tmpFile.Name())
+		if _, err := tmpFile.WriteString(extractStructurePy); err != nil {
+			tmpFile.Close()
+			return nil
+		}
+		tmpFile.Close()
+		scriptPath = tmpFile.Name()
 	}
 
-	// Run the Python script
 	cmd := exec.Command("python3", scriptPath, "-")
 	cmd.Stdin = bytes.NewReader(e.source)
 
@@ -278,17 +294,79 @@ func (e *extractor) findPythonScript() string {
 	return ""
 }
 
-// buildSections creates section hierarchy from headings.
-func (e *extractor) buildSections(headings []*mq.Heading) []*mq.Section {
+// buildSections creates section hierarchy from headings and assigns text content.
+// It splits the extracted text at heading boundaries so .section("X") | .text works.
+func (e *extractor) buildSections(headings []*mq.Heading, text string) []*mq.Section {
 	if len(headings) == 0 {
 		return nil
 	}
 
+	textBytes := []byte(text)
+	lines := strings.Split(text, "\n")
+
+	// Find line numbers where each heading text appears.
+	// Search sequentially: each heading must appear after the previous one
+	// to maintain document order.
+	type headingLoc struct {
+		heading *mq.Heading
+		line    int // 1-indexed
+	}
+	var locs []headingLoc
+	usedLines := make(map[int]bool)
+	for _, h := range headings {
+		cleanHeading := strings.TrimSpace(h.Text)
+		bestLine := -1
+		bestScore := 0.0
+		for i := 0; i < len(lines); i++ {
+			if usedLines[i] {
+				continue
+			}
+			trimmed := strings.TrimSpace(lines[i])
+			if trimmed == "" {
+				continue
+			}
+			// Exact match is best
+			if trimmed == cleanHeading {
+				bestLine = i
+				break
+			}
+			// For Contains matches, prefer lines where the heading is most
+			// of the line content (avoids matching body text that mentions
+			// the heading word). Require heading to be >= 50% of line length.
+			if strings.Contains(trimmed, cleanHeading) {
+				score := float64(len(cleanHeading)) / float64(len(trimmed))
+				if score >= 0.5 && score > bestScore {
+					bestScore = score
+					bestLine = i
+				}
+			}
+		}
+		if bestLine >= 0 {
+			locs = append(locs, headingLoc{heading: h, line: bestLine + 1})
+			usedLines[bestLine] = true
+		}
+	}
+
+	// Sort by line number to maintain document order
+	sort.Slice(locs, func(i, j int) bool {
+		return locs[i].line < locs[j].line
+	})
+
+	// Build sections with Start/End/source
 	var sections []*mq.Section
 	var stack []*mq.Section
 
-	for _, h := range headings {
-		s := &mq.Section{Heading: h}
+	for i, loc := range locs {
+		h := loc.heading
+		h.Line = loc.line
+
+		start := loc.line
+		end := len(lines)
+		if i+1 < len(locs) {
+			end = locs[i+1].line - 1
+		}
+
+		s := mq.NewSectionWithSource(h, start, end, textBytes)
 
 		// Pop stack until we find a parent with lower level
 		for len(stack) > 0 && stack[len(stack)-1].Heading.Level >= h.Level {
