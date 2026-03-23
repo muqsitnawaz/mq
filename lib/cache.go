@@ -23,7 +23,7 @@ var (
 )
 
 const (
-	cacheSchemaVersion = "1"
+	cacheSchemaVersion = "2" // Bumped: added Lists, Metadata, CodeBlockIdxs
 	trimMaxAge         = 5 * 24 * time.Hour // Evict entries unused for 5 days
 )
 
@@ -52,15 +52,17 @@ type dirMeta struct {
 
 // cachedDocument is the serializable form of a Document.
 type cachedDocument struct {
-	Format       Format           `msgpack:"f"`
-	Title        string           `msgpack:"t"`
-	ReadableText string           `msgpack:"r"`
-	Headings     []cachedHeading  `msgpack:"h"`
-	Sections     []cachedSection  `msgpack:"s"`
-	CodeBlocks   []cachedCode     `msgpack:"c"`
-	Links        []cachedLink     `msgpack:"l"`
-	Images       []cachedImage    `msgpack:"i"`
-	Tables       []cachedTable    `msgpack:"tb"`
+	Format       Format                 `msgpack:"f"`
+	Title        string                 `msgpack:"t"`
+	ReadableText string                 `msgpack:"r"`
+	Headings     []cachedHeading        `msgpack:"h"`
+	Sections     []cachedSection        `msgpack:"s"`
+	CodeBlocks   []cachedCode           `msgpack:"c"`
+	Links        []cachedLink           `msgpack:"l"`
+	Images       []cachedImage          `msgpack:"i"`
+	Tables       []cachedTable          `msgpack:"tb"`
+	Lists        []cachedList           `msgpack:"ls"`
+	Metadata     map[string]interface{} `msgpack:"md"`
 }
 
 type cachedHeading struct {
@@ -71,11 +73,12 @@ type cachedHeading struct {
 }
 
 type cachedSection struct {
-	HeadingIdx int   `msgpack:"h"` // Index into Headings
-	Start      int   `msgpack:"s"`
-	End        int   `msgpack:"e"`
-	ParentIdx  int   `msgpack:"p"` // -1 if no parent
-	ChildIdxs  []int `msgpack:"c"`
+	HeadingIdx    int   `msgpack:"h"` // Index into Headings
+	Start         int   `msgpack:"s"`
+	End           int   `msgpack:"e"`
+	ParentIdx     int   `msgpack:"p"` // -1 if no parent
+	ChildIdxs     []int `msgpack:"c"`
+	CodeBlockIdxs []int `msgpack:"cb"` // Indices into document-level CodeBlocks
 }
 
 type cachedCode struct {
