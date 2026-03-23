@@ -583,8 +583,11 @@ func SearchDir(dirPath string, query string) (*SearchResults, error) {
 }
 
 // SearchDirWithLoader searches all supported document files using a custom loader.
+// It uses a two-phase approach: first a cheap text scan to find files containing the
+// query, then an expensive AST parse only on matching files for section context.
 func SearchDirWithLoader(dirPath string, query string, load documentLoaderFunc) (*SearchResults, error) {
 	results := &SearchResults{Query: query}
+	queryLower := strings.ToLower(query)
 
 	err := filepath.WalkDir(dirPath, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
@@ -597,6 +600,17 @@ func SearchDirWithLoader(dirPath string, query string, load documentLoaderFunc) 
 			return nil
 		}
 
+		// Phase 1: cheap text scan — read raw bytes and check for match.
+		// This avoids parsing every file into a full AST just to search it.
+		raw, err := os.ReadFile(path)
+		if err != nil {
+			return nil // Skip unreadable files
+		}
+		if !strings.Contains(strings.ToLower(string(raw)), queryLower) {
+			return nil // No match — skip expensive parse
+		}
+
+		// Phase 2: file contains the query — parse into AST for section context.
 		doc, err := load(path)
 		if err != nil {
 			return nil // Skip unparseable files
