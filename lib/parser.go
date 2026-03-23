@@ -234,6 +234,9 @@ func (p *Parser) buildIndexes(doc *Document) error {
 		}
 	}
 
+	// Store ordered section list
+	doc.sectionList = allSections
+
 	return err
 }
 

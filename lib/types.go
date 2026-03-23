@@ -33,6 +33,17 @@ type Section struct {
 	codeBlocks []*CodeBlock // Code blocks in this section (not children)
 }
 
+// NewSectionWithSource creates a Section with source, start, and end populated
+// so that GetText() works for non-markdown formats (HTML, PDF).
+func NewSectionWithSource(heading *Heading, start, end int, source []byte) *Section {
+	return &Section{
+		Heading: heading,
+		Start:   start,
+		End:     end,
+		source:  source,
+	}
+}
+
 // GetText extracts the raw markdown content from the section using line numbers.
 func (s *Section) GetText() string {
 	if s.source == nil || s.Start == 0 || s.End == 0 {

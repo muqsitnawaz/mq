@@ -74,3 +74,95 @@ func TestBuildDirTreeSupportsNonMarkdownFormats(t *testing.T) {
 	assert.Contains(t, rendered, "H1 Heading")
 	assert.NotContains(t, rendered, "# content")
 }
+
+func TestBuildDirTreeWithLimit(t *testing.T) {
+	// Use mql/testdata which has 8 markdown files
+	testdataDir := "testdata"
+
+	opts := mq.TreeOptions{Mode: mq.TreeModeDefault, Limit: 3}
+	tree, err := mql.BuildDirTreeWithOptions(testdataDir, opts)
+	require.NoError(t, err)
+
+	// Should only show 3 files
+	assert.Equal(t, 3, len(tree.Root))
+
+	// Should track truncation
+	assert.Equal(t, 5, tree.RootTruncated) // 8 total - 3 shown = 5 truncated
+
+	// Rendered output should show truncation hint
+	rendered := tree.String()
+	assert.Contains(t, rendered, "... (5 more)")
+}
+
+func TestBuildDirTreeWithDepth(t *testing.T) {
+	dir := t.TempDir()
+
+	// Create nested structure: dir/sub1/sub2/file.md
+	sub1 := filepath.Join(dir, "sub1")
+	sub2 := filepath.Join(sub1, "sub2")
+	require.NoError(t, os.MkdirAll(sub2, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "root.md"), []byte("# Root"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(sub1, "level1.md"), []byte("# Level 1"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(sub2, "level2.md"), []byte("# Level 2"), 0o644))
+
+	// Depth 1: only root files, subdirs shown as truncated
+	opts := mq.TreeOptions{Mode: mq.TreeModeDefault, Depth: 1}
+	tree, err := mql.BuildDirTreeWithOptions(dir, opts)
+	require.NoError(t, err)
+
+	// Should have root.md and sub1/ (truncated)
+	assert.Equal(t, 2, len(tree.Root))
+
+	// Find sub1 node
+	var sub1Node *mq.DirFileNode
+	for _, node := range tree.Root {
+		if node.Name == "sub1" {
+			sub1Node = node
+			break
+		}
+	}
+	require.NotNil(t, sub1Node)
+	assert.True(t, sub1Node.IsDir)
+	assert.Equal(t, -1, sub1Node.Truncated) // -1 indicates depth limit
+	assert.Equal(t, 2, sub1Node.TotalFiles) // Contains level1.md and sub2/level2.md
+
+	// Rendered output should show depth limit hint
+	rendered := tree.String()
+	assert.Contains(t, rendered, "depth limit")
+}
+
+func TestBuildDirTreeWithDepthAndLimit(t *testing.T) {
+	dir := t.TempDir()
+
+	// Create structure with multiple subdirs and files
+	for i := 1; i <= 5; i++ {
+		subdir := filepath.Join(dir, filepath.Base(dir)+"-sub"+string(rune('0'+i)))
+		require.NoError(t, os.MkdirAll(subdir, 0o755))
+		for j := 1; j <= 3; j++ {
+			require.NoError(t, os.WriteFile(
+				filepath.Join(subdir, "file"+string(rune('0'+j))+".md"),
+				[]byte("# File"), 0o644))
+		}
+	}
+
+	// Depth 2, Limit 2: show 2 subdirs, each with up to 2 files
+	opts := mq.TreeOptions{Mode: mq.TreeModeDefault, Depth: 2, Limit: 2}
+	tree, err := mql.BuildDirTreeWithOptions(dir, opts)
+	require.NoError(t, err)
+
+	// Should show 2 subdirs at root
+	assert.Equal(t, 2, len(tree.Root))
+	assert.Equal(t, 3, tree.RootTruncated) // 5 - 2 = 3 truncated
+
+	// Each subdir should have 2 files with 1 truncated
+	for _, node := range tree.Root {
+		if node.IsDir {
+			assert.Equal(t, 2, len(node.Children))
+			assert.Equal(t, 1, node.Truncated) // 3 - 2 = 1 truncated
+		}
+	}
+
+	rendered := tree.String()
+	assert.Contains(t, rendered, "... (3 more)") // root level
+	assert.Contains(t, rendered, "... (1 more)") // subdir level
+}

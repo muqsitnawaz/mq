@@ -163,7 +163,33 @@ Naive:   .tree("full") on /repo           → 22K chars just for tree
 Scoped:  .tree("full") on /repo/docs/auth.md → 500 chars, then extract
 ```
 
-**The fix**: Agents should explore directory structure first (ls, glob), identify the likely subdirectory, then run `.tree("full")` only on that target.
+**The fix**: Agents should explore directory structure first, identify the likely subdirectory, then run `.tree("full")` only on that target.
+
+### Scaling to Large Corpora
+
+For repositories with thousands of files, use `depth()` and `limit()` to bound traversal:
+
+```bash
+# Level 0: See top-level structure (max 50 entries per directory)
+mq corpus/ ".tree | depth(2) | limit(50)"
+
+# Output shows what's truncated:
+# corpus/ (10247 files, 500000 lines total)
+# ├── auth/ (234 files, depth limit)
+# ├── api/
+# │   ├── v1/ (45 files, depth limit)
+# │   ├── v2/ (38 files, depth limit)
+# │   └── ... (12 more)
+# └── ... (103 more)
+
+# Level 1: Narrow to likely area
+mq corpus/auth/ ".tree('full') | limit(20)"
+
+# Level 2: Extract what you need
+mq corpus/auth/oauth.md ".section('Token Refresh') | .text"
+```
+
+The agent reasons at each level. No 10k-file index needed - this mirrors how humans explore large codebases.
 
 <details>
 <summary>Full benchmark results</summary>
@@ -348,6 +374,8 @@ mq uses a jq-inspired query syntax with piping and selectors. If you're familiar
 | `.text` | Extract raw content |
 | `\| .tree` | Pipe to tree view |
 | `filter(.level == 2)` | Filter results |
+| `depth(N)` | Limit tree traversal to N levels |
+| `limit(N)` | Show max N entries per directory |
 
 ### Examples
 

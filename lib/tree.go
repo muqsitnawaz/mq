@@ -22,6 +22,18 @@ const (
 	TreeModeFull    TreeMode = "full"    // Headings + first few words (for directories: expand + preview)
 )
 
+// TreeOptions controls tree traversal bounds.
+type TreeOptions struct {
+	Mode  TreeMode
+	Depth int // Max depth to traverse (0 = unlimited)
+	Limit int // Max children per directory (0 = unlimited)
+}
+
+// DefaultTreeOptions returns unbounded options with the given mode.
+func DefaultTreeOptions(mode TreeMode) TreeOptions {
+	return TreeOptions{Mode: mode, Depth: 0, Limit: 0}
+}
+
 // TreeNode represents a node in the document structure tree.
 type TreeNode struct {
 	Type     string      // "section", "code", "table", "list", "link", "image", "frontmatter"
@@ -618,41 +630,53 @@ type DirFileNode struct {
 	Count       int            // Count of structure units for this format
 	TopHeadings []*DirHeading  // Top-level headings for expand/full modes
 	Children    []*DirFileNode // Child files/directories
+	Truncated   int            // Number of children not shown due to limit
+	TotalFiles  int            // Total files in this subtree (for truncated dirs)
 }
 
 // DirTreeResult represents the result of a directory tree query.
 type DirTreeResult struct {
-	Path       string         // Directory path
-	TotalFiles int            // Total supported files
-	TotalLines int            // Total lines across all files
-	Mode       TreeMode       // Display mode
-	Root       []*DirFileNode // Top-level entries
+	Path          string         // Directory path
+	TotalFiles    int            // Total supported files
+	TotalLines    int            // Total lines across all files
+	Mode          TreeMode       // Display mode
+	Options       TreeOptions    // Depth/limit options used
+	Root          []*DirFileNode // Top-level entries
+	RootTruncated int            // Number of top-level entries not shown due to limit
 }
 
 // BuildDirTree creates a tree representation of supported document files in a directory.
 func BuildDirTree(dirPath string, mode TreeMode) (*DirTreeResult, error) {
 	parser := NewParser()
-	return BuildDirTreeWithLoader(dirPath, mode, parser.ParseFile)
+	return BuildDirTreeWithLoader(dirPath, DefaultTreeOptions(mode), parser.ParseFile)
+}
+
+// BuildDirTreeWithOptions creates a tree with depth/limit bounds.
+func BuildDirTreeWithOptions(dirPath string, opts TreeOptions) (*DirTreeResult, error) {
+	parser := NewParser()
+	return BuildDirTreeWithLoader(dirPath, opts, parser.ParseFile)
 }
 
 // BuildDirTreeWithLoader creates a tree representation using a custom loader.
-func BuildDirTreeWithLoader(dirPath string, mode TreeMode, load documentLoaderFunc) (*DirTreeResult, error) {
+func BuildDirTreeWithLoader(dirPath string, opts TreeOptions, load documentLoaderFunc) (*DirTreeResult, error) {
 	result := &DirTreeResult{
-		Path: dirPath,
-		Mode: mode,
+		Path:    dirPath,
+		Mode:    opts.Mode,
+		Options: opts,
 	}
 
-	root, err := buildDirNode(dirPath, mode, result, load)
+	root, err := buildDirNode(dirPath, opts, 0, result, load)
 	if err != nil {
 		return nil, err
 	}
 
 	result.Root = root.Children
+	result.RootTruncated = root.Truncated
 	return result, nil
 }
 
 // buildDirNode recursively builds directory tree nodes.
-func buildDirNode(path string, mode TreeMode, result *DirTreeResult, load documentLoaderFunc) (*DirFileNode, error) {
+func buildDirNode(path string, opts TreeOptions, currentDepth int, result *DirTreeResult, load documentLoaderFunc) (*DirFileNode, error) {
 	info, err := os.Stat(path)
 	if err != nil {
 		return nil, err
@@ -684,7 +708,7 @@ func buildDirNode(path string, mode TreeMode, result *DirTreeResult, load docume
 			result.TotalLines += node.Lines
 
 			// Get top-level headings for expand/full modes
-			showHeadings := mode == TreeModeFull || mode == TreeModePreview
+			showHeadings := opts.Mode == TreeModeFull || opts.Mode == TreeModePreview
 			if showHeadings {
 				for _, section := range doc.GetTableOfContents() {
 					h := section.Heading
@@ -692,7 +716,7 @@ func buildDirNode(path string, mode TreeMode, result *DirTreeResult, load docume
 						Text: formatTreeLabel(doc.Format(), h),
 					}
 					// Add preview for full mode
-					if mode == TreeModeFull {
+					if opts.Mode == TreeModeFull {
 						heading.Preview = ExtractPreview(section.GetText(), 50)
 					}
 					node.TopHeadings = append(node.TopHeadings, heading)
@@ -703,7 +727,7 @@ func buildDirNode(path string, mode TreeMode, result *DirTreeResult, load docume
 							childHeading := &DirHeading{
 								Text: formatTreeLabel(doc.Format(), child.Heading),
 							}
-							if mode == TreeModeFull {
+							if opts.Mode == TreeModeFull {
 								childHeading.Preview = ExtractPreview(child.GetText(), 50)
 							}
 							node.TopHeadings = append(node.TopHeadings, childHeading)
@@ -712,6 +736,15 @@ func buildDirNode(path string, mode TreeMode, result *DirTreeResult, load docume
 				}
 			}
 		}
+		return node, nil
+	}
+
+	// Check if we've hit depth limit
+	if opts.Depth > 0 && currentDepth >= opts.Depth {
+		// Count files in this subtree without expanding
+		fileCount := countFilesInDir(path)
+		node.TotalFiles = fileCount
+		node.Truncated = -1 // Special value meaning "depth limit reached"
 		return node, nil
 	}
 
@@ -729,26 +762,38 @@ func buildDirNode(path string, mode TreeMode, result *DirTreeResult, load docume
 		return entries[i].Name() < entries[j].Name()
 	})
 
+	// Filter to valid entries first
+	var validEntries []os.DirEntry
 	for _, entry := range entries {
 		// Skip hidden files/directories
 		if strings.HasPrefix(entry.Name(), ".") {
 			continue
 		}
-
-		childPath := filepath.Join(path, entry.Name())
-
 		// For files, only include supported formats
 		if !entry.IsDir() && !isTraversalFile(entry.Name()) {
 			continue
 		}
+		validEntries = append(validEntries, entry)
+	}
 
-		child, err := buildDirNode(childPath, mode, result, load)
+	// Apply limit
+	limit := len(validEntries)
+	if opts.Limit > 0 && limit > opts.Limit {
+		node.Truncated = limit - opts.Limit
+		limit = opts.Limit
+	}
+
+	for i := 0; i < limit; i++ {
+		entry := validEntries[i]
+		childPath := filepath.Join(path, entry.Name())
+
+		child, err := buildDirNode(childPath, opts, currentDepth+1, result, load)
 		if err != nil {
 			continue // Skip entries that error
 		}
 
-		// Skip empty directories (no supported files)
-		if child.IsDir && len(child.Children) == 0 {
+		// Skip empty directories (no supported files) unless truncated by depth
+		if child.IsDir && len(child.Children) == 0 && child.Truncated == 0 {
 			continue
 		}
 
@@ -756,6 +801,21 @@ func buildDirNode(path string, mode TreeMode, result *DirTreeResult, load docume
 	}
 
 	return node, nil
+}
+
+// countFilesInDir counts supported files in a directory (non-recursive for speed).
+func countFilesInDir(path string) int {
+	count := 0
+	filepath.WalkDir(path, func(p string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return nil
+		}
+		if !d.IsDir() && isTraversalFile(p) && !strings.HasPrefix(d.Name(), ".") {
+			count++
+		}
+		return nil
+	})
+	return count
 }
 
 // String renders the directory tree as a string.
@@ -767,8 +827,13 @@ func (t *DirTreeResult) String() string {
 
 	// Render nodes
 	for i, node := range t.Root {
-		isLast := i == len(t.Root)-1
+		isLast := i == len(t.Root)-1 && t.RootTruncated == 0
 		t.renderNode(&buf, node, "", isLast)
+	}
+
+	// Show root truncation hint
+	if t.RootTruncated > 0 {
+		buf.WriteString(fmt.Sprintf("└── ... (%d more)\n", t.RootTruncated))
 	}
 
 	return buf.String()
@@ -782,6 +847,12 @@ func (t *DirTreeResult) renderNode(buf *strings.Builder, node *DirFileNode, pref
 	}
 
 	if node.IsDir {
+		// Check for truncation states
+		if node.Truncated == -1 {
+			// Depth limit reached - show file count
+			buf.WriteString(fmt.Sprintf("%s%s%s/ (%d files, depth limit)\n", prefix, connector, node.Name, node.TotalFiles))
+			return
+		}
 		buf.WriteString(fmt.Sprintf("%s%s%s/\n", prefix, connector, node.Name))
 	} else {
 		if node.Lines < 0 {
@@ -815,7 +886,7 @@ func (t *DirTreeResult) renderNode(buf *strings.Builder, node *DirFileNode, pref
 	showHeadings := t.Mode == TreeModeFull || t.Mode == TreeModePreview
 	if showHeadings && len(node.TopHeadings) > 0 {
 		for i, heading := range node.TopHeadings {
-			hIsLast := i == len(node.TopHeadings)-1 && len(node.Children) == 0
+			hIsLast := i == len(node.TopHeadings)-1 && len(node.Children) == 0 && node.Truncated == 0
 			hConnector := "├── "
 			if hIsLast {
 				hConnector = "└── "
@@ -837,8 +908,13 @@ func (t *DirTreeResult) renderNode(buf *strings.Builder, node *DirFileNode, pref
 
 	// Render children
 	for i, child := range node.Children {
-		childIsLast := i == len(node.Children)-1
+		childIsLast := i == len(node.Children)-1 && node.Truncated == 0
 		t.renderNode(buf, child, childPrefix, childIsLast)
+	}
+
+	// Show truncation hint
+	if node.Truncated > 0 {
+		buf.WriteString(fmt.Sprintf("%s└── ... (%d more)\n", childPrefix, node.Truncated))
 	}
 }
 
