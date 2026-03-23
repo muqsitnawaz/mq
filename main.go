@@ -4,6 +4,7 @@ import (
 	"archive/tar"
 	"archive/zip"
 	"compress/gzip"
+	_ "embed"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -77,10 +78,9 @@ func main() {
 		log.Fatalf("Failed to load document: %v", err)
 	}
 
-	// If no query provided, show document info
+	// If no query provided, show tree (always includes previews now)
 	if query == "" {
-		showDocumentInfo(doc)
-		return
+		query = ".tree"
 	}
 
 	// Execute the query
@@ -285,8 +285,35 @@ func selfUpgrade() error {
 		}
 	}
 
-	fmt.Printf("Upgraded to %s\n", release.TagName)
+	fmt.Printf("Upgraded to %s\n\n", release.TagName)
+
+	// Show changelog for this version
+	showChangelog(release.TagName)
+
 	return nil
+}
+
+//go:embed CHANGELOG.md
+var changelogContent string
+
+func showChangelog(tag string) {
+	ver := strings.TrimPrefix(tag, "v")
+	// Find the section for this version in the changelog
+	marker := fmt.Sprintf("## [%s]", ver)
+	idx := strings.Index(changelogContent, marker)
+	if idx < 0 {
+		return
+	}
+
+	// Find the next ## section (end of this version's entry)
+	rest := changelogContent[idx:]
+	nextSection := strings.Index(rest[3:], "\n## ")
+	if nextSection > 0 {
+		rest = rest[:nextSection+3]
+	}
+
+	fmt.Println("What's new:")
+	fmt.Println(strings.TrimSpace(rest))
 }
 
 func extractTarGz(archivePath, destDir string) error {
@@ -396,7 +423,7 @@ func parseMethodCall(query string) (method string, arg string, ok bool) {
 }
 
 func handleDirectory(path string, query string) {
-	// Directory mode supports .tree and .search queries
+	// Directory mode: default to tree (always includes previews now)
 	if query == "" {
 		query = ".tree"
 	}
