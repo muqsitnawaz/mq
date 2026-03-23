@@ -103,6 +103,17 @@ type cachedTable struct {
 	Rows    [][]string `msgpack:"r"`
 }
 
+type cachedList struct {
+	Ordered bool             `msgpack:"o"`
+	Items   []cachedListItem `msgpack:"i"`
+}
+
+type cachedListItem struct {
+	Text     string           `msgpack:"t"`
+	Checked  *bool            `msgpack:"c"`
+	Children []cachedListItem `msgpack:"ch"`
+}
+
 // DefaultCachePath returns the default cache database path.
 func DefaultCachePath() string {
 	if dir, err := os.UserCacheDir(); err == nil {
@@ -222,10 +233,10 @@ func (c *Cache) LookupFile(path string) *Document {
 }
 
 // StoreFile caches a parsed Document for a file.
-func (c *Cache) StoreFile(path string, content []byte, doc *Document) {
+func (c *Cache) StoreFile(path string, content []byte, doc *Document) error {
 	info, err := os.Stat(path)
 	if err != nil {
-		return
+		return fmt.Errorf("stat %s: %w", path, err)
 	}
 
 	contentHash := ContentHash(content)
@@ -240,20 +251,21 @@ func (c *Cache) StoreFile(path string, content []byte, doc *Document) {
 	}
 	fmData, err := msgpack.Marshal(&fm)
 	if err != nil {
-		return
+		return fmt.Errorf("marshal file meta: %w", err)
 	}
 
 	// Store document
 	cd := documentToCache(doc)
 	cdData, err := msgpack.Marshal(&cd)
 	if err != nil {
-		return
+		return fmt.Errorf("marshal document: %w", err)
 	}
 
-	c.db.Update(func(tx *bolt.Tx) error {
-		tx.Bucket(bucketFiles).Put(pathKey, fmData)
-		tx.Bucket(bucketDocuments).Put([]byte(contentHash), cdData)
-		return nil
+	return c.db.Update(func(tx *bolt.Tx) error {
+		if err := tx.Bucket(bucketFiles).Put(pathKey, fmData); err != nil {
+			return err
+		}
+		return tx.Bucket(bucketDocuments).Put([]byte(contentHash), cdData)
 	})
 }
 
