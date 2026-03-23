@@ -92,10 +92,8 @@ func (d *Document) buildSectionTree(section *Section, mode TreeMode) *TreeNode {
 		Level: section.Heading.Level,
 	}
 
-	// Add preview text for preview/full modes
-	if mode == TreeModePreview || mode == TreeModeFull {
-		node.Preview = ExtractPreview(section.GetText(), 50)
-	}
+	// Always add preview text (most useful for orientation)
+	node.Preview = ExtractPreview(section.GetText(), 50)
 
 	// Add child sections
 	for _, child := range section.Children {
@@ -707,17 +705,14 @@ func buildDirNode(path string, opts TreeOptions, currentDepth int, result *DirTr
 			result.TotalFiles++
 			result.TotalLines += node.Lines
 
-			// Get top-level headings for expand/full modes
-			showHeadings := opts.Mode == TreeModeFull || opts.Mode == TreeModePreview
+			// Always show top-level headings with previews
+			showHeadings := opts.Mode != TreeModeCompact
 			if showHeadings {
 				for _, section := range doc.GetTableOfContents() {
 					h := section.Heading
 					heading := &DirHeading{
-						Text: formatTreeLabel(doc.Format(), h),
-					}
-					// Add preview for full mode
-					if opts.Mode == TreeModeFull {
-						heading.Preview = ExtractPreview(section.GetText(), 50)
+						Text:    formatTreeLabel(doc.Format(), h),
+						Preview: ExtractPreview(section.GetText(), 50),
 					}
 					node.TopHeadings = append(node.TopHeadings, heading)
 
@@ -725,10 +720,8 @@ func buildDirNode(path string, opts TreeOptions, currentDepth int, result *DirTr
 					for _, child := range section.Children {
 						if child.Heading.Level <= 2 {
 							childHeading := &DirHeading{
-								Text: formatTreeLabel(doc.Format(), child.Heading),
-							}
-							if opts.Mode == TreeModeFull {
-								childHeading.Preview = ExtractPreview(child.GetText(), 50)
+								Text:    formatTreeLabel(doc.Format(), child.Heading),
+								Preview: ExtractPreview(child.GetText(), 50),
 							}
 							node.TopHeadings = append(node.TopHeadings, childHeading)
 						}
