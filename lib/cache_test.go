@@ -595,3 +595,39 @@ func TestCacheStoreFileReturnsError(t *testing.T) {
 	err := c.StoreFile("/nonexistent/file.md", []byte("data"), doc)
 	assert.Error(t, err)
 }
+
+func TestCacheSearchRoundtrip(t *testing.T) {
+	// Regression: search through a cached markdown document must produce
+	// the same results as search through a freshly parsed document.
+	c := newTestCache(t)
+	testDir := t.TempDir()
+
+	mdContent := "# Deployment Guide\n\n## Rolling Deployment\n\nA rolling deployment gradually replaces old pods.\n\n## Monitoring\n\nCheck metrics after each deployment completes.\n"
+	path := writeTestFile(t, testDir, "guide.md", mdContent)
+	content, err := os.ReadFile(path)
+	require.NoError(t, err)
+
+	// Parse fresh
+	parser := mq.NewParser()
+	freshDoc, err := parser.Parse(content, path)
+	require.NoError(t, err)
+
+	freshResults := freshDoc.Search("deployment")
+	require.NotEmpty(t, freshResults.Matches, "fresh parse should find 'deployment'")
+
+	// Store in cache, then look up
+	require.NoError(t, c.StoreFile(path, content, freshDoc))
+	cachedDoc := c.LookupFile(path)
+	require.NotNil(t, cachedDoc)
+
+	cachedResults := cachedDoc.Search("deployment")
+	require.Equal(t, len(freshResults.Matches), len(cachedResults.Matches),
+		"cached doc search should return same number of matches as fresh parse")
+
+	for i, fresh := range freshResults.Matches {
+		cached := cachedResults.Matches[i]
+		assert.Equal(t, fresh.Section, cached.Section, "match %d section mismatch", i)
+		assert.Equal(t, fresh.Lines, cached.Lines, "match %d lines mismatch", i)
+		assert.Equal(t, fresh.Match, cached.Match, "match %d snippet mismatch", i)
+	}
+}
