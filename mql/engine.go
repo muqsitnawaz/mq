@@ -34,6 +34,8 @@ func New() *Engine {
 	// Open cache silently — cache failures should never block normal operation
 	if c, err := mq.OpenCache(""); err == nil {
 		e.cache = c
+		// Non-fatal: evict stale entries to prevent unbounded growth
+		c.Trim()
 	}
 
 	return e

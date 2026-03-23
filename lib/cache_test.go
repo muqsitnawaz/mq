@@ -98,7 +98,7 @@ func TestCacheSchemaVersionMismatch(t *testing.T) {
 	content, _ := os.ReadFile(path)
 	doc := makeTestDocument(path, content)
 
-	c.StoreFile(path, content, doc)
+	require.NoError(t, c.StoreFile(path, content, doc))
 	_, _, docs := c.Stats()
 	assert.Equal(t, 1, docs)
 	require.NoError(t, c.Close())
@@ -127,7 +127,7 @@ func TestCacheStoreAndLookup(t *testing.T) {
 	assert.Nil(t, c.LookupFile(path))
 
 	// Store it
-	c.StoreFile(path, content, doc)
+	require.NoError(t, c.StoreFile(path, content, doc))
 
 	// Should be cached now
 	cached := c.LookupFile(path)
@@ -175,7 +175,7 @@ func TestCacheSectionTextPreserved(t *testing.T) {
 	content, _ := os.ReadFile(path)
 	doc := makeTestDocument(path, content)
 
-	c.StoreFile(path, content, doc)
+	require.NoError(t, c.StoreFile(path, content, doc))
 	cached := c.LookupFile(path)
 	require.NotNil(t, cached)
 
@@ -196,7 +196,7 @@ func TestCacheInvalidatedOnFileChange(t *testing.T) {
 	content, _ := os.ReadFile(path)
 	doc := makeTestDocument(path, content)
 
-	c.StoreFile(path, content, doc)
+	require.NoError(t, c.StoreFile(path, content, doc))
 	assert.NotNil(t, c.LookupFile(path))
 
 	// Modify the file (need to ensure mtime changes)
@@ -323,7 +323,7 @@ func TestTrimRemovesStaleEntries(t *testing.T) {
 	path := writeTestFile(t, testDir, "doc.md", "# Hello")
 	content, _ := os.ReadFile(path)
 	doc := makeTestDocument(path, content)
-	c.StoreFile(path, content, doc)
+	require.NoError(t, c.StoreFile(path, content, doc))
 
 	files, _, docs := c.Stats()
 	assert.Equal(t, 1, files)
@@ -343,7 +343,7 @@ func TestClear(t *testing.T) {
 	path := writeTestFile(t, testDir, "doc.md", "# Hello")
 	content, _ := os.ReadFile(path)
 	doc := makeTestDocument(path, content)
-	c.StoreFile(path, content, doc)
+	require.NoError(t, c.StoreFile(path, content, doc))
 	c.UpdateDirHash(testDir)
 
 	files, dirs, docs := c.Stats()
@@ -396,7 +396,7 @@ func TestCacheConcurrentAccess(t *testing.T) {
 			path := filepath.Join(testDir, name)
 			content, _ := os.ReadFile(path)
 			doc := makeTestDocument(path, content)
-			c.StoreFile(path, content, doc)
+			require.NoError(t, c.StoreFile(path, content, doc))
 			done <- true
 		}(entry.Name())
 	}
@@ -431,9 +431,167 @@ func TestCacheEmptyDocument(t *testing.T) {
 		nil, nil, nil, nil, nil, nil, nil, "",
 	)
 
-	c.StoreFile(path, content, doc)
+	require.NoError(t, c.StoreFile(path, content, doc))
 	cached := c.LookupFile(path)
 	require.NotNil(t, cached)
 	assert.Equal(t, 0, len(cached.GetHeadings()))
 	assert.Equal(t, 0, len(cached.GetSections()))
+}
+
+// -------------------------------------------------------------------
+// Real-file roundtrip tests (parse actual testdata files)
+// -------------------------------------------------------------------
+
+func parseRealMarkdown(t *testing.T, path string) (*mq.Document, []byte) {
+	t.Helper()
+	content, err := os.ReadFile(path)
+	require.NoError(t, err)
+	p := mq.NewParser()
+	doc, err := p.Parse(content, path)
+	require.NoError(t, err)
+	return doc, content
+}
+
+func TestCacheRoundtripSectionText(t *testing.T) {
+	c := newTestCache(t)
+	path := "../testdata/code-heavy.md"
+
+	doc, content := parseRealMarkdown(t, path)
+	require.NoError(t, c.StoreFile(path, content, doc))
+
+	cached := c.LookupFile(path)
+	require.NotNil(t, cached)
+
+	origSections := doc.GetSections()
+	cachedSections := cached.GetSections()
+	require.Equal(t, len(origSections), len(cachedSections))
+
+	for i, orig := range origSections {
+		got := cachedSections[i].GetText()
+		want := orig.GetText()
+		assert.Equal(t, want, got, "section %q text mismatch after roundtrip", orig.Heading.Text)
+	}
+}
+
+func TestCacheRoundtripLists(t *testing.T) {
+	c := newTestCache(t)
+	path := "../testdata/tables-lists.md"
+
+	doc, content := parseRealMarkdown(t, path)
+	require.NoError(t, c.StoreFile(path, content, doc))
+
+	cached := c.LookupFile(path)
+	require.NotNil(t, cached)
+
+	origLists := doc.GetLists(nil)
+	cachedLists := cached.GetLists(nil)
+	require.Equal(t, len(origLists), len(cachedLists), "list count mismatch")
+
+	for i, orig := range origLists {
+		got := cachedLists[i]
+		assert.Equal(t, orig.Ordered, got.Ordered, "list %d Ordered mismatch", i)
+		assert.Equal(t, len(orig.Items), len(got.Items), "list %d item count mismatch", i)
+		for j, origItem := range orig.Items {
+			assert.Equal(t, origItem.Text, got.Items[j].Text, "list %d item %d text mismatch", i, j)
+			// Verify checked state for task lists
+			if origItem.Checked != nil {
+				require.NotNil(t, got.Items[j].Checked, "list %d item %d checked should not be nil", i, j)
+				assert.Equal(t, *origItem.Checked, *got.Items[j].Checked, "list %d item %d checked mismatch", i, j)
+			}
+		}
+	}
+}
+
+func TestCacheRoundtripMetadata(t *testing.T) {
+	c := newTestCache(t)
+	path := "../testdata/frontmatter.md"
+
+	doc, content := parseRealMarkdown(t, path)
+	require.NoError(t, c.StoreFile(path, content, doc))
+
+	cached := c.LookupFile(path)
+	require.NotNil(t, cached)
+
+	origMeta := doc.Metadata()
+	cachedMeta := cached.Metadata()
+	require.NotNil(t, cachedMeta, "metadata should survive cache roundtrip")
+	assert.Equal(t, origMeta["owner"], cachedMeta["owner"])
+	assert.Equal(t, origMeta["priority"], cachedMeta["priority"])
+	assert.Equal(t, origMeta["title"], cachedMeta["title"])
+
+	// Verify via typed accessors
+	owner, ok := cached.GetOwner()
+	assert.True(t, ok)
+	assert.Equal(t, "platform-team", owner)
+
+	priority, ok := cached.GetPriority()
+	assert.True(t, ok)
+	assert.Equal(t, "high", priority)
+}
+
+func TestCacheRoundtripSectionCodeBlocks(t *testing.T) {
+	c := newTestCache(t)
+	path := "../testdata/code-heavy.md"
+
+	doc, content := parseRealMarkdown(t, path)
+	require.NoError(t, c.StoreFile(path, content, doc))
+
+	cached := c.LookupFile(path)
+	require.NotNil(t, cached)
+
+	// Find "Python Examples" section — should have code blocks
+	origSection, ok := doc.GetSection("Python Examples")
+	require.True(t, ok, "original doc should have 'Python Examples' section")
+	origCBs := origSection.GetCodeBlocks()
+	require.NotEmpty(t, origCBs, "original section should have code blocks")
+
+	cachedSection, ok := cached.GetSection("Python Examples")
+	require.True(t, ok, "cached doc should have 'Python Examples' section")
+	cachedCBs := cachedSection.GetCodeBlocks()
+	require.Equal(t, len(origCBs), len(cachedCBs), "section code block count mismatch")
+
+	for i, orig := range origCBs {
+		assert.Equal(t, orig.Language, cachedCBs[i].Language, "codeblock %d language mismatch", i)
+		assert.Equal(t, orig.Content, cachedCBs[i].Content, "codeblock %d content mismatch", i)
+	}
+}
+
+func TestCacheRoundtripFullStructure(t *testing.T) {
+	c := newTestCache(t)
+	path := "../testdata/code-heavy.md"
+
+	doc, content := parseRealMarkdown(t, path)
+	require.NoError(t, c.StoreFile(path, content, doc))
+
+	cached := c.LookupFile(path)
+	require.NotNil(t, cached)
+
+	// Verify all top-level counts match
+	assert.Equal(t, doc.Title(), cached.Title())
+	assert.Equal(t, doc.Format(), cached.Format())
+	assert.Equal(t, doc.ReadableText(), cached.ReadableText())
+	assert.Equal(t, len(doc.GetHeadings()), len(cached.GetHeadings()))
+	assert.Equal(t, len(doc.GetSections()), len(cached.GetSections()))
+	assert.Equal(t, len(doc.GetCodeBlocks()), len(cached.GetCodeBlocks()))
+	assert.Equal(t, len(doc.GetLinks()), len(cached.GetLinks()))
+	assert.Equal(t, len(doc.GetImages()), len(cached.GetImages()))
+	assert.Equal(t, len(doc.GetTables()), len(cached.GetTables()))
+	assert.Equal(t, len(doc.GetLists(nil)), len(cached.GetLists(nil)))
+
+	// Verify code blocks content
+	origCBs := doc.GetCodeBlocks()
+	cachedCBs := cached.GetCodeBlocks()
+	for i := range origCBs {
+		assert.Equal(t, origCBs[i].Language, cachedCBs[i].Language)
+		assert.Equal(t, origCBs[i].Content, cachedCBs[i].Content)
+	}
+}
+
+func TestCacheStoreFileReturnsError(t *testing.T) {
+	c := newTestCache(t)
+
+	// Storing for a nonexistent path should return an error
+	doc := mq.NewDocument(nil, "/nonexistent", mq.FormatMarkdown, "", nil, nil, nil, nil, nil, nil, nil, "")
+	err := c.StoreFile("/nonexistent/file.md", []byte("data"), doc)
+	assert.Error(t, err)
 }

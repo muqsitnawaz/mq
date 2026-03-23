@@ -549,6 +549,7 @@ func documentToCache(doc *Document) cachedDocument {
 		Format:       doc.format,
 		Title:        doc.title,
 		ReadableText: doc.readableText,
+		Metadata:     doc.metadata,
 	}
 
 	// Headings
@@ -566,6 +567,17 @@ func documentToCache(doc *Document) cachedDocument {
 	headingIdx := make(map[*Heading]int)
 	for i, h := range allHeadings {
 		headingIdx[h] = i
+	}
+
+	// Code blocks — build pointer-to-index map for section cross-references
+	codeBlockIdx := make(map[*CodeBlock]int)
+	for i, cb := range doc.codeBlocks {
+		codeBlockIdx[cb] = i
+		cd.CodeBlocks = append(cd.CodeBlocks, cachedCode{
+			Language: cb.Language,
+			Content:  cb.Content,
+			Lines:    cb.Lines,
+		})
 	}
 
 	// Sections
@@ -594,16 +606,13 @@ func documentToCache(doc *Document) cachedDocument {
 				cs.ChildIdxs = append(cs.ChildIdxs, idx)
 			}
 		}
+		// Store codeblock indices for this section
+		for _, cb := range s.codeBlocks {
+			if idx, ok := codeBlockIdx[cb]; ok {
+				cs.CodeBlockIdxs = append(cs.CodeBlockIdxs, idx)
+			}
+		}
 		cd.Sections = append(cd.Sections, cs)
-	}
-
-	// Code blocks
-	for _, cb := range doc.codeBlocks {
-		cd.CodeBlocks = append(cd.CodeBlocks, cachedCode{
-			Language: cb.Language,
-			Content:  cb.Content,
-			Lines:    cb.Lines,
-		})
 	}
 
 	// Links
@@ -625,12 +634,34 @@ func documentToCache(doc *Document) cachedDocument {
 		})
 	}
 
+	// Lists
+	for _, l := range doc.lists {
+		cd.Lists = append(cd.Lists, listToCache(l))
+	}
+
 	return cd
 }
 
-func cacheToDocument(cd *cachedDocument, source []byte, path string) *Document {
-	textBytes := []byte(cd.ReadableText)
+func listToCache(l *List) cachedList {
+	cl := cachedList{Ordered: l.Ordered}
+	for _, item := range l.Items {
+		cl.Items = append(cl.Items, listItemToCache(item))
+	}
+	return cl
+}
 
+func listItemToCache(item ListItem) cachedListItem {
+	ci := cachedListItem{
+		Text:    item.Text,
+		Checked: item.Checked,
+	}
+	for _, child := range item.Children {
+		ci.Children = append(ci.Children, listItemToCache(child))
+	}
+	return ci
+}
+
+func cacheToDocument(cd *cachedDocument, source []byte, path string) *Document {
 	// Rebuild headings
 	headings := make([]*Heading, len(cd.Headings))
 	for i, ch := range cd.Headings {
@@ -642,7 +673,15 @@ func cacheToDocument(cd *cachedDocument, source []byte, path string) *Document {
 		}
 	}
 
-	// Rebuild sections
+	// Rebuild code blocks (before sections, so we can cross-reference)
+	codeBlocks := make([]*CodeBlock, len(cd.CodeBlocks))
+	for i, cc := range cd.CodeBlocks {
+		codeBlocks[i] = &CodeBlock{
+			Language: cc.Language, Content: cc.Content, Lines: cc.Lines,
+		}
+	}
+
+	// Rebuild sections — use actual file source (not ReadableText) for GetText()
 	sections := make([]*Section, len(cd.Sections))
 	for i, cs := range cd.Sections {
 		var h *Heading
@@ -650,13 +689,13 @@ func cacheToDocument(cd *cachedDocument, source []byte, path string) *Document {
 			h = headings[cs.HeadingIdx]
 		}
 		if cs.Start > 0 {
-			sections[i] = NewSectionWithSource(h, cs.Start, cs.End, textBytes)
+			sections[i] = NewSectionWithSource(h, cs.Start, cs.End, source)
 		} else {
 			sections[i] = &Section{Heading: h, Start: cs.Start, End: cs.End}
 		}
 	}
 
-	// Wire parent/child
+	// Wire parent/child and re-attach code blocks
 	for i, cs := range cd.Sections {
 		if cs.ParentIdx >= 0 && cs.ParentIdx < len(sections) {
 			sections[i].Parent = sections[cs.ParentIdx]
@@ -666,14 +705,11 @@ func cacheToDocument(cd *cachedDocument, source []byte, path string) *Document {
 				sections[i].Children = append(sections[i].Children, sections[childIdx])
 			}
 		}
-	}
-
-	// Rebuild code blocks
-	var codeBlocks []*CodeBlock
-	for _, cc := range cd.CodeBlocks {
-		codeBlocks = append(codeBlocks, &CodeBlock{
-			Language: cc.Language, Content: cc.Content, Lines: cc.Lines,
-		})
+		for _, cbIdx := range cs.CodeBlockIdxs {
+			if cbIdx >= 0 && cbIdx < len(codeBlocks) {
+				sections[i].AddCodeBlock(codeBlocks[cbIdx])
+			}
+		}
 	}
 
 	// Rebuild links
@@ -696,9 +732,41 @@ func cacheToDocument(cd *cachedDocument, source []byte, path string) *Document {
 		tables = append(tables, &Table{Headers: ct.Headers, Rows: ct.Rows})
 	}
 
-	return NewDocument(
+	// Rebuild lists
+	var lists []*List
+	for _, cl := range cd.Lists {
+		lists = append(lists, cacheToList(cl))
+	}
+
+	doc := NewDocument(
 		source, path, cd.Format, cd.Title,
-		headings, sections, codeBlocks, links, images, tables, nil,
+		headings, sections, codeBlocks, links, images, tables, lists,
 		cd.ReadableText,
 	)
+
+	// Restore metadata (unexported field, settable within lib package)
+	if cd.Metadata != nil {
+		doc.metadata = cd.Metadata
+	}
+
+	return doc
+}
+
+func cacheToList(cl cachedList) *List {
+	l := &List{Ordered: cl.Ordered}
+	for _, ci := range cl.Items {
+		l.Items = append(l.Items, cacheToListItem(ci))
+	}
+	return l
+}
+
+func cacheToListItem(ci cachedListItem) ListItem {
+	item := ListItem{
+		Text:    ci.Text,
+		Checked: ci.Checked,
+	}
+	for _, child := range ci.Children {
+		item.Children = append(item.Children, cacheToListItem(child))
+	}
+	return item
 }
