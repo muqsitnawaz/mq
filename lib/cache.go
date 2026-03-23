@@ -23,7 +23,7 @@ var (
 )
 
 const (
-	cacheSchemaVersion = "2" // Bumped: added Lists, Metadata, CodeBlockIdxs
+	cacheSchemaVersion = "1"
 	trimMaxAge         = 5 * 24 * time.Hour // Evict entries unused for 5 days
 )
 
