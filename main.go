@@ -73,6 +73,7 @@ func main() {
 
 	// Load the document (auto-detect format)
 	engine := mql.New()
+	defer engine.Close()
 	doc, err := engine.LoadDocument(path)
 	if err != nil {
 		log.Fatalf("Failed to load document: %v", err)
