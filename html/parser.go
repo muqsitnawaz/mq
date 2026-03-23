@@ -159,11 +159,11 @@ func (e *extractor) extract() (*mq.Document, error) {
 	// Extract structural elements
 	e.extractElements(mainNode, 0)
 
-	// Build section hierarchy from headings
-	e.buildSections()
-
 	// Extract readable text
 	readableText := e.extractReadableText(mainNode)
+
+	// Build section hierarchy from headings (with text content)
+	e.buildSections(readableText)
 
 	return mq.NewDocument(
 		e.source,
@@ -707,20 +707,78 @@ func (e *extractor) detectLanguageFromClass(class string) string {
 	return ""
 }
 
-// buildSections creates a section hierarchy from headings.
-func (e *extractor) buildSections() {
+// buildSections creates a section hierarchy from headings and assigns text content.
+func (e *extractor) buildSections(readableText string) {
 	if len(e.headings) == 0 {
 		return
 	}
 
+	textBytes := []byte(readableText)
+	lines := strings.Split(readableText, "\n")
+
+	// Find line numbers for each heading in the readable text
+	type headingLoc struct {
+		heading *mq.Heading
+		line    int
+	}
+	var locs []headingLoc
+	usedLines := make(map[int]bool)
+	for _, h := range e.headings {
+		clean := strings.TrimSpace(h.Text)
+		bestLine := -1
+		bestScore := 0.0
+		for i := 0; i < len(lines); i++ {
+			if usedLines[i] {
+				continue
+			}
+			trimmed := strings.TrimSpace(lines[i])
+			if trimmed == "" {
+				continue
+			}
+			if trimmed == clean {
+				bestLine = i
+				break
+			}
+			if strings.Contains(trimmed, clean) {
+				score := float64(len(clean)) / float64(len(trimmed))
+				if score >= 0.5 && score > bestScore {
+					bestScore = score
+					bestLine = i
+				}
+			}
+		}
+		if bestLine >= 0 {
+			locs = append(locs, headingLoc{heading: h, line: bestLine + 1})
+			usedLines[bestLine] = true
+		} else {
+			// If not found in text, still create the section without text
+			locs = append(locs, headingLoc{heading: h, line: 0})
+		}
+	}
+
+	// Build sections with text content
 	var stack []*mq.Section
 
-	for _, h := range e.headings {
-		section := &mq.Section{
-			Heading: h,
+	for i, loc := range locs {
+		h := loc.heading
+		h.Line = loc.line
+
+		start := loc.line
+		end := len(lines)
+		if start > 0 {
+			if i+1 < len(locs) && locs[i+1].line > 0 {
+				end = locs[i+1].line - 1
+			}
 		}
 
-		// Pop sections of equal or higher level (lower number = higher level)
+		var section *mq.Section
+		if start > 0 {
+			section = mq.NewSectionWithSource(h, start, end, textBytes)
+		} else {
+			section = &mq.Section{Heading: h}
+		}
+
+		// Pop sections of equal or higher level
 		for len(stack) > 0 {
 			top := stack[len(stack)-1]
 			if top.Heading.Level >= h.Level {
@@ -730,7 +788,6 @@ func (e *extractor) buildSections() {
 			}
 		}
 
-		// Set parent relationship
 		if len(stack) > 0 {
 			parent := stack[len(stack)-1]
 			section.Parent = parent
