@@ -1,6 +1,8 @@
 package mql
 
 import (
+	"os"
+
 	"github.com/muqsitnawaz/mq/data"
 	"github.com/muqsitnawaz/mq/html"
 	mq "github.com/muqsitnawaz/mq/lib"
@@ -12,11 +14,12 @@ type Engine struct {
 	mqEngine    *mq.Engine            // For backwards compatibility
 	multiEngine *mq.MultiFormatEngine // For multi-format support
 	executor    *QueryExecutor
+	cache       *mq.Cache // Document parse cache (nil if cache unavailable)
 }
 
 // New creates a new MQL engine with multi-format support.
 func New() *Engine {
-	return &Engine{
+	e := &Engine{
 		mqEngine: mq.New(),
 		multiEngine: mq.NewMultiFormatEngine(
 			mq.WithFormatParser(html.NewParser()),
@@ -27,6 +30,13 @@ func New() *Engine {
 		),
 		executor: NewQueryExecutor(),
 	}
+
+	// Open cache silently — cache failures should never block normal operation
+	if c, err := mq.OpenCache(""); err == nil {
+		e.cache = c
+	}
+
+	return e
 }
 
 // NewWithOptions creates a new MQL engine with options.
@@ -38,8 +48,36 @@ func NewWithOptions(mqEngine *mq.Engine, opts ...QueryOption) *Engine {
 }
 
 // LoadDocument loads and parses a file (auto-detects format).
+// Uses the cache to avoid re-parsing unchanged files.
 func (e *Engine) LoadDocument(path string) (*mq.Document, error) {
-	return e.multiEngine.Load(path)
+	// Try cache first
+	if e.cache != nil {
+		if doc := e.cache.LookupFile(path); doc != nil {
+			return doc, nil
+		}
+	}
+
+	// Cache miss — parse the file
+	doc, err := e.multiEngine.Load(path)
+	if err != nil {
+		return nil, err
+	}
+
+	// Store in cache for next time
+	if e.cache != nil {
+		if content, readErr := os.ReadFile(path); readErr == nil {
+			e.cache.StoreFile(path, content, doc)
+		}
+	}
+
+	return doc, nil
+}
+
+// Close releases cache resources. Call when the engine is no longer needed.
+func (e *Engine) Close() {
+	if e.cache != nil {
+		e.cache.Close()
+	}
 }
 
 // ParseDocument parses content (auto-detects format).
