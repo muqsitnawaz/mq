@@ -150,7 +150,8 @@ type structureResult struct {
 		Cols    int      `json:"cols"`
 		Headers []string `json:"headers"`
 	} `json:"tables"`
-	PageCount int `json:"page_count"`
+	PageCount int    `json:"page_count"`
+	OCRText   string `json:"ocr_text,omitempty"` // Text from Apple Vision OCR (image-only pages)
 }
 
 func (e *extractor) extract() (*mq.Document, error) {
@@ -165,6 +166,11 @@ func (e *extractor) extract() (*mq.Document, error) {
 	structure := e.extractStructure()
 	if structure != nil {
 		e.title = structure.Title
+
+		// If pdftotext returned empty but OCR produced text, use OCR text
+		if strings.TrimSpace(text) == "" && structure.OCRText != "" {
+			text = structure.OCRText
+		}
 
 		// Convert headings
 		for _, h := range structure.Headings {
