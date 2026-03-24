@@ -177,6 +177,7 @@ func (e *extractor) extract() (*mq.Document, error) {
 			headings = append(headings, &mq.Heading{
 				Level: h.Level,
 				Text:  h.Text,
+				Page:  h.Page,
 			})
 		}
 

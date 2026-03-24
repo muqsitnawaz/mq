@@ -26,6 +26,7 @@ type TreeNode struct {
 	Start    int         // Starting line number
 	End      int         // Ending line number
 	Level    int         // Heading level (1-6) for sections
+	Page     int         // Page number (PDF only, 0 if not applicable)
 	Meta     string      // Additional metadata (e.g., "3 blocks", "5 items")
 	Children []*TreeNode // Child nodes
 }
@@ -33,7 +34,9 @@ type TreeNode struct {
 // TreeResult represents the result of a .tree query.
 type TreeResult struct {
 	Path     string      // File path
+	Format   Format      // Document format
 	Lines    int         // Total line count
+	Pages    int         // Total page count (PDF only, 0 if not applicable)
 	Root     []*TreeNode // Top-level nodes
 	Metadata []string    // Frontmatter field names
 }
@@ -41,8 +44,18 @@ type TreeResult struct {
 // BuildTree creates a tree representation of the document.
 func (d *Document) BuildTree() *TreeResult {
 	result := &TreeResult{
-		Path:  d.path,
-		Lines: d.countLines(),
+		Path:   d.path,
+		Format: d.format,
+		Lines:  d.countLines(),
+	}
+
+	// For PDFs, compute page count from max heading page number
+	if d.format == FormatPDF {
+		for _, s := range d.sectionList {
+			if s.Heading != nil && s.Heading.Page > result.Pages {
+				result.Pages = s.Heading.Page
+			}
+		}
 	}
 
 	// Add frontmatter if present
