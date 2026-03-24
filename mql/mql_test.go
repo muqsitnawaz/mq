@@ -1,7 +1,13 @@
 package mql_test
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
+	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	mq "github.com/muqsitnawaz/mq/lib"
 	"github.com/muqsitnawaz/mq/mql"
@@ -783,4 +789,111 @@ go test ./...
 				test.query, test.desc, result, result)
 		}
 	}
+}
+
+// -------------------------------------------------------------------
+// Cache integration tests (TOCTOU regression)
+// -------------------------------------------------------------------
+
+func writeTestMD(t *testing.T, dir, name, content string) string {
+	t.Helper()
+	path := filepath.Join(dir, name)
+	require.NoError(t, os.MkdirAll(filepath.Dir(path), 0755))
+	require.NoError(t, os.WriteFile(path, []byte(content), 0644))
+	return path
+}
+
+const richMD = "---\ntitle: Cache Test\nowner: test-team\ntags: [cache, integration]\npriority: high\n---\n\n# Cache Test\n\nOverview of the caching system.\n\n## Architecture\n\nThe cache uses bbolt for storage.\n\n```go\nfunc main() {\n    fmt.Println(\"hello\")\n}\n```\n\n## Configuration\n\n- Set cache path via environment\n- Default TTL is 5 days\n\n| Setting | Default |\n|---------|---------|\n| path    | ~/.cache/mq |\n| ttl     | 5d      |\n"
+
+func TestLoadDocumentCacheRoundtrip(t *testing.T) {
+	engine := mql.New()
+	defer engine.Close()
+
+	dir := t.TempDir()
+	path := writeTestMD(t, dir, "doc.md", richMD)
+
+	// First load — cache miss, parses fresh
+	doc1, err := engine.LoadDocument(path)
+	require.NoError(t, err)
+
+	// Second load — cache hit
+	doc2, err := engine.LoadDocument(path)
+	require.NoError(t, err)
+
+	// Both must produce identical results
+	assert.Equal(t, doc1.Title(), doc2.Title())
+	assert.Equal(t, doc1.Format(), doc2.Format())
+	assert.Equal(t, doc1.ReadableText(), doc2.ReadableText())
+
+	h1, h2 := doc1.GetHeadings(), doc2.GetHeadings()
+	require.Equal(t, len(h1), len(h2))
+	for i := range h1 {
+		assert.Equal(t, h1[i].Text, h2[i].Text)
+		assert.Equal(t, h1[i].Level, h2[i].Level)
+	}
+
+	s1, s2 := doc1.GetSections(), doc2.GetSections()
+	require.Equal(t, len(s1), len(s2))
+	for i := range s1 {
+		assert.Equal(t, s1[i].GetText(), s2[i].GetText(), "section %d text mismatch", i)
+	}
+
+	assert.Equal(t, len(doc1.GetCodeBlocks()), len(doc2.GetCodeBlocks()))
+	assert.Equal(t, len(doc1.GetLinks()), len(doc2.GetLinks()))
+	assert.Equal(t, len(doc1.GetTables()), len(doc2.GetTables()))
+	assert.Equal(t, len(doc1.GetLists(nil)), len(doc2.GetLists(nil)))
+}
+
+func TestLoadDocumentCacheInvalidation(t *testing.T) {
+	engine := mql.New()
+	defer engine.Close()
+
+	dir := t.TempDir()
+	path := writeTestMD(t, dir, "doc.md", "# Version 1\n\n## Old Section\nOld content.\n")
+
+	doc1, err := engine.LoadDocument(path)
+	require.NoError(t, err)
+	assert.Equal(t, "Version 1", doc1.Title())
+
+	// Modify the file
+	time.Sleep(15 * time.Millisecond)
+	require.NoError(t, os.WriteFile(path, []byte("# Version 2\n\n## New Section\nNew content.\n"), 0644))
+
+	doc2, err := engine.LoadDocument(path)
+	require.NoError(t, err)
+	assert.Equal(t, "Version 2", doc2.Title())
+
+	_, ok := doc2.GetSection("New Section")
+	assert.True(t, ok, "modified doc should have 'New Section'")
+	_, ok = doc2.GetSection("Old Section")
+	assert.False(t, ok, "modified doc should NOT have 'Old Section'")
+}
+
+func TestLoadDocumentSectionTextMatchesSource(t *testing.T) {
+	engine := mql.New()
+	defer engine.Close()
+
+	md := "# Guide\n\n## Setup\nRun `go install` to get started.\n\n## Usage\nCall `mq file.md '.section(\"X\")'` to query.\n"
+	dir := t.TempDir()
+	path := writeTestMD(t, dir, "guide.md", md)
+
+	// Fresh parse
+	fresh, err := engine.LoadDocument(path)
+	require.NoError(t, err)
+
+	setupFresh, ok := fresh.GetSection("Setup")
+	require.True(t, ok)
+	freshText := setupFresh.GetText()
+	assert.Contains(t, freshText, "go install")
+
+	// Cached parse
+	cached, err := engine.LoadDocument(path)
+	require.NoError(t, err)
+
+	setupCached, ok := cached.GetSection("Setup")
+	require.True(t, ok)
+	cachedText := setupCached.GetText()
+
+	// Critical assertion: section text must be identical from cache vs fresh parse
+	assert.Equal(t, freshText, cachedText, "section text must be identical from cache vs fresh parse")
 }

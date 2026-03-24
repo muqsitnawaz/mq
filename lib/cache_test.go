@@ -636,3 +636,95 @@ func TestCacheSearchRoundtrip(t *testing.T) {
 		assert.Equal(t, fresh.Match, cached.Match, "match %d snippet mismatch", i)
 	}
 }
+
+// -------------------------------------------------------------------
+// TOCTOU regression tests
+// -------------------------------------------------------------------
+
+func TestReadFileWithStat(t *testing.T) {
+	t.Run("valid file", func(t *testing.T) {
+		dir := t.TempDir()
+		content := "# Title\n\nBody with **markdown**.\n"
+		path := writeTestFile(t, dir, "file.md", content)
+
+		bytes, info, err := mq.ReadFileWithStat(path)
+		require.NoError(t, err)
+		assert.Equal(t, []byte(content), bytes)
+		assert.Equal(t, int64(len(content)), info.Size())
+
+		stat, err := os.Stat(path)
+		require.NoError(t, err)
+		assert.Equal(t, stat.Size(), info.Size())
+		assert.True(t, info.ModTime().Equal(stat.ModTime()), "modtime should match os.Stat")
+	})
+
+	t.Run("nonexistent", func(t *testing.T) {
+		_, _, err := mq.ReadFileWithStat(filepath.Join(t.TempDir(), "missing.md"))
+		assert.Error(t, err)
+	})
+
+	t.Run("directory", func(t *testing.T) {
+		dir := t.TempDir()
+		_, _, err := mq.ReadFileWithStat(dir)
+		assert.Error(t, err)
+	})
+}
+
+func TestReadFileWithStatConsistency(t *testing.T) {
+	content := "consistency check\nsecond line\n"
+	path := writeTestFile(t, t.TempDir(), "consistent.md", content)
+
+	bytes, info, err := mq.ReadFileWithStat(path)
+	require.NoError(t, err)
+
+	assert.Equal(t, len(bytes), int(info.Size()))
+
+	stat, err := os.Stat(path)
+	require.NoError(t, err)
+	assert.True(t, info.ModTime().Equal(stat.ModTime()), "stat and info modtimes should match")
+}
+
+func TestLookupFileUsesAtomicRead(t *testing.T) {
+	c := newTestCache(t)
+	testDir := t.TempDir()
+
+	mdContent := "# Title\n\n## Atomic Section\nContent with **bold** emphasis.\n"
+	path := writeTestFile(t, testDir, "atomic.md", mdContent)
+
+	doc, _ := parseRealMarkdown(t, path)
+	storeTestFile(t, c, path, doc)
+
+	cached := c.LookupFile(path)
+	require.NotNil(t, cached)
+
+	section, ok := cached.GetSection("Atomic Section")
+	require.True(t, ok, "cached document should contain section")
+	text := section.GetText()
+	assert.Contains(t, text, "**bold**", "section text should use raw file content with markdown markers")
+	assert.Equal(t, "## Atomic Section\nContent with **bold** emphasis.\n", text)
+
+	actual, err := os.ReadFile(path)
+	require.NoError(t, err)
+	assert.Contains(t, string(actual), text, "cached section text must come from the file on disk")
+}
+
+func TestStoreFileUsesProvidedInfo(t *testing.T) {
+	c := newTestCache(t)
+	path := writeTestFile(t, t.TempDir(), "store.md", "# Version 1\n")
+
+	content, info, err := mq.ReadFileWithStat(path)
+	require.NoError(t, err)
+
+	parser := mq.NewParser()
+	doc, err := parser.Parse(content, path)
+	require.NoError(t, err)
+
+	require.NoError(t, c.StoreFile(path, content, info, doc))
+	require.NotNil(t, c.LookupFile(path), "cache should hit immediately after store")
+
+	// Modify the file to change mtime and content
+	time.Sleep(15 * time.Millisecond)
+	require.NoError(t, os.WriteFile(path, []byte("# Version 2\nchanged"), 0644))
+
+	assert.Nil(t, c.LookupFile(path), "cache should miss after file modification")
+}
