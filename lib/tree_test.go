@@ -358,6 +358,94 @@ func matchedFiles(results *mq.SearchResults) map[string]struct{} {
 	return files
 }
 
+// TestBuildTreeLineCountNonMarkdown verifies that BuildTree uses readableText
+// line count for non-markdown formats instead of counting newlines in raw binary source.
+func TestBuildTreeLineCountNonMarkdown(t *testing.T) {
+	readableText := "# Chapter 1\nIntro paragraph.\n\n## Section A\nContent A.\n\n## Section B\nContent B."
+	textBytes := []byte(readableText)
+	expectedLines := 8 // 8 lines in readableText (7 newlines + 1)
+
+	// Simulate binary PDF source with many more newlines than actual content
+	binarySource := make([]byte, 5000)
+	for i := range binarySource {
+		if i%10 == 0 {
+			binarySource[i] = '\n'
+		} else {
+			binarySource[i] = 0xAB
+		}
+	}
+
+	headings := []*mq.Heading{
+		{Level: 1, Text: "Chapter 1", Line: 1},
+		{Level: 2, Text: "Section A", Line: 4},
+		{Level: 2, Text: "Section B", Line: 7},
+	}
+	sections := []*mq.Section{
+		mq.NewSectionWithSource(headings[0], 1, 8, textBytes),
+		mq.NewSectionWithSource(headings[1], 4, 6, textBytes),
+		mq.NewSectionWithSource(headings[2], 7, 8, textBytes),
+	}
+
+	// FormatPDF document with binary source but readable text
+	doc := mq.NewDocument(
+		binarySource, "test.pdf", mq.FormatPDF, "Chapter 1",
+		headings, sections, nil, nil, nil, nil, nil,
+		readableText,
+	)
+
+	tree := doc.BuildTree()
+	assert.Equal(t, expectedLines, tree.Lines,
+		"PDF tree should count lines in readableText, not raw binary source")
+
+	// Verify markdown still counts from source
+	mdSections := []*mq.Section{
+		mq.NewSectionWithSource(headings[0], 1, 8, textBytes),
+		mq.NewSectionWithSource(headings[1], 4, 6, textBytes),
+		mq.NewSectionWithSource(headings[2], 7, 8, textBytes),
+	}
+	mdDoc := mq.NewDocument(
+		[]byte(readableText), "test.md", mq.FormatMarkdown, "Chapter 1",
+		headings, mdSections, nil, nil, nil, nil, nil,
+		readableText,
+	)
+	mdTree := mdDoc.BuildTree()
+	assert.Equal(t, expectedLines, mdTree.Lines,
+		"Markdown tree should count lines in source")
+}
+
+// TestBuildTreePreviewNonMarkdown verifies that section previews show readable
+// text, not binary content, for non-markdown documents.
+func TestBuildTreePreviewNonMarkdown(t *testing.T) {
+	readableText := "# Overview\nThis document explains the authentication flow.\n\n## Details\nMore info here."
+	textBytes := []byte(readableText)
+
+	// Binary junk that would produce garbage previews if used as section source
+	binarySource := []byte("%PDF-1.4\x00\x01\x02\x03\n\xAB\xCD\xEF\n" + readableText)
+
+	headings := []*mq.Heading{
+		{Level: 1, Text: "Overview", Line: 1},
+		{Level: 2, Text: "Details", Line: 4},
+	}
+	sections := []*mq.Section{
+		mq.NewSectionWithSource(headings[0], 1, 5, textBytes),
+		mq.NewSectionWithSource(headings[1], 4, 5, textBytes),
+	}
+
+	doc := mq.NewDocument(
+		binarySource, "test.pdf", mq.FormatPDF, "Overview",
+		headings, sections, nil, nil, nil, nil, nil,
+		readableText,
+	)
+
+	tree := doc.BuildTree()
+	require.NotEmpty(t, tree.Root)
+
+	// The preview should contain readable content from the section
+	preview := tree.Root[0].Preview
+	assert.Contains(t, preview, "authentication flow",
+		"PDF tree preview should show readable text, not binary garbage")
+}
+
 // padInt zero-pads an int to 2 digits.
 func padInt(n int) string {
 	if n < 10 {

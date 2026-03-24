@@ -699,7 +699,13 @@ func cacheToDocument(cd *cachedDocument, source []byte, path string) *Document {
 		}
 	}
 
-	// Rebuild sections — use actual file source (not ReadableText) for GetText()
+	// Rebuild sections — for non-markdown formats (HTML, PDF), section line numbers
+	// refer to the extracted readable text, not the raw file bytes. Use readableText
+	// as the source so GetText() returns human-readable content instead of binary data.
+	sectionSource := source
+	if cd.Format != FormatMarkdown && cd.ReadableText != "" {
+		sectionSource = []byte(cd.ReadableText)
+	}
 	sections := make([]*Section, len(cd.Sections))
 	for i, cs := range cd.Sections {
 		var h *Heading
@@ -707,7 +713,7 @@ func cacheToDocument(cd *cachedDocument, source []byte, path string) *Document {
 			h = headings[cs.HeadingIdx]
 		}
 		if cs.Start > 0 {
-			sections[i] = NewSectionWithSource(h, cs.Start, cs.End, source)
+			sections[i] = NewSectionWithSource(h, cs.Start, cs.End, sectionSource)
 		} else {
 			sections[i] = &Section{Heading: h, Start: cs.Start, End: cs.End}
 		}

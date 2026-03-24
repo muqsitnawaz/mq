@@ -728,3 +728,71 @@ func TestStoreFileUsesProvidedInfo(t *testing.T) {
 
 	assert.Nil(t, c.LookupFile(path), "cache should miss after file modification")
 }
+
+// TestCacheRoundtripNonMarkdownSectionText verifies that cached non-markdown
+// documents (PDF, HTML) preserve readable section text after cache roundtrip,
+// even though the on-disk file is binary.
+func TestCacheRoundtripNonMarkdownSectionText(t *testing.T) {
+	c := newTestCache(t)
+	dir := t.TempDir()
+
+	readableText := "# Introduction\nWelcome to the guide.\n\n## Setup\nInstall the dependencies.\n\n## Usage\nRun the command."
+	textBytes := []byte(readableText)
+
+	// Write a fake "PDF" file with binary content
+	binaryContent := make([]byte, 2000)
+	for i := range binaryContent {
+		if i%8 == 0 {
+			binaryContent[i] = '\n'
+		} else {
+			binaryContent[i] = byte(i % 256)
+		}
+	}
+	path := filepath.Join(dir, "doc.pdf")
+	require.NoError(t, os.WriteFile(path, binaryContent, 0644))
+
+	headings := []*mq.Heading{
+		{Level: 1, Text: "Introduction", Line: 1},
+		{Level: 2, Text: "Setup", Line: 4},
+		{Level: 2, Text: "Usage", Line: 7},
+	}
+	sections := []*mq.Section{
+		mq.NewSectionWithSource(headings[0], 1, 8, textBytes),
+		mq.NewSectionWithSource(headings[1], 4, 6, textBytes),
+		mq.NewSectionWithSource(headings[2], 7, 8, textBytes),
+	}
+	sections[1].Parent = sections[0]
+	sections[2].Parent = sections[0]
+	sections[0].Children = []*mq.Section{sections[1], sections[2]}
+
+	doc := mq.NewDocument(
+		binaryContent, path, mq.FormatPDF, "Introduction",
+		headings, sections, nil, nil, nil, nil, nil,
+		readableText,
+	)
+
+	// Verify sections have readable text before caching
+	setupSection, ok := doc.GetSection("Setup")
+	require.True(t, ok)
+	origText := setupSection.GetText()
+	assert.Contains(t, origText, "Install the dependencies")
+
+	// Store and retrieve from cache
+	storeTestFile(t, c, path, doc)
+	cached := c.LookupFile(path)
+	require.NotNil(t, cached, "cache should return document")
+
+	// Verify section text survives roundtrip with readable content
+	cachedSetup, ok := cached.GetSection("Setup")
+	require.True(t, ok)
+	cachedText := cachedSetup.GetText()
+	assert.Contains(t, cachedText, "Install the dependencies",
+		"cached PDF section should have readable text, not binary garbage")
+	assert.Equal(t, origText, cachedText,
+		"cached section text should match original")
+
+	// Verify line count uses readableText (8 lines = 7 newlines + 1)
+	tree := cached.BuildTree()
+	assert.Equal(t, 8, tree.Lines,
+		"cached PDF line count should reflect readableText lines, not binary newlines")
+}
