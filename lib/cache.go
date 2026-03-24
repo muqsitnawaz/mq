@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"sort"
@@ -200,7 +201,8 @@ func (c *Cache) Path() string {
 // It uses a two-level check: stat (mtime+size) then content hash.
 // Returns the cached Document or nil if not cached / stale.
 func (c *Cache) LookupFile(path string) *Document {
-	info, err := os.Stat(path)
+	// Read file + stat from the same fd to avoid TOCTOU races.
+	source, info, err := ReadFileWithStat(path)
 	if err != nil {
 		return nil
 	}
@@ -229,16 +231,12 @@ func (c *Cache) LookupFile(path string) *Document {
 		return nil
 	}
 
-	return c.lookupDocument(contentHash, path)
+	return c.lookupDocument(contentHash, source, path)
 }
 
 // StoreFile caches a parsed Document for a file.
-func (c *Cache) StoreFile(path string, content []byte, doc *Document) error {
-	info, err := os.Stat(path)
-	if err != nil {
-		return fmt.Errorf("stat %s: %w", path, err)
-	}
-
+// info must be from the same read as content to avoid TOCTOU races.
+func (c *Cache) StoreFile(path string, content []byte, info os.FileInfo, doc *Document) error {
 	contentHash := ContentHash(content)
 	pathKey := pathHash(path)
 
@@ -269,7 +267,7 @@ func (c *Cache) StoreFile(path string, content []byte, doc *Document) error {
 	})
 }
 
-func (c *Cache) lookupDocument(contentHash string, filePath string) *Document {
+func (c *Cache) lookupDocument(contentHash string, source []byte, filePath string) *Document {
 	var doc *Document
 	c.db.View(func(tx *bolt.Tx) error {
 		data := tx.Bucket(bucketDocuments).Get([]byte(contentHash))
@@ -280,8 +278,6 @@ func (c *Cache) lookupDocument(contentHash string, filePath string) *Document {
 		if err := msgpack.Unmarshal(data, &cd); err != nil {
 			return nil
 		}
-		// Read source for section text extraction
-		source, _ := os.ReadFile(filePath)
 		doc = cacheToDocument(&cd, source, filePath)
 		return nil
 	})
@@ -524,6 +520,28 @@ func (c *Cache) Clear() error {
 // -------------------------------------------------------------------
 // Helpers
 // -------------------------------------------------------------------
+
+// ReadFileWithStat opens a file, stats from the same fd, and reads content.
+// This avoids TOCTOU races where the file changes between a stat and a read.
+func ReadFileWithStat(path string) ([]byte, os.FileInfo, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer f.Close()
+
+	info, err := f.Stat()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	content, err := io.ReadAll(f)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return content, info, nil
+}
 
 // ContentHash returns the SHA256 hex digest of content.
 func ContentHash(content []byte) string {

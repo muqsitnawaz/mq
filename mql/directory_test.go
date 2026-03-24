@@ -654,6 +654,8 @@ func TestSearchFilterThenParseSkipsNonMatching(t *testing.T) {
 func TestSearchDirCacheRoundtrip(t *testing.T) {
 	// Regression: directory search through cached markdown documents must
 	// produce the same results as the first (cold cache) run.
+	// We must close the engine between runs to simulate separate CLI invocations,
+	// because bbolt file locking prevents two opens in the same process.
 	dir := t.TempDir()
 
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "guide.md"), []byte(
@@ -663,22 +665,26 @@ func TestSearchDirCacheRoundtrip(t *testing.T) {
 		"# Unrelated\n\nNo match here.\n",
 	), 0o644))
 
-	// Run 1: cold cache
-	results1, err := mql.SearchDir(dir, "deployment")
+	// Run 1: cold cache — engine is created, used, and closed (simulates CLI exit)
+	engine1 := mql.New()
+	results1, err := mq.SearchDirWithLoader(dir, "deployment", engine1.LoadDocument)
 	require.NoError(t, err)
 	files1 := searchFiles(results1)
 	require.Contains(t, files1, "guide.md", "cold cache should find guide.md")
 	require.NotContains(t, files1, "unrelated.md")
 	count1 := len(results1.Matches)
 	require.Greater(t, count1, 0)
+	engine1.Close() // Release bbolt lock — simulates process exit
 
-	// Run 2: warm cache — must produce identical results
-	results2, err := mql.SearchDir(dir, "deployment")
+	// Run 2: warm cache — new engine opens the same cache DB
+	engine2 := mql.New()
+	results2, err := mq.SearchDirWithLoader(dir, "deployment", engine2.LoadDocument)
 	require.NoError(t, err)
 	files2 := searchFiles(results2)
 	assert.Contains(t, files2, "guide.md", "warm cache should still find guide.md")
 	assert.NotContains(t, files2, "unrelated.md")
 	assert.Equal(t, count1, len(results2.Matches), "warm cache should return same match count")
+	engine2.Close()
 }
 
 func TestSearchExcludesUnsupportedFormats(t *testing.T) {
