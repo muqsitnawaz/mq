@@ -2,6 +2,7 @@ package mql
 
 import (
 	"fmt"
+	"os"
 	"reflect"
 	"strings"
 
@@ -242,28 +243,20 @@ func (v *compilerVisitor) VisitSelector(node *SelectorNode) (interface{}, error)
 		return v.VisitFilter(filterNode)
 
 	case "tree":
-		// Check if we're operating on a section or the whole document
-		mode := mq.TreeModeDefault
+		// Warn if deprecated mode arguments are passed
 		if len(args) > 0 {
-			if s, ok := args[0].(string); ok {
-				switch s {
-				case "compact":
-					mode = mq.TreeModeCompact
-				case "preview":
-					mode = mq.TreeModePreview
-				case "full":
-					mode = mq.TreeModeFull
-				}
+			if s, ok := args[0].(string); ok && s != "" {
+				fmt.Fprintf(os.Stderr, "Warning: .tree(%q) is deprecated — .tree now adapts automatically. Ignoring argument.\n", s)
 			}
 		}
 
 		// If current context is a section, build tree for that section
 		if section, ok := v.context.Current.(*mq.Section); ok {
-			return buildSectionTree(section, mode), nil
+			return buildSectionTree(section), nil
 		}
 
 		// Otherwise, build tree for the whole document
-		return doc.BuildTree(mode), nil
+		return doc.BuildTree(), nil
 
 	case "search":
 		if len(args) == 0 {
@@ -1256,55 +1249,48 @@ func toInt(v interface{}) (int, bool) {
 }
 
 // buildSectionTree builds a tree result for a single section.
-func buildSectionTree(section *mq.Section, mode mq.TreeMode) *mq.TreeResult {
+func buildSectionTree(section *mq.Section) *mq.TreeResult {
 	result := &mq.TreeResult{
 		Path:  section.Heading.Text,
 		Lines: section.End - section.Start + 1,
-		Mode:  mode,
 	}
 
-	node := buildSectionNode(section, mode)
+	node := buildSectionNode(section)
 	result.Root = []*mq.TreeNode{node}
 
 	return result
 }
 
 // buildSectionNode recursively builds tree nodes from a section.
-func buildSectionNode(section *mq.Section, mode mq.TreeMode) *mq.TreeNode {
+func buildSectionNode(section *mq.Section) *mq.TreeNode {
 	node := &mq.TreeNode{
-		Type:  "section",
-		Text:  section.Heading.Text,
-		Start: section.Start,
-		End:   section.End,
-		Level: section.Heading.Level,
-	}
-
-	// Add preview text for preview/full modes
-	if mode == mq.TreeModePreview || mode == mq.TreeModeFull {
-		node.Preview = mq.ExtractPreview(section.GetText(), 50)
+		Type:    "section",
+		Text:    section.Heading.Text,
+		Start:   section.Start,
+		End:     section.End,
+		Level:   section.Heading.Level,
+		Preview: mq.ExtractPreview(section.GetText(), 50),
 	}
 
 	// Add child sections
 	for _, child := range section.Children {
-		childNode := buildSectionNode(child, mode)
+		childNode := buildSectionNode(child)
 		node.Children = append(node.Children, childNode)
 	}
 
-	// Add special elements (only in default mode)
-	if mode == mq.TreeModeDefault {
-		codeBlocks := section.GetCodeBlocks()
-		if len(codeBlocks) > 0 {
-			for lang, count := range mq.CountCodeByLanguage(codeBlocks) {
-				meta := fmt.Sprintf("%d block", count)
-				if count > 1 {
-					meta = fmt.Sprintf("%d blocks", count)
-				}
-				node.Children = append(node.Children, &mq.TreeNode{
-					Type: "code",
-					Text: lang,
-					Meta: meta,
-				})
+	// Code blocks
+	codeBlocks := section.GetCodeBlocks()
+	if len(codeBlocks) > 0 {
+		for lang, count := range mq.CountCodeByLanguage(codeBlocks) {
+			meta := fmt.Sprintf("%d block", count)
+			if count > 1 {
+				meta = fmt.Sprintf("%d blocks", count)
 			}
+			node.Children = append(node.Children, &mq.TreeNode{
+				Type: "code",
+				Text: lang,
+				Meta: meta,
+			})
 		}
 	}
 

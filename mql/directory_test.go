@@ -46,7 +46,7 @@ func TestBuildDirTreeSupportsNonMarkdownFormats(t *testing.T) {
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "events.jsonl"), []byte("{\"event\":\"value\"}\n"), 0o644))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "ignore.txt"), []byte("should be ignored"), 0o644))
 
-	tree, err := mql.BuildDirTree(dir, mq.TreeModePreview)
+	tree, err := mql.BuildDirTree(dir)
 	require.NoError(t, err)
 
 	assert.Equal(t, 4, tree.TotalFiles)
@@ -80,7 +80,7 @@ func TestBuildDirTreeWithLimit(t *testing.T) {
 	// Use mql/testdata which has 8 markdown files
 	testdataDir := "testdata"
 
-	opts := mq.TreeOptions{Mode: mq.TreeModeDefault, Limit: 3}
+	opts := mq.TreeOptions{Limit: 3}
 	tree, err := mql.BuildDirTreeWithOptions(testdataDir, opts)
 	require.NoError(t, err)
 
@@ -107,7 +107,7 @@ func TestBuildDirTreeWithDepth(t *testing.T) {
 	require.NoError(t, os.WriteFile(filepath.Join(sub2, "level2.md"), []byte("# Level 2"), 0o644))
 
 	// Depth 1: only root files, subdirs shown as truncated
-	opts := mq.TreeOptions{Mode: mq.TreeModeDefault, Depth: 1}
+	opts := mq.TreeOptions{Depth: 1}
 	tree, err := mql.BuildDirTreeWithOptions(dir, opts)
 	require.NoError(t, err)
 
@@ -147,7 +147,7 @@ func TestBuildDirTreeWithDepthAndLimit(t *testing.T) {
 	}
 
 	// Depth 2, Limit 2: show 2 subdirs, each with up to 2 files
-	opts := mq.TreeOptions{Mode: mq.TreeModeDefault, Depth: 2, Limit: 2}
+	opts := mq.TreeOptions{Depth: 2, Limit: 2}
 	tree, err := mql.BuildDirTreeWithOptions(dir, opts)
 	require.NoError(t, err)
 

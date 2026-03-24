@@ -321,18 +321,17 @@ Query entire directories of documents.
 import mq "github.com/muqsitnawaz/mq/lib"
 
 // Build directory tree
-tree, err := mq.BuildDirTree("./docs", mq.TreeModeFull)
+tree, err := mq.BuildDirTree("./docs")
+fmt.Print(tree.String())
+
+// With depth/limit bounds
+tree, err = mq.BuildDirTreeWithOptions("./docs", mq.TreeOptions{Depth: 2, Limit: 50})
 fmt.Print(tree.String())
 
 // Search across directory
 results, err := mq.SearchDir("./docs", "authentication")
 fmt.Print(results.String())
 ```
-
-Tree modes:
-- `TreeModeDefault` - Compact structure
-- `TreeModePreview` - Structure with content previews
-- `TreeModeFull` - Full structure with all sections
 
 ## Example: Building a RAG Pipeline
 
