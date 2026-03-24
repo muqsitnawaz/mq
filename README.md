@@ -40,17 +40,19 @@ project/ (5 files, 14 lines total)
 └── index.html (45 lines, 3 sections)
 ```
 
-Expanded trees show format-specific heading labels:
+Trees show format-specific heading labels:
 
 ```bash
-$ mq project/ ".tree('expand')"
+$ mq project/ .tree
 project/ (5 files)
 ├── config.json (12 lines, 3 keys)
 │   ├── key name
 │   └── key database
 ├── README.md (80 lines, 5 sections)
 │   ├── # Overview
+│   │        "Complete reference for..."
 │   └── ## Install
+│            "Run the install script..."
 ├── events.jsonl (100 lines, 98 records)
 └── index.html (45 lines, 3 sections)
     └── H1 Welcome
@@ -95,7 +97,7 @@ Any AI agent or coding assistant that can execute shell commands.
 
 ```bash
 # Markdown - structure and extraction
-mq docs/ ".tree('full')"
+mq docs/ .tree
 mq docs/auth.md ".section('OAuth Flow') | .text"
 
 # HTML - readable content from web pages
@@ -152,18 +154,18 @@ We benchmarked agents answering questions about the [LangChain](https://github.c
 | Typical case | 412,668 | 108,225 | **74% fewer** |
 | Naive (tree entire repo) | 147,070 | 166,501 | -13% (worse) |
 
-*When agent narrows down to specific file before running `.tree("full")`
+*When agent narrows down to specific file before running `.tree`
 
 ### The Scoping Insight
 
-Running `.tree("full")` on an entire repo is expensive. For 50 files, the tree output alone is ~22,000 characters before extracting any content.
+Running `.tree` on an entire repo is expensive. For 50 files, the tree output alone is ~22,000 characters before extracting any content.
 
 ```
-Naive:   .tree("full") on /repo           → 22K chars just for tree
-Scoped:  .tree("full") on /repo/docs/auth.md → 500 chars, then extract
+Naive:   .tree on /repo           → 22K chars just for tree
+Scoped:  .tree on /repo/docs/auth.md → 500 chars, then extract
 ```
 
-**The fix**: Agents should explore directory structure first, identify the likely subdirectory, then run `.tree("full")` only on that target.
+**The fix**: Agents should explore directory structure first, identify the likely subdirectory, then run `.tree` only on that target.
 
 ### Scaling to Large Corpora
 
@@ -183,7 +185,7 @@ mq corpus/ ".tree | depth(2) | limit(50)"
 # └── ... (103 more)
 
 # Level 1: Narrow to likely area
-mq corpus/auth/ ".tree('full') | limit(20)"
+mq corpus/auth/ ".tree | limit(20)"
 
 # Level 2: Extract what you need
 mq corpus/auth/oauth.md ".section('Token Refresh') | .text"
@@ -288,27 +290,21 @@ See [skills.sh](https://skills.sh) for more.
 Skills aren't always loaded into context. Add this line to your `CLAUDE.md` for optimal performance:
 
 ```markdown
-Use `mq` to query markdown files. Narrow down to a specific file/subdir first, then run `mq <path> ".tree('full')"` to see structure before reading.
+Use `mq` to query markdown files. Narrow down to a specific file/subdir first, then run `mq <path> .tree` to see structure before reading.
 ```
 
 ## Usage
 
-> **Shell quoting:** Examples use double quotes for the outer string (`"..."`), which works on all platforms including Windows. On macOS and Linux, single quotes also work: `mq doc.md '.tree("full")'`.
+> **Shell quoting:** Examples use double quotes for the outer string (`"..."`), which works on all platforms including Windows. On macOS and Linux, single quotes also work: `mq doc.md '.section("API")'`.
 
 ### See Structure
 
 ```bash
-# Document tree
+# Document tree (headings, sections, previews)
 mq README.md .tree
 
-# With content previews
-mq README.md ".tree('preview')"
-
-# Directory overview
+# Directory overview (all files with sections + previews)
 mq docs/ .tree
-
-# Directory with sections + previews (best for agents)
-mq docs/ ".tree('full')"
 ```
 
 ### Search
@@ -353,10 +349,7 @@ mq uses a jq-inspired query syntax with piping and selectors. If you're familiar
 
 | Selector | Description |
 |----------|-------------|
-| `.tree` | Document structure |
-| `.tree("compact")` | Headings only |
-| `.tree("preview")` | Headings + content preview |
-| `.tree("full")` | Sections + previews (directories) |
+| `.tree` | Document structure (adapts to file vs directory) |
 | `.search("term")` | Find sections containing term (JSONL: line-level) |
 | `.record(N)` | Get JSONL record at line N (pretty-printed) |
 | `.section("name")` | Section by heading |

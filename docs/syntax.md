@@ -53,7 +53,7 @@ mq doc.md ".code('python')"
 ```bash
 # mq syntax
 mq doc.md .tree
-mq doc.md ".tree('full')"
+mq doc.md ".section('API') | .tree"
 mq doc.md ".section('API') | .text"
 
 # We chose this because it's cleaner - not every operation needs to be piped
@@ -78,10 +78,7 @@ mq doc.md ".section('API') | .text"
 
 | Selector | Description | Example |
 |----------|-------------|---------|
-| `.tree` | Document structure | `mq doc.md .tree` |
-| `.tree("compact")` | Headings only | `mq doc.md ".tree('compact')"` |
-| `.tree("preview")` | Headings + preview | `mq doc.md ".tree('preview')"` |
-| `.tree("full")` | Sections + previews (dirs) | `mq docs/ ".tree('full')"` |
+| `.tree` | Document structure (adapts to file vs directory) | `mq doc.md .tree` |
 
 ### Content Selectors
 
@@ -184,11 +181,8 @@ mq doc.md '.sections | filter(.level == 1)'
 
 ### Directory Operations
 ```bash
-# Overview of all files
+# Overview of all files (with sections + previews)
 mq docs/ .tree
-
-# Full structure with previews (best for agents)
-mq docs/ ".tree('full')"
 
 # Search across directory
 mq docs/ ".search('error handling')"
