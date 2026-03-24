@@ -27,10 +27,8 @@ Your context accumulates structure. You do the final reasoning.
 
 ```bash
 # Structure (your working index)
-mq file.md .tree                    # Document structure
-mq file.md ".tree('preview')"       # Structure + content previews
-mq dir/ .tree                       # Directory overview
-mq dir/ ".tree('full')"             # All files with sections + previews
+mq file.md .tree                    # Document structure (headings, sections, previews)
+mq dir/ .tree                       # Directory overview (all files with sections + previews)
 
 # Search
 mq file.md ".search('term')"        # Find sections containing term
@@ -54,7 +52,7 @@ mq log.jsonl '.record(7)'               # JSONL: pretty-print record at line 7
 mq README.md .tree
 
 # For a directory (start here for multi-file exploration)
-mq docs/ ".tree('full')"
+mq docs/ .tree
 ```
 
 Output shows you the territory:
@@ -167,7 +165,7 @@ mq docs/auth.md ".section('Overview') | .text"  # Read the overview
 
 ### "Get all Python examples"
 ```bash
-mq docs/ ".tree('full')"             # Find files with examples
+mq docs/ .tree                       # Find files with examples
 mq docs/examples.md ".code('python')"  # Extract all Python code
 ```
 
