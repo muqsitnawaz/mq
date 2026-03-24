@@ -1,7 +1,7 @@
 package mql
 
 import (
-	"os"
+	"fmt"
 
 	"github.com/muqsitnawaz/mq/data"
 	"github.com/muqsitnawaz/mq/html"
@@ -59,17 +59,21 @@ func (e *Engine) LoadDocument(path string) (*mq.Document, error) {
 		}
 	}
 
-	// Cache miss — parse the file
-	doc, err := e.multiEngine.Load(path)
+	// Cache miss — read once, parse from those bytes, cache with same bytes+stat.
+	// This avoids TOCTOU races where the file changes between read and stat.
+	content, info, err := mq.ReadFileWithStat(path)
+	if err != nil {
+		return nil, fmt.Errorf("read file: %w", err)
+	}
+
+	doc, err := e.multiEngine.Parse(content, path)
 	if err != nil {
 		return nil, err
 	}
 
 	// Store in cache for next time
 	if e.cache != nil {
-		if content, readErr := os.ReadFile(path); readErr == nil {
-			e.cache.StoreFile(path, content, doc)
-		}
+		e.cache.StoreFile(path, content, info, doc)
 	}
 
 	return doc, nil

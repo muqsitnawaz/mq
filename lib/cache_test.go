@@ -28,6 +28,14 @@ func writeTestFile(t *testing.T, dir, name, content string) string {
 	return path
 }
 
+// storeTestFile is a test helper that reads a file and stores it in the cache.
+func storeTestFile(t *testing.T, c *mq.Cache, path string, doc *mq.Document) {
+	t.Helper()
+	content, info, err := mq.ReadFileWithStat(path)
+	require.NoError(t, err)
+	require.NoError(t, c.StoreFile(path, content, info, doc))
+}
+
 func makeTestDocument(path string, content []byte) *mq.Document {
 	headings := []*mq.Heading{
 		{Level: 1, Text: "Title", Line: 1},
@@ -98,7 +106,7 @@ func TestCacheSchemaVersionMismatch(t *testing.T) {
 	content, _ := os.ReadFile(path)
 	doc := makeTestDocument(path, content)
 
-	require.NoError(t, c.StoreFile(path, content, doc))
+	storeTestFile(t, c, path, doc)
 	_, _, docs := c.Stats()
 	assert.Equal(t, 1, docs)
 	require.NoError(t, c.Close())
@@ -127,7 +135,7 @@ func TestCacheStoreAndLookup(t *testing.T) {
 	assert.Nil(t, c.LookupFile(path))
 
 	// Store it
-	require.NoError(t, c.StoreFile(path, content, doc))
+	storeTestFile(t, c, path, doc)
 
 	// Should be cached now
 	cached := c.LookupFile(path)
@@ -175,7 +183,7 @@ func TestCacheSectionTextPreserved(t *testing.T) {
 	content, _ := os.ReadFile(path)
 	doc := makeTestDocument(path, content)
 
-	require.NoError(t, c.StoreFile(path, content, doc))
+	storeTestFile(t, c, path, doc)
 	cached := c.LookupFile(path)
 	require.NotNil(t, cached)
 
@@ -196,7 +204,7 @@ func TestCacheInvalidatedOnFileChange(t *testing.T) {
 	content, _ := os.ReadFile(path)
 	doc := makeTestDocument(path, content)
 
-	require.NoError(t, c.StoreFile(path, content, doc))
+	storeTestFile(t, c, path, doc)
 	assert.NotNil(t, c.LookupFile(path))
 
 	// Modify the file (need to ensure mtime changes)
@@ -323,7 +331,7 @@ func TestTrimRemovesStaleEntries(t *testing.T) {
 	path := writeTestFile(t, testDir, "doc.md", "# Hello")
 	content, _ := os.ReadFile(path)
 	doc := makeTestDocument(path, content)
-	require.NoError(t, c.StoreFile(path, content, doc))
+	storeTestFile(t, c, path, doc)
 
 	files, _, docs := c.Stats()
 	assert.Equal(t, 1, files)
@@ -343,7 +351,7 @@ func TestClear(t *testing.T) {
 	path := writeTestFile(t, testDir, "doc.md", "# Hello")
 	content, _ := os.ReadFile(path)
 	doc := makeTestDocument(path, content)
-	require.NoError(t, c.StoreFile(path, content, doc))
+	storeTestFile(t, c, path, doc)
 	c.UpdateDirHash(testDir)
 
 	files, dirs, docs := c.Stats()
@@ -396,7 +404,7 @@ func TestCacheConcurrentAccess(t *testing.T) {
 			path := filepath.Join(testDir, name)
 			content, _ := os.ReadFile(path)
 			doc := makeTestDocument(path, content)
-			require.NoError(t, c.StoreFile(path, content, doc))
+			storeTestFile(t, c, path, doc)
 			done <- true
 		}(entry.Name())
 	}
@@ -431,7 +439,7 @@ func TestCacheEmptyDocument(t *testing.T) {
 		nil, nil, nil, nil, nil, nil, nil, "",
 	)
 
-	require.NoError(t, c.StoreFile(path, content, doc))
+	storeTestFile(t, c, path, doc)
 	cached := c.LookupFile(path)
 	require.NotNil(t, cached)
 	assert.Equal(t, 0, len(cached.GetHeadings()))
@@ -456,8 +464,8 @@ func TestCacheRoundtripSectionText(t *testing.T) {
 	c := newTestCache(t)
 	path := "../testdata/code-heavy.md"
 
-	doc, content := parseRealMarkdown(t, path)
-	require.NoError(t, c.StoreFile(path, content, doc))
+	doc, _ := parseRealMarkdown(t, path)
+	storeTestFile(t, c, path, doc)
 
 	cached := c.LookupFile(path)
 	require.NotNil(t, cached)
@@ -477,8 +485,8 @@ func TestCacheRoundtripLists(t *testing.T) {
 	c := newTestCache(t)
 	path := "../testdata/tables-lists.md"
 
-	doc, content := parseRealMarkdown(t, path)
-	require.NoError(t, c.StoreFile(path, content, doc))
+	doc, _ := parseRealMarkdown(t, path)
+	storeTestFile(t, c, path, doc)
 
 	cached := c.LookupFile(path)
 	require.NotNil(t, cached)
@@ -506,8 +514,8 @@ func TestCacheRoundtripMetadata(t *testing.T) {
 	c := newTestCache(t)
 	path := "../testdata/frontmatter.md"
 
-	doc, content := parseRealMarkdown(t, path)
-	require.NoError(t, c.StoreFile(path, content, doc))
+	doc, _ := parseRealMarkdown(t, path)
+	storeTestFile(t, c, path, doc)
 
 	cached := c.LookupFile(path)
 	require.NotNil(t, cached)
@@ -533,8 +541,8 @@ func TestCacheRoundtripSectionCodeBlocks(t *testing.T) {
 	c := newTestCache(t)
 	path := "../testdata/code-heavy.md"
 
-	doc, content := parseRealMarkdown(t, path)
-	require.NoError(t, c.StoreFile(path, content, doc))
+	doc, _ := parseRealMarkdown(t, path)
+	storeTestFile(t, c, path, doc)
 
 	cached := c.LookupFile(path)
 	require.NotNil(t, cached)
@@ -560,8 +568,8 @@ func TestCacheRoundtripFullStructure(t *testing.T) {
 	c := newTestCache(t)
 	path := "../testdata/code-heavy.md"
 
-	doc, content := parseRealMarkdown(t, path)
-	require.NoError(t, c.StoreFile(path, content, doc))
+	doc, _ := parseRealMarkdown(t, path)
+	storeTestFile(t, c, path, doc)
 
 	cached := c.LookupFile(path)
 	require.NotNil(t, cached)
@@ -587,12 +595,9 @@ func TestCacheRoundtripFullStructure(t *testing.T) {
 	}
 }
 
-func TestCacheStoreFileReturnsError(t *testing.T) {
-	c := newTestCache(t)
-
-	// Storing for a nonexistent path should return an error
-	doc := mq.NewDocument(nil, "/nonexistent", mq.FormatMarkdown, "", nil, nil, nil, nil, nil, nil, nil, "")
-	err := c.StoreFile("/nonexistent/file.md", []byte("data"), doc)
+func TestReadFileWithStatError(t *testing.T) {
+	// ReadFileWithStat should error for nonexistent paths
+	_, _, err := mq.ReadFileWithStat("/nonexistent/file.md")
 	assert.Error(t, err)
 }
 
@@ -616,7 +621,7 @@ func TestCacheSearchRoundtrip(t *testing.T) {
 	require.NotEmpty(t, freshResults.Matches, "fresh parse should find 'deployment'")
 
 	// Store in cache, then look up
-	require.NoError(t, c.StoreFile(path, content, freshDoc))
+	storeTestFile(t, c, path, freshDoc)
 	cachedDoc := c.LookupFile(path)
 	require.NotNil(t, cachedDoc)
 
