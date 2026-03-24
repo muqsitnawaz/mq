@@ -27,6 +27,41 @@ import fitz  # PyMuPDF
 # Suppress MuPDF warnings at runtime
 fitz.TOOLS.mupdf_display_warnings(False)
 
+# OCR support via Apple Vision (macOS)
+_ocrmac_available = None
+
+def _check_ocrmac():
+    global _ocrmac_available
+    if _ocrmac_available is None:
+        try:
+            from ocrmac import ocrmac as _ocr
+            _ocrmac_available = True
+        except ImportError:
+            _ocrmac_available = False
+    return _ocrmac_available
+
+
+def ocr_page(page: "fitz.Page", dpi: int = 200) -> str:
+    """OCR a single page using Apple Vision framework via ocrmac."""
+    if not _check_ocrmac():
+        return ""
+    from ocrmac import ocrmac as _ocr
+    from PIL import Image
+    import io
+
+    pix = page.get_pixmap(dpi=dpi)
+    img = Image.open(io.BytesIO(pix.tobytes("png")))
+    results = _ocr.OCR(img).recognize()
+    # results: list of (text, confidence, bbox)
+    return "\n".join(r[0] for r in results)
+
+
+def page_has_text(doc: "fitz.Document", page_num: int) -> bool:
+    """Check if a page has extractable text (not just images)."""
+    page = doc[page_num]
+    text = page.get_text().strip()
+    return len(text) > 10  # more than trivial whitespace/artifacts
+
 
 @dataclass
 class TextBlock:
@@ -215,6 +250,34 @@ def extract_structure(pdf_path: Optional[str] = None, pdf_bytes: Optional[bytes]
         # Extract text blocks with font info
         blocks = extract_text_blocks(doc)
 
+        # Detect if this is an image-only PDF (no extractable text)
+        ocr_text = None
+        if not blocks and _check_ocrmac():
+            # All pages are images -- OCR them
+            ocr_pages = []
+            for i in range(len(doc)):
+                page_text = ocr_page(doc[i])
+                if page_text:
+                    ocr_pages.append(page_text)
+            if ocr_pages:
+                ocr_text = "\n\n".join(ocr_pages)
+        elif blocks:
+            # Hybrid: some pages may be image-only, OCR just those
+            if _check_ocrmac():
+                ocr_pages_text = {}
+                for i in range(len(doc)):
+                    if not page_has_text(doc, i):
+                        page_text = ocr_page(doc[i])
+                        if page_text:
+                            ocr_pages_text[i] = page_text
+                if ocr_pages_text:
+                    # ocr_text contains only the OCR'd pages, keyed by page
+                    # We pass them separately so Go can merge
+                    ocr_text = "\n\n".join(
+                        f"[page {i+1}]\n{text}"
+                        for i, text in sorted(ocr_pages_text.items())
+                    )
+
         # Find body text size
         body_size = find_body_font_size(blocks)
 
@@ -231,13 +294,19 @@ def extract_structure(pdf_path: Optional[str] = None, pdf_bytes: Optional[bytes]
                 title = h["text"]
                 break
 
-        return {
+        result = {
             "title": title,
             "body_font_size": round(body_size, 2),
             "headings": headings,
             "tables": tables,
             "page_count": len(doc),
         }
+
+        # Include OCR text when available
+        if ocr_text:
+            result["ocr_text"] = ocr_text
+
+        return result
     finally:
         doc.close()
 

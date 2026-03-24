@@ -651,6 +651,36 @@ func TestSearchFilterThenParseSkipsNonMatching(t *testing.T) {
 	assert.Contains(t, files, "events.jsonl")
 }
 
+func TestSearchDirCacheRoundtrip(t *testing.T) {
+	// Regression: directory search through cached markdown documents must
+	// produce the same results as the first (cold cache) run.
+	dir := t.TempDir()
+
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "guide.md"), []byte(
+		"# Deployment Guide\n\n## Rolling Deployment\n\nA rolling deployment replaces pods.\n\n## Monitoring\n\nCheck metrics after deployment.\n",
+	), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "unrelated.md"), []byte(
+		"# Unrelated\n\nNo match here.\n",
+	), 0o644))
+
+	// Run 1: cold cache
+	results1, err := mql.SearchDir(dir, "deployment")
+	require.NoError(t, err)
+	files1 := searchFiles(results1)
+	require.Contains(t, files1, "guide.md", "cold cache should find guide.md")
+	require.NotContains(t, files1, "unrelated.md")
+	count1 := len(results1.Matches)
+	require.Greater(t, count1, 0)
+
+	// Run 2: warm cache — must produce identical results
+	results2, err := mql.SearchDir(dir, "deployment")
+	require.NoError(t, err)
+	files2 := searchFiles(results2)
+	assert.Contains(t, files2, "guide.md", "warm cache should still find guide.md")
+	assert.NotContains(t, files2, "unrelated.md")
+	assert.Equal(t, count1, len(results2.Matches), "warm cache should return same match count")
+}
+
 func TestSearchExcludesUnsupportedFormats(t *testing.T) {
 	dir := t.TempDir()
 
