@@ -394,15 +394,6 @@ func BenchmarkBuildTree(b *testing.B) {
 		{"100KB", 100 * 1024},
 	}
 
-	modes := []struct {
-		name string
-		mode TreeMode
-	}{
-		{"compact", TreeModeCompact},
-		{"preview", TreeModePreview},
-		{"full", TreeModeFull},
-	}
-
 	engine := New()
 
 	for _, size := range sizes {
@@ -412,16 +403,14 @@ func BenchmarkBuildTree(b *testing.B) {
 			b.Fatal(err)
 		}
 
-		for _, mode := range modes {
-			b.Run(size.name+"/"+mode.name, func(b *testing.B) {
-				b.ResetTimer()
+		b.Run(size.name, func(b *testing.B) {
+			b.ResetTimer()
 
-				for i := 0; i < b.N; i++ {
-					result := doc.BuildTree(mode.mode)
-					_ = result
-				}
-			})
-		}
+			for i := 0; i < b.N; i++ {
+				result := doc.BuildTree()
+				_ = result
+			}
+		})
 	}
 }
 

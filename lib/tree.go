@@ -12,26 +12,10 @@ import (
 	"strings"
 )
 
-// TreeMode represents tree display modes.
-type TreeMode string
-
-const (
-	TreeModeDefault TreeMode = ""        // Full structure with code blocks
-	TreeModeCompact TreeMode = "compact" // Headings only
-	TreeModePreview TreeMode = "preview" // Headings + first few words
-	TreeModeFull    TreeMode = "full"    // Headings + first few words (for directories: expand + preview)
-)
-
 // TreeOptions controls tree traversal bounds.
 type TreeOptions struct {
-	Mode  TreeMode
 	Depth int // Max depth to traverse (0 = unlimited)
 	Limit int // Max children per directory (0 = unlimited)
-}
-
-// DefaultTreeOptions returns unbounded options with the given mode.
-func DefaultTreeOptions(mode TreeMode) TreeOptions {
-	return TreeOptions{Mode: mode, Depth: 0, Limit: 0}
 }
 
 // TreeNode represents a node in the document structure tree.
@@ -50,17 +34,15 @@ type TreeNode struct {
 type TreeResult struct {
 	Path     string      // File path
 	Lines    int         // Total line count
-	Mode     TreeMode    // Display mode
 	Root     []*TreeNode // Top-level nodes
 	Metadata []string    // Frontmatter field names
 }
 
 // BuildTree creates a tree representation of the document.
-func (d *Document) BuildTree(mode TreeMode) *TreeResult {
+func (d *Document) BuildTree() *TreeResult {
 	result := &TreeResult{
 		Path:  d.path,
 		Lines: d.countLines(),
-		Mode:  mode,
 	}
 
 	// Add frontmatter if present
@@ -75,7 +57,7 @@ func (d *Document) BuildTree(mode TreeMode) *TreeResult {
 	// Build section tree
 	toc := d.GetTableOfContents()
 	for _, section := range toc {
-		node := d.buildSectionTree(section, mode)
+		node := d.buildSectionTree(section)
 		result.Root = append(result.Root, node)
 	}
 
@@ -83,44 +65,36 @@ func (d *Document) BuildTree(mode TreeMode) *TreeResult {
 }
 
 // buildSectionTree recursively builds tree nodes from sections.
-func (d *Document) buildSectionTree(section *Section, mode TreeMode) *TreeNode {
+func (d *Document) buildSectionTree(section *Section) *TreeNode {
 	node := &TreeNode{
-		Type:  "section",
-		Text:  section.Heading.Text,
-		Start: section.Start,
-		End:   section.End,
-		Level: section.Heading.Level,
+		Type:    "section",
+		Text:    section.Heading.Text,
+		Start:   section.Start,
+		End:     section.End,
+		Level:   section.Heading.Level,
+		Preview: ExtractPreview(section.GetText(), 50),
 	}
-
-	// Always add preview text (most useful for orientation)
-	node.Preview = ExtractPreview(section.GetText(), 50)
 
 	// Add child sections
 	for _, child := range section.Children {
-		childNode := d.buildSectionTree(child, mode)
+		childNode := d.buildSectionTree(child)
 		node.Children = append(node.Children, childNode)
 	}
 
-	// Add special elements (only in default mode)
-	if mode == TreeModeDefault {
-		// Code blocks in this section (not children)
-		codeBlocks := section.codeBlocks
-		if len(codeBlocks) > 0 {
-			for lang, count := range CountCodeByLanguage(codeBlocks) {
-				meta := fmt.Sprintf("%d block", count)
-				if count > 1 {
-					meta = fmt.Sprintf("%d blocks", count)
-				}
-				node.Children = append(node.Children, &TreeNode{
-					Type: "code",
-					Text: lang,
-					Meta: meta,
-				})
+	// Code blocks in this section (not children)
+	codeBlocks := section.codeBlocks
+	if len(codeBlocks) > 0 {
+		for lang, count := range CountCodeByLanguage(codeBlocks) {
+			meta := fmt.Sprintf("%d block", count)
+			if count > 1 {
+				meta = fmt.Sprintf("%d blocks", count)
 			}
+			node.Children = append(node.Children, &TreeNode{
+				Type: "code",
+				Text: lang,
+				Meta: meta,
+			})
 		}
-
-		// Tables, lists, links, images would need to be tracked per-section
-		// For now, we'll add them at the document level analysis
 	}
 
 	return node
@@ -651,16 +625,15 @@ type DirTreeResult struct {
 	Path          string         // Directory path
 	TotalFiles    int            // Total supported files
 	TotalLines    int            // Total lines across all files
-	Mode          TreeMode       // Display mode
 	Options       TreeOptions    // Depth/limit options used
 	Root          []*DirFileNode // Top-level entries
 	RootTruncated int            // Number of top-level entries not shown due to limit
 }
 
 // BuildDirTree creates a tree representation of supported document files in a directory.
-func BuildDirTree(dirPath string, mode TreeMode) (*DirTreeResult, error) {
+func BuildDirTree(dirPath string) (*DirTreeResult, error) {
 	parser := NewParser()
-	return BuildDirTreeWithLoader(dirPath, DefaultTreeOptions(mode), parser.ParseFile)
+	return BuildDirTreeWithLoader(dirPath, TreeOptions{}, parser.ParseFile)
 }
 
 // BuildDirTreeWithOptions creates a tree with depth/limit bounds.
@@ -673,7 +646,6 @@ func BuildDirTreeWithOptions(dirPath string, opts TreeOptions) (*DirTreeResult, 
 func BuildDirTreeWithLoader(dirPath string, opts TreeOptions, load documentLoaderFunc) (*DirTreeResult, error) {
 	result := &DirTreeResult{
 		Path:    dirPath,
-		Mode:    opts.Mode,
 		Options: opts,
 	}
 
@@ -719,26 +691,23 @@ func buildDirNode(path string, opts TreeOptions, currentDepth int, result *DirTr
 			result.TotalFiles++
 			result.TotalLines += node.Lines
 
-			// Always show top-level headings with previews
-			showHeadings := opts.Mode != TreeModeCompact
-			if showHeadings {
-				for _, section := range doc.GetTableOfContents() {
-					h := section.Heading
-					heading := &DirHeading{
-						Text:    formatTreeLabel(doc.Format(), h),
-						Preview: ExtractPreview(section.GetText(), 50),
-					}
-					node.TopHeadings = append(node.TopHeadings, heading)
+			// Show top-level headings with previews
+			for _, section := range doc.GetTableOfContents() {
+				h := section.Heading
+				heading := &DirHeading{
+					Text:    formatTreeLabel(doc.Format(), h),
+					Preview: ExtractPreview(section.GetText(), 50),
+				}
+				node.TopHeadings = append(node.TopHeadings, heading)
 
-					// Also add level 2 headings (direct children)
-					for _, child := range section.Children {
-						if child.Heading.Level <= 2 {
-							childHeading := &DirHeading{
-								Text:    formatTreeLabel(doc.Format(), child.Heading),
-								Preview: ExtractPreview(child.GetText(), 50),
-							}
-							node.TopHeadings = append(node.TopHeadings, childHeading)
+				// Also add level 2 headings (direct children)
+				for _, child := range section.Children {
+					if child.Heading.Level <= 2 {
+						childHeading := &DirHeading{
+							Text:    formatTreeLabel(doc.Format(), child.Heading),
+							Preview: ExtractPreview(child.GetText(), 50),
 						}
+						node.TopHeadings = append(node.TopHeadings, childHeading)
 					}
 				}
 			}
@@ -889,9 +858,8 @@ func (t *DirTreeResult) renderNode(buf *strings.Builder, node *DirFileNode, pref
 		childPrefix += "│   "
 	}
 
-	// Render top-level headings in expand/full modes
-	showHeadings := t.Mode == TreeModeFull || t.Mode == TreeModePreview
-	if showHeadings && len(node.TopHeadings) > 0 {
+	// Render top-level headings with previews
+	if len(node.TopHeadings) > 0 {
 		for i, heading := range node.TopHeadings {
 			hIsLast := i == len(node.TopHeadings)-1 && len(node.Children) == 0 && node.Truncated == 0
 			hConnector := "├── "
@@ -900,8 +868,7 @@ func (t *DirTreeResult) renderNode(buf *strings.Builder, node *DirFileNode, pref
 			}
 			buf.WriteString(fmt.Sprintf("%s%s%s\n", childPrefix, hConnector, heading.Text))
 
-			// Add preview in full mode
-			if t.Mode == TreeModeFull && heading.Preview != "" {
+			if heading.Preview != "" {
 				previewPrefix := childPrefix
 				if hIsLast {
 					previewPrefix += "    "

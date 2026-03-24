@@ -98,15 +98,10 @@ func printUsage() {
 	fmt.Printf("mq %s - Query structured documents without reading entire contents\n\n", version)
 	fmt.Println("Usage: mq <file|directory> [query]")
 	fmt.Println("\nWorkflow:")
-	fmt.Println("  1. See structure:  mq <path> '.tree(\"full\")'")
+	fmt.Println("  1. See structure:  mq <path> .tree")
 	fmt.Println("  2. Extract content: mq <file> '.section(\"Name\") | .text'")
 	fmt.Println("")
 	fmt.Println("  Scope matters: tree a specific file or subdir, not the entire repo.")
-	fmt.Println("")
-	fmt.Println("Tree modes:")
-	fmt.Println("  .tree              Structure with line ranges")
-	fmt.Println("  .tree(\"preview\")   Structure + content preview")
-	fmt.Println("  .tree(\"full\")      Structure + previews (best for directories)")
 	fmt.Println("")
 	fmt.Println("Tree modifiers (pipe after .tree):")
 	fmt.Println("  | depth(N)         Limit traversal to N levels")
@@ -124,7 +119,7 @@ func printUsage() {
 	fmt.Println("  | .tree            Show structure of selection")
 	fmt.Println("")
 	fmt.Println("Examples:")
-	fmt.Println("  mq docs/ '.tree(\"full\")'                    # See all docs structure")
+	fmt.Println("  mq docs/ .tree                              # See all docs structure")
 	fmt.Println("  mq README.md '.section(\"Install\") | .text'  # Get install instructions")
 	fmt.Println("  mq src/ '.search(\"auth\")'                   # Find auth-related sections")
 	fmt.Println("  mq corpus/ '.tree | depth(2) | limit(50)'   # Bounded traversal for large dirs")
@@ -436,7 +431,7 @@ func handleDirectory(path string, query string) {
 	// First part should be the main method
 	method, arg, ok := parseMethodCall(parts[0])
 	if !ok {
-		log.Fatalf("Invalid query format. Supported: .tree, .tree(\"mode\"), .search(\"term\")")
+		log.Fatalf("Invalid query format. Supported: .tree, .search(\"term\")")
 	}
 
 	// Parse remaining parts as modifiers
@@ -470,15 +465,8 @@ func handleDirectory(path string, query string) {
 
 	switch method {
 	case "tree":
-		switch arg {
-		case "", "compact":
-			opts.Mode = mq.TreeModeDefault
-		case "expand", "preview":
-			opts.Mode = mq.TreeModePreview
-		case "full":
-			opts.Mode = mq.TreeModeFull
-		default:
-			log.Fatalf("Unknown tree mode: %q. Use: compact, preview, full", arg)
+		if arg != "" {
+			fmt.Fprintf(os.Stderr, "Warning: .tree(%q) is deprecated — .tree now adapts automatically. Ignoring argument.\n", arg)
 		}
 		result, err := mql.BuildDirTreeWithOptions(path, opts)
 		if err != nil {
