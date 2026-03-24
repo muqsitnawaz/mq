@@ -17,6 +17,7 @@ type Heading struct {
 	ID    string   // Auto-generated or explicit ID for anchoring
 	Node  ast.Node // Reference to the AST node
 	Line  int      // Line number in the document
+	Page  int      // Page number (PDF only, 0 if not applicable)
 }
 
 // Section represents a document section defined by a heading.
