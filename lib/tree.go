@@ -147,7 +147,12 @@ func ExtractPreview(text string, maxChars int) string {
 }
 
 // countLines counts the total lines in the document.
+// For binary formats (PDF), counts lines in the extracted readable text
+// rather than in the raw source bytes.
 func (d *Document) countLines() int {
+	if d.format != FormatMarkdown && d.readableText != "" {
+		return strings.Count(d.readableText, "\n") + 1
+	}
 	return strings.Count(string(d.source), "\n") + 1
 }
 
