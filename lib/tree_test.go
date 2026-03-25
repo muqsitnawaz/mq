@@ -423,8 +423,8 @@ func TestBuildTreePreviewNonMarkdown(t *testing.T) {
 	binarySource := []byte("%PDF-1.4\x00\x01\x02\x03\n\xAB\xCD\xEF\n" + readableText)
 
 	headings := []*mq.Heading{
-		{Level: 1, Text: "Overview", Line: 1},
-		{Level: 2, Text: "Details", Line: 4},
+		{Level: 1, Text: "Overview", Line: 1, Page: 1},
+		{Level: 2, Text: "Details", Line: 4, Page: 2},
 	}
 	sections := []*mq.Section{
 		mq.NewSectionWithSource(headings[0], 1, 5, textBytes),
@@ -444,6 +444,13 @@ func TestBuildTreePreviewNonMarkdown(t *testing.T) {
 	preview := tree.Root[0].Preview
 	assert.Contains(t, preview, "authentication flow",
 		"PDF tree preview should show readable text, not binary garbage")
+
+	// Verify page numbers are rendered instead of line numbers
+	output := tree.String()
+	assert.Contains(t, output, "(p. 1)", "PDF tree should show page numbers")
+	assert.Contains(t, output, "(p. 2)", "PDF tree should show page numbers for child sections")
+	assert.Contains(t, output, "(2 pages)", "PDF tree header should show page count")
+	assert.NotContains(t, output, "lines", "PDF tree should not mention lines")
 }
 
 // padInt zero-pads an int to 2 digits.

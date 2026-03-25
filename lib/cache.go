@@ -71,6 +71,7 @@ type cachedHeading struct {
 	Text  string `msgpack:"t"`
 	ID    string `msgpack:"i"`
 	Line  int    `msgpack:"n"`
+	Page  int    `msgpack:"pg"`
 }
 
 type cachedSection struct {
@@ -578,6 +579,7 @@ func documentToCache(doc *Document) cachedDocument {
 			Text:  h.Text,
 			ID:    h.ID,
 			Line:  h.Line,
+			Page:  h.Page,
 		})
 	}
 
@@ -688,6 +690,7 @@ func cacheToDocument(cd *cachedDocument, source []byte, path string) *Document {
 			Text:  ch.Text,
 			ID:    ch.ID,
 			Line:  ch.Line,
+			Page:  ch.Page,
 		}
 	}
 
