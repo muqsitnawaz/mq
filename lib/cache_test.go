@@ -752,9 +752,9 @@ func TestCacheRoundtripNonMarkdownSectionText(t *testing.T) {
 	require.NoError(t, os.WriteFile(path, binaryContent, 0644))
 
 	headings := []*mq.Heading{
-		{Level: 1, Text: "Introduction", Line: 1},
-		{Level: 2, Text: "Setup", Line: 4},
-		{Level: 2, Text: "Usage", Line: 7},
+		{Level: 1, Text: "Introduction", Line: 1, Page: 1},
+		{Level: 2, Text: "Setup", Line: 4, Page: 1},
+		{Level: 2, Text: "Usage", Line: 7, Page: 2},
 	}
 	sections := []*mq.Section{
 		mq.NewSectionWithSource(headings[0], 1, 8, textBytes),
@@ -791,8 +791,13 @@ func TestCacheRoundtripNonMarkdownSectionText(t *testing.T) {
 	assert.Equal(t, origText, cachedText,
 		"cached section text should match original")
 
-	// Verify line count uses readableText (8 lines = 7 newlines + 1)
+	// Verify tree uses page numbers and readable text line count
 	tree := cached.BuildTree()
-	assert.Equal(t, 8, tree.Lines,
-		"cached PDF line count should reflect readableText lines, not binary newlines")
+	assert.Equal(t, 2, tree.Pages,
+		"cached PDF page count should survive roundtrip")
+	output := tree.String()
+	assert.Contains(t, output, "(2 pages)",
+		"cached PDF tree header should show pages, not lines")
+	assert.Contains(t, output, "(p. 1)",
+		"cached PDF tree sections should show page numbers")
 }

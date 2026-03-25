@@ -85,6 +85,7 @@ func (d *Document) buildSectionTree(section *Section) *TreeNode {
 		Start:   section.Start,
 		End:     section.End,
 		Level:   section.Heading.Level,
+		Page:    section.Heading.Page,
 		Preview: ExtractPreview(section.GetText(), 50),
 	}
 
@@ -174,7 +175,11 @@ func (t *TreeResult) String() string {
 	var buf strings.Builder
 
 	// Header
-	buf.WriteString(fmt.Sprintf("%s (%d lines)\n", t.Path, t.Lines))
+	if t.Format == FormatPDF && t.Pages > 0 {
+		buf.WriteString(fmt.Sprintf("%s (%d pages)\n", t.Path, t.Pages))
+	} else {
+		buf.WriteString(fmt.Sprintf("%s (%d lines)\n", t.Path, t.Lines))
+	}
 
 	// Frontmatter
 	if len(t.Metadata) > 0 {
@@ -203,8 +208,13 @@ func (t *TreeResult) renderNode(buf *strings.Builder, node *TreeNode, prefix str
 	switch node.Type {
 	case "section":
 		levelPrefix := strings.Repeat("#", node.Level)
-		buf.WriteString(fmt.Sprintf("%s%s%s %s (%d-%d)\n",
-			prefix, connector, levelPrefix, node.Text, node.Start, node.End))
+		if t.Format == FormatPDF && node.Page > 0 {
+			buf.WriteString(fmt.Sprintf("%s%s%s %s (p. %d)\n",
+				prefix, connector, levelPrefix, node.Text, node.Page))
+		} else {
+			buf.WriteString(fmt.Sprintf("%s%s%s %s (%d-%d)\n",
+				prefix, connector, levelPrefix, node.Text, node.Start, node.End))
+		}
 
 		// Render preview if available
 		if node.Preview != "" {
@@ -629,6 +639,7 @@ type DirFileNode struct {
 	IsDir       bool           // True if directory
 	Format      Format         // Parsed document format
 	Lines       int            // Line count (files only)
+	Pages       int            // Page count (PDF only, 0 if not applicable)
 	Sections    int            // Section count (files only)
 	Structure   string         // Format-aware structure label (e.g., sections, keys, records)
 	Count       int            // Count of structure units for this format
@@ -705,6 +716,15 @@ func buildDirNode(path string, opts TreeOptions, currentDepth int, result *DirTr
 			node.Sections = len(sections)
 			node.Format = doc.Format()
 			node.Count, node.Structure = describeStructure(doc)
+
+			// For PDFs, compute page count from max heading page number
+			if doc.Format() == FormatPDF {
+				for _, s := range sections {
+					if s.Heading != nil && s.Heading.Page > node.Pages {
+						node.Pages = s.Heading.Page
+					}
+				}
+			}
 
 			result.TotalFiles++
 			result.TotalLines += node.Lines
@@ -857,13 +877,19 @@ func (t *DirTreeResult) renderNode(buf *strings.Builder, node *DirFileNode, pref
 				label = "sections"
 			}
 
+			// Use "pages" instead of "lines" for PDFs
+			sizeLabel := fmt.Sprintf("%d lines", node.Lines)
+			if node.Format == FormatPDF && node.Pages > 0 {
+				sizeLabel = fmt.Sprintf("%d pages", node.Pages)
+			}
+
 			switch {
 			case node.Count == 0:
-				buf.WriteString(fmt.Sprintf("%s%s%s (%d lines, no %s)\n", prefix, connector, node.Name, node.Lines, label))
+				buf.WriteString(fmt.Sprintf("%s%s%s (%s, no %s)\n", prefix, connector, node.Name, sizeLabel, label))
 			case node.Count == 1:
-				buf.WriteString(fmt.Sprintf("%s%s%s (%d lines, 1 %s)\n", prefix, connector, node.Name, node.Lines, singularLabel(label)))
+				buf.WriteString(fmt.Sprintf("%s%s%s (%s, 1 %s)\n", prefix, connector, node.Name, sizeLabel, singularLabel(label)))
 			default:
-				buf.WriteString(fmt.Sprintf("%s%s%s (%d lines, %d %s)\n", prefix, connector, node.Name, node.Lines, node.Count, label))
+				buf.WriteString(fmt.Sprintf("%s%s%s (%s, %d %s)\n", prefix, connector, node.Name, sizeLabel, node.Count, label))
 			}
 		}
 	}
