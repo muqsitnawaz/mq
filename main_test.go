@@ -146,6 +146,25 @@ func TestDisplayResultSearchMatchUsesRawContent(t *testing.T) {
 	assert.NotContains(t, rendered, "Result type: *mq.SearchResult")
 }
 
+func TestDisplayResultDirectoryTreeUsesTreeString(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "guide.md"), []byte("# Guide\n\n## API\n\nNeedle in docs.\n"), 0o644))
+
+	result, err := runDirectoryQuery(dir, ".tree")
+	require.NoError(t, err)
+
+	tree, ok := result.(*mq.DirTreeResult)
+	require.True(t, ok, "expected *mq.DirTreeResult, got %T", result)
+	require.Contains(t, tree.String(), "guide.md (5 lines, 2 sections)")
+	require.Contains(t, tree.String(), "# Guide")
+
+	rendered := captureOutput(t, func() {
+		displayResult(tree)
+	})
+	assert.Equal(t, tree.String(), rendered)
+	assert.NotContains(t, rendered, "Result type: *mq.DirTreeResult")
+}
+
 func captureOutput(t *testing.T, fn func()) string {
 	t.Helper()
 
