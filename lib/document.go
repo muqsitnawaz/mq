@@ -295,12 +295,34 @@ func (d *Document) GetHeadingByText(text string) (*Heading, bool) {
 }
 
 // GetSection returns a section by title.
+// It tries exact match first, then case-insensitive exact match, then
+// case-insensitive substring match. If multiple sections match by
+// substring, the first one in document order wins.
 func (d *Document) GetSection(title string) (*Section, bool) {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
 
-	section, ok := d.sectionIndex[title]
-	return section, ok
+	// 1. Exact match
+	if section, ok := d.sectionIndex[title]; ok {
+		return section, true
+	}
+
+	// 2. Case-insensitive exact match
+	titleLower := strings.ToLower(title)
+	for key, section := range d.sectionIndex {
+		if strings.ToLower(key) == titleLower {
+			return section, true
+		}
+	}
+
+	// 3. Case-insensitive substring match (first in document order)
+	for _, section := range d.sectionList {
+		if section.Heading != nil && strings.Contains(strings.ToLower(section.Heading.Text), titleLower) {
+			return section, true
+		}
+	}
+
+	return nil, false
 }
 
 // GetSections returns all sections in document order.
