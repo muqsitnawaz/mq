@@ -19,6 +19,15 @@ Benchmarked on Apple M3 Max, Go 1.24, on 2026-03-27.
 | Directory search (`private-manuscript`) | cold: 2.21s, warm exact-repeat: 11.98ms, partial invalidation: 1.62s |
 | Directory search (`rush-sessions`) | cold: 51.86s, warm exact-repeat: 440.34ms |
 | MQL `.section("X") \| .text` | 9.58us after parse |
+| Code parse (Go, 50 lines) | cold: 1.26ms, cache: 9.7ms |
+| Code parse (Go, 1200 lines) | cold: 377ms, cache: 9.9ms |
+| Code parse (Python, 29 lines) | 2.1ms |
+| Code parse (TypeScript, 48 lines) | 3.6ms |
+| Code parse (Rust, 48 lines) | 2.2ms |
+| CSV parse (8 rows x 5 cols) | 4.7us |
+| DOCX parse (10 paragraphs) | 33us |
+| XLSX parse (100 rows x 2 cols) | 859us |
+| PPTX parse (5 slides) | 90us |
 
 ## Markdown Parsing
 
@@ -113,12 +122,54 @@ These benchmarks hit the real cache-aware directory search path through `mql.Eng
 
 This benchmark parses a batch of same-sized markdown documents, then queries all of them for headings. It is a real repo benchmark, but it does not measure directory cache behavior.
 
+## Code Parsing (tree-sitter, pure Go)
+
+`go test ./code -bench 'Benchmark(ParseGo|ParsePython|ParseTypeScript|ParseRust|ParseLargeGo)$' -run '^$' -benchmem -count=3`
+
+| Language | File size | Cold parse | Allocs | Throughput |
+|----------|-----------|------------|--------|------------|
+| Go | 50 lines | 1.26ms | 6K | ~40 KB/s |
+| Python | 29 lines | 2.1ms | 11K | ~14 KB/s |
+| TypeScript | 48 lines | 3.6ms | 19K | ~13 KB/s |
+| Rust | 48 lines | 2.2ms | 12K | ~22 KB/s |
+| Go (large) | 1200 lines (36KB) | 377ms | 12K | ~95 KB/s |
+
+Tree-sitter parsing is CPU-bound. The large file (lib/tree.go, 36KB) takes 377ms cold. TypeScript is the slowest per-line due to grammar complexity (JSX, generics, optional chaining).
+
+### Code: Cold Parse vs Cache Hit
+
+`go test ./code -bench 'Benchmark(Cold|Warm)' -run '^$' -benchmem -count=3`
+
+| File | Cold parse | Warm cache hit | Speedup | Cache overhead |
+|------|------------|----------------|---------|----------------|
+| Go, 50 lines | 1.26ms | 9.7ms | **0.13x (slower)** | 146 allocs |
+| Go, 1200 lines | 377ms | 9.9ms | **38x faster** | 322 allocs |
+
+Cache has a fixed floor of ~10ms (bbolt read + msgpack deserialize). For files under ~200 lines, cold parse is faster than cache. For large files, cache wins dramatically. The crossover point is roughly 5-10KB of source.
+
+## Office Document Parsing
+
+`go test ./office -bench . -run '^$' -benchmem -count=3`
+
+| Format | Input size | Parse time | Memory | Allocs |
+|--------|-----------|------------|--------|--------|
+| CSV | 8 rows x 5 cols | 4.7us | 10KB | 74 |
+| DOCX | 10 paragraphs | 33us | 25KB | 424 |
+| PPTX | 5 slides | 90us | 53KB | 978 |
+| XLSX | 100 rows x 2 cols | 859us | 651KB | 8.5K |
+
+CSV and DOCX are stdlib-only parsers (encoding/csv, archive/zip + encoding/xml). XLSX uses excelize which is heavier. All office formats parse under 1ms except XLSX at larger sizes.
+
 ## Notes
 
 - The biggest user-visible win right now is PDF cache latency: repeated loads drop from roughly 11-13 seconds to roughly 11-17 milliseconds.
 - On very large directories, warm exact-repeat search is much faster than cold search, but it still pays the directory-hash check first.
 - Markdown is still the highest-throughput general parser path in the repo.
 - HTML remains slower because readability extraction does more work than plain structural parsing.
+- Code parsing via tree-sitter has a ~10ms cache floor. Cache only helps for files >200 lines. Small files parse faster cold.
+- Office formats are all sub-millisecond except XLSX which carries the excelize dependency weight.
+- CSV is by far the fastest parser at 4.7us -- stdlib encoding/csv is very efficient.
+- Binary size increased from 8MB to 34MB due to gotreesitter embedding 206 grammars. Can be reduced with `GOTREESITTER_GRAMMAR_SET` env var at build time.
 
 ## Raw Output
 

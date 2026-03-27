@@ -1,6 +1,6 @@
 ---
 name: mq
-description: Query markdown files efficiently with mq CLI. Use when exploring documentation structure, extracting specific sections, or reducing token usage when reading .md files.
+description: Query markdown, HTML, and PDF files with mq CLI. Triggers on: exploring doc structure, extracting sections from large .md/.html/.pdf files, 'use mq', or when reading full documents wastes tokens.
 ---
 
 # mq Skill: Efficient Document Querying
@@ -147,6 +147,31 @@ Query 3: mq docs/auth.md ".section('OAuth Flow') | .text"
 
 mq externalizes structure. You do the thinking. Don't re-query what you already see.
 
+## Format Casts
+
+Cast operators reinterpret a string value as a different document format mid-pipeline.
+Use when structured content (markdown, HTML, JSON, YAML) is embedded inside another format.
+
+```bash
+# Cast operators
+.text | .md | .headings          # parse string as markdown
+.text | .html | .links           # parse string as HTML
+.raw | .json | .section("key")   # parse raw JSON, navigate keys
+.text | .yaml | .tree            # parse string as YAML
+```
+
+Cast reference:
+
+| Operator | Parses as | Use when field contains |
+|----------|-----------|------------------------|
+| `.md` | Markdown | `# Headings`, `- lists`, `` `code` `` |
+| `.html` | HTML | `<h1>`, `<a href>`, `<table>` |
+| `.json` | JSON | `{"key": "value"}` |
+| `.yaml` | YAML | `key: value` |
+
+Casts work on `string`, `[]string` (joined with newlines), and nested structures
+(recursively extracts `text`/`content` fields from arrays of objects).
+
 ## Examples by Task
 
 ### "Find something in a JSONL session file"
@@ -161,6 +186,37 @@ mq session.jsonl ".search('deploy')"  # Line-level matches with record type
 mq session.jsonl ".search('deploy') | .text"           # Flatten matching records
 mq session.jsonl ".search('deploy') | .nth(1)"         # Narrow to one raw matching record
 mq session.jsonl ".search('deploy') | .nth(1) | .raw"  # Explicit raw record
+```
+
+### "Query Claude session files"
+
+Claude stores conversations as JSONL at `~/.claude/projects/{project-id}/{session-id}.jsonl`.
+Each line is a JSON record with `type`, `message.role`, `message.content`, `timestamp`.
+
+```bash
+# Search all sessions in a project
+mq ~/.claude/projects/-Users-you-project/ '.search("auth")'
+
+# Drill into markdown content inside a JSONL record
+mq session.jsonl '.search("REPORT") | .nth(0) | .raw | .json | .section("content") | .text | .md | .headings'
+
+# Extract a specific markdown section from a conversation
+mq session.jsonl '.search("REPORT") | .nth(0) | .raw | .json | .section("content") | .text | .md | .section("Recommendations") | .text'
+
+# Get code blocks from markdown inside a JSONL record
+mq session.jsonl '.search("impl") | .nth(0) | .raw | .json | .section("content") | .text | .md | .code("go")'
+```
+
+The pipeline pattern for nested content:
+```
+.search("term")     → find JSONL record
+  | .nth(0)          → pick one result
+  | .raw             → get raw JSON line
+  | .json            → parse as JSON document
+  | .section("key")  → navigate to a field
+  | .text            → extract string value
+  | .md              → cast to markdown
+  | .headings        → structural query on inner content
 ```
 
 ### "Find how authentication works"
