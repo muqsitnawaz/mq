@@ -3,6 +3,7 @@ package mql_test
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -294,6 +295,35 @@ func TestQueryExecution(t *testing.T) {
 				test.query, test.desc, result, result)
 		}
 	}
+}
+
+func TestSearchPipelineOnJSONL(t *testing.T) {
+	jsonl := strings.Join([]string{
+		`{"event":"tool_use_start","message":"first tool_use event"}`,
+		`{"event":"ignore","message":"other event"}`,
+		`{"event":"tool_use_finish","message":"second tool_use event"}`,
+	}, "\n")
+
+	engine := mql.New()
+	defer engine.Close()
+
+	doc, err := engine.ParseDocument([]byte(jsonl), "events.jsonl")
+	require.NoError(t, err)
+
+	textResult, err := engine.Query(doc, `.search("tool_use") | .text`)
+	require.NoError(t, err)
+
+	texts, ok := textResult.([]string)
+	require.True(t, ok, "expected []string, got %T", textResult)
+	require.Len(t, texts, 2)
+	assert.Contains(t, texts[0], "tool_use")
+	assert.Contains(t, texts[1], "tool_use")
+	assert.NotContains(t, texts[0], "Found 2 matches")
+	assert.NotContains(t, texts[1], "Found 2 matches")
+
+	lengthResult, err := engine.Query(doc, `.search("tool_use") | .length`)
+	require.NoError(t, err)
+	assert.Equal(t, 2, lengthResult)
 }
 
 func TestComplexQueries(t *testing.T) {
