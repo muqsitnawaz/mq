@@ -104,7 +104,13 @@ func (v *compilerVisitor) VisitPipe(node *PipeNode) (interface{}, error) {
 
 	// Update context with left result
 	oldCurrent := v.context.Current
+	oldDocument := v.context.Document
 	v.context.Current = leftResult
+
+	// If left produced a Document (e.g. from a format cast), update document context too
+	if doc, ok := leftResult.(*mq.Document); ok {
+		v.context.Document = doc
+	}
 
 	// Execute right side with updated context
 	rightResult, err := node.Right.Accept(v)
@@ -114,6 +120,7 @@ func (v *compilerVisitor) VisitPipe(node *PipeNode) (interface{}, error) {
 
 	// Restore context
 	v.context.Current = oldCurrent
+	v.context.Document = oldDocument
 
 	return rightResult, nil
 }
