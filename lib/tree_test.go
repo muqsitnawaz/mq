@@ -436,6 +436,7 @@ func TestBuildTreePreviewNonMarkdown(t *testing.T) {
 		headings, sections, nil, nil, nil, nil, nil,
 		readableText,
 	)
+	doc.SetPageCount(4)
 
 	tree := doc.BuildTree()
 	require.NotEmpty(t, tree.Root)
@@ -449,7 +450,7 @@ func TestBuildTreePreviewNonMarkdown(t *testing.T) {
 	output := tree.String()
 	assert.Contains(t, output, "(p. 1)", "PDF tree should show page numbers")
 	assert.Contains(t, output, "(p. 2)", "PDF tree should show page numbers for child sections")
-	assert.Contains(t, output, "(2 pages)", "PDF tree header should show page count")
+	assert.Contains(t, output, "(4 pages)", "PDF tree header should use the document page count")
 	assert.NotContains(t, output, "lines", "PDF tree should not mention lines")
 }
 

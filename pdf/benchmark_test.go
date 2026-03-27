@@ -9,8 +9,7 @@ import (
 	"github.com/muqsitnawaz/mq/pdf"
 )
 
-// pdfTestFiles returns paths to test PDFs of varying sizes.
-// Each entry has a short name and a path relative to testdata/.
+// pdfTestFiles defines benchmark PDFs of varying sizes.
 var pdfTestFiles = []struct {
 	name string
 	path string
@@ -20,30 +19,48 @@ var pdfTestFiles = []struct {
 	{"raft-6M", "testdata/papers/systems/raft.pdf"},
 }
 
+func resolveBenchmarkPDF(b testing.TB, relPath string) (string, int64) {
+	b.Helper()
+
+	absPath, err := filepath.Abs(relPath)
+	if err != nil {
+		b.Skip("cannot resolve path:", relPath)
+	}
+
+	info, err := os.Stat(absPath)
+	if os.IsNotExist(err) {
+		b.Skip("test PDF not found:", absPath)
+	}
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	return absPath, info.Size()
+}
+
+func mustParseBenchmarkPDF(b testing.TB, parser *pdf.Parser, path string) *mq.Document {
+	b.Helper()
+
+	doc, err := parser.ParseFile(path)
+	if err != nil {
+		b.Fatal(err)
+	}
+	return doc
+}
+
 // BenchmarkPDFParseCold measures end-to-end cold parse (pdftotext + PyMuPDF + section building).
 func BenchmarkPDFParseCold(b *testing.B) {
 	parser := pdf.NewParser()
 
 	for _, tf := range pdfTestFiles {
-		absPath, err := filepath.Abs(tf.path)
-		if err != nil {
-			b.Skip("cannot resolve path:", tf.path)
-		}
-		if _, err := os.Stat(absPath); os.IsNotExist(err) {
-			b.Skip("test PDF not found:", absPath)
-		}
+		absPath, size := resolveBenchmarkPDF(b, tf.path)
 
 		b.Run(tf.name, func(b *testing.B) {
-			info, _ := os.Stat(absPath)
-			b.SetBytes(info.Size())
+			b.SetBytes(size)
 			b.ResetTimer()
 
 			for i := 0; i < b.N; i++ {
-				doc, err := parser.ParseFile(absPath)
-				if err != nil {
-					b.Fatal(err)
-				}
-				_ = doc
+				_ = mustParseBenchmarkPDF(b, parser, absPath)
 			}
 		})
 	}
@@ -54,19 +71,10 @@ func BenchmarkPDFCacheWarm(b *testing.B) {
 	parser := pdf.NewParser()
 
 	for _, tf := range pdfTestFiles {
-		absPath, err := filepath.Abs(tf.path)
-		if err != nil {
-			b.Skip("cannot resolve path:", tf.path)
-		}
-		if _, err := os.Stat(absPath); os.IsNotExist(err) {
-			b.Skip("test PDF not found:", absPath)
-		}
+		absPath, size := resolveBenchmarkPDF(b, tf.path)
 
 		// Parse once, store in cache
-		doc, err := parser.ParseFile(absPath)
-		if err != nil {
-			b.Fatal(err)
-		}
+		doc := mustParseBenchmarkPDF(b, parser, absPath)
 
 		dbPath := filepath.Join(b.TempDir(), "bench-cache.db")
 		cache, err := mq.OpenCache(dbPath)
@@ -84,7 +92,7 @@ func BenchmarkPDFCacheWarm(b *testing.B) {
 		}
 
 		b.Run(tf.name, func(b *testing.B) {
-			b.SetBytes(info.Size())
+			b.SetBytes(size)
 			b.ResetTimer()
 
 			for i := 0; i < b.N; i++ {
@@ -102,18 +110,8 @@ func BenchmarkPDFBuildTree(b *testing.B) {
 	parser := pdf.NewParser()
 
 	for _, tf := range pdfTestFiles {
-		absPath, err := filepath.Abs(tf.path)
-		if err != nil {
-			b.Skip("cannot resolve path:", tf.path)
-		}
-		if _, err := os.Stat(absPath); os.IsNotExist(err) {
-			b.Skip("test PDF not found:", absPath)
-		}
-
-		doc, err := parser.ParseFile(absPath)
-		if err != nil {
-			b.Fatal(err)
-		}
+		absPath, _ := resolveBenchmarkPDF(b, tf.path)
+		doc := mustParseBenchmarkPDF(b, parser, absPath)
 
 		b.Run(tf.name, func(b *testing.B) {
 			b.ResetTimer()
@@ -131,18 +129,8 @@ func BenchmarkPDFSearch(b *testing.B) {
 	parser := pdf.NewParser()
 
 	for _, tf := range pdfTestFiles {
-		absPath, err := filepath.Abs(tf.path)
-		if err != nil {
-			b.Skip("cannot resolve path:", tf.path)
-		}
-		if _, err := os.Stat(absPath); os.IsNotExist(err) {
-			b.Skip("test PDF not found:", absPath)
-		}
-
-		doc, err := parser.ParseFile(absPath)
-		if err != nil {
-			b.Fatal(err)
-		}
+		absPath, _ := resolveBenchmarkPDF(b, tf.path)
+		doc := mustParseBenchmarkPDF(b, parser, absPath)
 
 		b.Run(tf.name, func(b *testing.B) {
 			b.ResetTimer()
