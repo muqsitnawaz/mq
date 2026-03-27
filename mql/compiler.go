@@ -335,8 +335,17 @@ func (v *compilerVisitor) formatCast(name string) (*mq.Document, error) {
 		return nil, fmt.Errorf("Error: .%s format cast is not available in this context\nHint: use Engine.Query() instead of ExecuteQuery() for format cast support", name)
 	}
 
-	// Extract string from current value
-	str := extractText(v.context.Current)
+	// Extract string from current value — join []string with newlines
+	var str string
+	switch val := v.context.Current.(type) {
+	case string:
+		str = val
+	case []string:
+		str = strings.Join(val, "\n\n")
+	default:
+		str = extractText(v.context.Current)
+	}
+
 	if str == "" {
 		return nil, fmt.Errorf("Error: .%s requires a non-empty string value, got %T\nUsage: .text | %s | .headings", name, v.context.Current, name)
 	}
