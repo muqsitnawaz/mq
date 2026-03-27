@@ -275,13 +275,27 @@ func extractObjectStructure(obj map[string]interface{}, level int) ([]*mq.Headin
 		}
 		headings = append(headings, h)
 
-		s := &mq.Section{Heading: h}
+		var s *mq.Section
 
-		// Recurse into nested objects
-		if nested, ok := value.(map[string]interface{}); ok && level < 4 {
-			childHeadings, childSections := extractObjectStructure(nested, level+1)
-			headings = append(headings, childHeadings...)
-			s.Children = childSections
+		switch v := value.(type) {
+		case map[string]interface{}:
+			// Recurse into nested objects
+			if level < 4 {
+				s = &mq.Section{Heading: h}
+				childHeadings, childSections := extractObjectStructure(v, level+1)
+				headings = append(headings, childHeadings...)
+				s.Children = childSections
+			} else {
+				text := mq.FlattenStructuredData(v)
+				s = mq.NewSectionWithSource(h, 1, strings.Count(text, "\n")+1, []byte(text))
+			}
+		case string:
+			// Store string value as section source so .text and format casts work
+			s = mq.NewSectionWithSource(h, 1, strings.Count(v, "\n")+1, []byte(v))
+		default:
+			// Scalars: format as string
+			text := fmt.Sprintf("%v", value)
+			s = mq.NewSectionWithSource(h, 1, 1, []byte(text))
 		}
 
 		sections = append(sections, s)
