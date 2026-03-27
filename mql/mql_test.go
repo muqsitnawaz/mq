@@ -349,6 +349,18 @@ startxref
 	assert.False(t, strings.HasPrefix(text, "&{"), "expected readable text, got struct dump")
 }
 
+func TestRemovedRecordSelector(t *testing.T) {
+	engine := mql.New()
+	defer engine.Close()
+
+	doc, err := engine.ParseDocument([]byte(`{"event":"x"}`), "events.jsonl")
+	require.NoError(t, err)
+
+	_, err = engine.Query(doc, `.record(1)`)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "unknown selector: .record")
+}
+
 func TestSearchPipelineOnJSONL(t *testing.T) {
 	jsonl := strings.Join([]string{
 		`{"event":"tool_use_start","message":"first tool_use event"}`,

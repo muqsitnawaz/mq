@@ -320,6 +320,127 @@ func TestDirChangedIgnoresHiddenFiles(t *testing.T) {
 	assert.False(t, c.DirChanged(dir))
 }
 
+func TestCacheStoreAndLookupDirSearch(t *testing.T) {
+	c := newTestCache(t)
+	dir := t.TempDir()
+	writeTestFile(t, dir, "guide.md", "# Guide\n\nNeedle in docs.\n")
+
+	results := &mq.SearchResults{
+		Query: "needle",
+		Matches: []*mq.SearchResult{
+			{
+				File:    filepath.Join(dir, "guide.md"),
+				Section: "Guide",
+				Lines:   "1-3",
+				Match:   "Needle in docs.",
+			},
+		},
+	}
+
+	_, dirHash, ok := c.LookupDirSearch(dir, "needle")
+	assert.False(t, ok)
+	require.NotEmpty(t, dirHash)
+	require.NoError(t, c.StoreDirSearch(dir, "needle", dirHash, results))
+
+	cached, _, ok := c.LookupDirSearch(dir, "NEEDLE")
+	require.True(t, ok)
+	require.NotNil(t, cached)
+	require.Len(t, cached.Matches, 1)
+	assert.Equal(t, "NEEDLE", cached.Query)
+	assert.Equal(t, results.Matches[0].File, cached.Matches[0].File)
+	assert.Equal(t, results.Matches[0].Match, cached.Matches[0].Match)
+}
+
+func TestCacheDirSearchInvalidatedOnDirChange(t *testing.T) {
+	c := newTestCache(t)
+	dir := t.TempDir()
+	writeTestFile(t, dir, "guide.md", "# Guide\n\nNeedle in docs.\n")
+
+	results := &mq.SearchResults{
+		Query: "needle",
+		Matches: []*mq.SearchResult{
+			{
+				File:    filepath.Join(dir, "guide.md"),
+				Section: "Guide",
+				Lines:   "1-3",
+				Match:   "Needle in docs.",
+			},
+		},
+	}
+
+	_, dirHash, ok := c.LookupDirSearch(dir, "needle")
+	assert.False(t, ok)
+	require.NoError(t, c.StoreDirSearch(dir, "needle", dirHash, results))
+
+	time.Sleep(10 * time.Millisecond)
+	writeTestFile(t, dir, "added.md", "# Added\n\nFresh content.\n")
+
+	cached, _, ok := c.LookupDirSearch(dir, "needle")
+	assert.False(t, ok)
+	assert.Nil(t, cached)
+}
+
+func TestCacheStoreAndLookupFileSearch(t *testing.T) {
+	c := newTestCache(t)
+	dir := t.TempDir()
+	path := writeTestFile(t, dir, "events.jsonl", "{\"message\":\"needle found\"}\n")
+	info, err := os.Stat(path)
+	require.NoError(t, err)
+
+	results := &mq.SearchResults{
+		Query: "needle",
+		Matches: []*mq.SearchResult{
+			{
+				File:    path,
+				Section: "message",
+				Lines:   "1",
+				Match:   "needle found",
+				Text:    "{\"message\":\"needle found\"}",
+			},
+		},
+	}
+
+	assert.Nil(t, c.LookupFileSearch(path, "needle", info))
+	require.NoError(t, c.StoreFileSearch(path, "needle", info, results))
+
+	cached := c.LookupFileSearch(path, "NEEDLE", info)
+	require.NotNil(t, cached)
+	require.Len(t, cached.Matches, 1)
+	assert.Equal(t, "NEEDLE", cached.Query)
+	assert.Equal(t, path, cached.Matches[0].File)
+	assert.Equal(t, "needle found", cached.Matches[0].Match)
+}
+
+func TestCacheFileSearchInvalidatedOnFileChange(t *testing.T) {
+	c := newTestCache(t)
+	dir := t.TempDir()
+	path := writeTestFile(t, dir, "events.jsonl", "{\"message\":\"needle found\"}\n")
+	info, err := os.Stat(path)
+	require.NoError(t, err)
+
+	results := &mq.SearchResults{
+		Query: "needle",
+		Matches: []*mq.SearchResult{
+			{
+				File:    path,
+				Section: "message",
+				Lines:   "1",
+				Match:   "needle found",
+			},
+		},
+	}
+
+	require.NoError(t, c.StoreFileSearch(path, "needle", info, results))
+	require.NotNil(t, c.LookupFileSearch(path, "needle", info))
+
+	time.Sleep(10 * time.Millisecond)
+	require.NoError(t, os.WriteFile(path, []byte("{\"message\":\"updated\"}\n"), 0o644))
+	updatedInfo, err := os.Stat(path)
+	require.NoError(t, err)
+
+	assert.Nil(t, c.LookupFileSearch(path, "needle", updatedInfo))
+}
+
 // -------------------------------------------------------------------
 // Eviction
 // -------------------------------------------------------------------
