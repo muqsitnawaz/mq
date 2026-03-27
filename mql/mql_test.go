@@ -281,6 +281,14 @@ func TestQueryExecution(t *testing.T) {
 			},
 			desc: "get metadata",
 		},
+		{
+			query: ".text",
+			validate: func(result interface{}) bool {
+				text, ok := result.(string)
+				return ok && strings.Contains(text, "Section One") && !strings.HasPrefix(text, "&{")
+			},
+			desc: "document-level .text returns readable text, not struct dump",
+		},
 	}
 
 	for _, test := range tests {
