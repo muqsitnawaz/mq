@@ -151,6 +151,36 @@ func TestGetSections(t *testing.T) {
 	}
 }
 
+func TestGetSectionSubstringMatch(t *testing.T) {
+	engine := mq.New()
+	doc, err := engine.ParseDocument([]byte(testMarkdown), "test.md")
+	require.NoError(t, err)
+
+	// Case-insensitive exact match
+	section, ok := doc.GetSection("authentication")
+	assert.True(t, ok, "case-insensitive exact match should work")
+	assert.Equal(t, "Authentication", section.Heading.Text)
+
+	// Substring match: "Rate" should match "Rate Limiting"
+	section, ok = doc.GetSection("Rate")
+	assert.True(t, ok, "substring match should work")
+	assert.Equal(t, "Rate Limiting", section.Heading.Text)
+
+	// Substring match: "Getting" should match "Getting Started"
+	section, ok = doc.GetSection("Getting")
+	assert.True(t, ok, "substring match on subsection should work")
+	assert.Equal(t, "Getting Started", section.Heading.Text)
+
+	// Exact match still takes priority over substring
+	section, ok = doc.GetSection("Authentication")
+	assert.True(t, ok)
+	assert.Equal(t, "Authentication", section.Heading.Text)
+
+	// No match at all
+	_, ok = doc.GetSection("Nonexistent Section")
+	assert.False(t, ok, "should not match nonexistent section")
+}
+
 func TestGetCodeBlocks(t *testing.T) {
 	engine := mq.New()
 	doc, err := engine.ParseDocument([]byte(testMarkdown), "test.md")
