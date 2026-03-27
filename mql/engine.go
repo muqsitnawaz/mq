@@ -2,6 +2,7 @@ package mql
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/muqsitnawaz/mq/data"
 	"github.com/muqsitnawaz/mq/html"
@@ -77,6 +78,36 @@ func (e *Engine) LoadDocument(path string) (*mq.Document, error) {
 	}
 
 	return doc, nil
+}
+
+// LoadDocumentBytes loads and parses already-read content.
+func (e *Engine) LoadDocumentBytes(path string, content []byte, info os.FileInfo) (*mq.Document, error) {
+	if e.cache != nil {
+		if doc := e.cache.LookupFileWithContent(path, content, info); doc != nil {
+			return doc, nil
+		}
+	}
+
+	doc, err := e.multiEngine.Parse(content, path)
+	if err != nil {
+		return nil, err
+	}
+
+	if e.cache != nil && info != nil {
+		e.cache.StoreFile(path, content, info, doc)
+	}
+
+	return doc, nil
+}
+
+// SearchCache exposes the persistent cache for directory search.
+func (e *Engine) SearchCache() *mq.Cache {
+	return e.cache
+}
+
+// SearchDir searches a directory using the engine's cache-aware fast path.
+func (e *Engine) SearchDir(dirPath string, query string) (*mq.SearchResults, error) {
+	return mq.SearchDirWithExecutor(dirPath, query, e)
 }
 
 // Close releases cache resources. Call when the engine is no longer needed.

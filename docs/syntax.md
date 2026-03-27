@@ -158,7 +158,7 @@ mq docs/ ".search('authentication')"
 mq docs/auth.md ".section('OAuth Flow') | .code('javascript')"
 ```
 
-### JSONL: Search then Drill In
+### JSONL: Search then Expand
 ```bash
 # Search returns line numbers with record type context
 mq session.jsonl ".search('error')"
@@ -166,7 +166,10 @@ mq session.jsonl ".search('error')"
 #     ts: 2026-02-01T20:25:38Z
 #     > ...command failed with error...
 
-# Drill into the matching record
+# Expand all matching records
+mq session.jsonl ".search('error') | .text"
+
+# Narrow to one matching record only if needed
 mq session.jsonl ".search('error') | .nth(0) | .text"
 ```
 

@@ -8,8 +8,10 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
+	"sync"
 )
 
 // TreeOptions controls tree traversal bounds.
@@ -302,6 +304,28 @@ type SearchTreeMatch struct {
 
 type documentLoaderFunc func(path string) (*Document, error)
 
+// SearchExecutor provides the optimized directory-search hooks used by MQL.
+type SearchExecutor interface {
+	LoadDocumentBytes(path string, content []byte, info os.FileInfo) (*Document, error)
+	SearchCache() *Cache
+}
+
+type searchCandidate struct {
+	index int
+	path  string
+	info  os.FileInfo
+}
+
+type scannedSearchCandidate struct {
+	index   int
+	path    string
+	info    os.FileInfo
+	format  Format
+	cached  *SearchResults
+	raw     []byte
+	matched bool
+}
+
 var traversalExtensions = map[string]struct{}{
 	".md":       {},
 	".markdown": {},
@@ -411,6 +435,15 @@ func (d *Document) searchJSONL(query string) *SearchResults {
 	}
 
 	return results
+}
+
+func searchJSONLContent(path string, content []byte, query string) *SearchResults {
+	doc := &Document{
+		source: content,
+		path:   path,
+		format: FormatJSONL,
+	}
+	return doc.searchJSONL(query)
 }
 
 // jsonlRecordInfo extracts a label and key fields from a JSONL record.
@@ -746,6 +779,168 @@ func SearchDirWithLoader(dirPath string, query string, load documentLoaderFunc) 
 	})
 
 	return results, err
+}
+
+// SearchDirWithExecutor searches a directory using an executor that can reuse
+// already-read bytes and access the persistent cache.
+func SearchDirWithExecutor(dirPath string, query string, executor SearchExecutor) (*SearchResults, error) {
+	results := &SearchResults{Query: query}
+	queryLower := strings.ToLower(query)
+	cache := executor.SearchCache()
+	var currentDirHash string
+
+	if cache != nil {
+		if cached, dirHash, ok := cache.LookupDirSearch(dirPath, query); ok {
+			return cached, nil
+		} else {
+			currentDirHash = dirHash
+		}
+	}
+
+	candidates, err := collectSearchCandidates(dirPath)
+	if err != nil {
+		return nil, err
+	}
+	if len(candidates) == 0 {
+		if cache != nil {
+			_ = cache.StoreDirSearch(dirPath, query, currentDirHash, results)
+		}
+		return results, nil
+	}
+
+	scanned := make([]scannedSearchCandidate, len(candidates))
+	jobs := make(chan searchCandidate)
+	outcomes := make(chan scannedSearchCandidate, len(candidates))
+
+	var wg sync.WaitGroup
+	workerCount := searchWorkerCount(len(candidates))
+	for i := 0; i < workerCount; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for candidate := range jobs {
+				outcomes <- scanSearchCandidate(candidate, query, queryLower, cache)
+			}
+		}()
+	}
+
+	go func() {
+		for _, candidate := range candidates {
+			jobs <- candidate
+		}
+		close(jobs)
+		wg.Wait()
+		close(outcomes)
+	}()
+
+	for outcome := range outcomes {
+		scanned[outcome.index] = outcome
+	}
+
+	for _, outcome := range scanned {
+		if outcome.cached != nil {
+			results.Matches = append(results.Matches, outcome.cached.Matches...)
+			continue
+		}
+
+		fileResults := &SearchResults{Query: query}
+		if outcome.matched {
+			switch outcome.format {
+			case FormatJSONL:
+				fileResults = searchJSONLContent(outcome.path, outcome.raw, query)
+			default:
+				doc, err := executor.LoadDocumentBytes(outcome.path, outcome.raw, outcome.info)
+				if err != nil {
+					continue
+				}
+				fileResults = doc.Search(query)
+			}
+			results.Matches = append(results.Matches, fileResults.Matches...)
+		}
+
+		if cache != nil {
+			_ = cache.StoreFileSearch(outcome.path, query, outcome.info, fileResults)
+		}
+	}
+
+	if cache != nil {
+		_ = cache.StoreDirSearch(dirPath, query, currentDirHash, results)
+	}
+
+	return results, nil
+}
+
+func collectSearchCandidates(dirPath string) ([]searchCandidate, error) {
+	var candidates []searchCandidate
+	err := filepath.WalkDir(dirPath, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return nil
+		}
+		if d.IsDir() || !isTraversalFile(path) {
+			return nil
+		}
+		if strings.HasPrefix(d.Name(), ".") {
+			return nil
+		}
+
+		info, err := d.Info()
+		if err != nil {
+			return nil
+		}
+
+		candidates = append(candidates, searchCandidate{
+			index: len(candidates),
+			path:  path,
+			info:  info,
+		})
+		return nil
+	})
+	return candidates, err
+}
+
+func scanSearchCandidate(candidate searchCandidate, query string, queryLower string, cache *Cache) scannedSearchCandidate {
+	outcome := scannedSearchCandidate{
+		index: candidate.index,
+		path:  candidate.path,
+		info:  candidate.info,
+	}
+
+	if cache != nil {
+		if cached := cache.LookupFileSearch(candidate.path, query, candidate.info); cached != nil {
+			outcome.cached = cached
+			return outcome
+		}
+	}
+
+	raw, err := os.ReadFile(candidate.path)
+	if err != nil {
+		return outcome
+	}
+	if !strings.Contains(strings.ToLower(string(raw)), queryLower) {
+		return outcome
+	}
+
+	outcome.raw = raw
+	outcome.matched = true
+	outcome.format = DetectFormat(candidate.path, raw)
+	return outcome
+}
+
+func searchWorkerCount(total int) int {
+	if total <= 1 {
+		return 1
+	}
+	workers := runtime.GOMAXPROCS(0)
+	if workers < 2 {
+		workers = 2
+	}
+	if workers > 8 {
+		workers = 8
+	}
+	if total < workers {
+		return total
+	}
+	return workers
 }
 
 // DirHeading represents a heading with optional preview.
