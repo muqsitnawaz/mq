@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.3.7] - 2026-03-27
+
+### Improved
+
+- Rewrote `--help` output to lead with **when to use mq** (triage directories, extract from large files, search across documents) instead of listing syntax. Agents now see decision criteria first.
+- Added WORKFLOW section (Map / Narrow / Extract) showing the incremental exploration pattern.
+- Added SCALE section noting sub-second performance on hundreds of files.
+- Called out supported formats (Markdown, HTML, PDF) on the second line.
+- Added short-circuit guidance: files under 100 lines, just read them directly.
+
 ## [0.3.6] - 2026-03-27
 
 ### Documentation
