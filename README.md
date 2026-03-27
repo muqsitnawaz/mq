@@ -120,7 +120,7 @@ mq data.yaml '.text'            # Readable representation
 
 # JSONL - search logs and session files
 mq session.jsonl '.search("auth")'  # Line-level search with record context
-mq session.jsonl '.record(7)'       # Pretty-print specific record
+mq session.jsonl '.search("auth") | .nth(0) | .text'  # Expand one matched record
 ```
 
 ## Why This Works
@@ -343,9 +343,6 @@ mq sessions/ ".search('requires OAuth') | .tree"
 
 # Pick one matched record (0-based), jq-style
 mq session.jsonl ".search('auth') | .nth(0) | .text"
-
-# Direct line lookup when you already know the JSONL line number
-mq session.jsonl ".record(3)"
 ```
 
 ### Extract Content
@@ -402,7 +399,6 @@ The query language stays the same across formats. What changes is the structure 
 | `.tree` | Document structure (adapts to file vs directory) |
 | `.search("term")` | Find sections containing term (JSONL: line-level) |
 | `.nth(N)` | Pick the Nth item from current results (0-based) |
-| `.record(N)` | Get JSONL record at line N directly (pretty-printed) |
 | `.section("name")` | Section by heading |
 | `.sections` | All sections |
 | `.headings` | All headings |

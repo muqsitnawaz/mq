@@ -1,11 +1,6 @@
 package mq
 
 import (
-	"bufio"
-	"bytes"
-	"encoding/json"
-	"fmt"
-	"strings"
 	"sync"
 
 	"github.com/yuin/goldmark/ast"
@@ -401,43 +396,4 @@ func (d *Document) GetTableOfContents() []*Section {
 // Walk traverses the document AST with a visitor function.
 func (d *Document) Walk(visitor func(ast.Node, bool) (ast.WalkStatus, error)) error {
 	return ast.Walk(d.root, visitor)
-}
-
-// GetRecord returns a specific line from a JSONL file, parsed and pretty-printed.
-// Line numbers are 1-based (matching search output).
-func (d *Document) GetRecord(lineNum int) (string, error) {
-	if d.format != FormatJSONL {
-		return "", fmt.Errorf(".record() only works on JSONL files, this is %s", d.format)
-	}
-	if lineNum < 1 {
-		return "", fmt.Errorf("line number must be >= 1, got %d", lineNum)
-	}
-
-	scanner := bufio.NewScanner(bytes.NewReader(d.source))
-	scanner.Buffer(make([]byte, 1024*1024), 10*1024*1024)
-
-	current := 0
-	for scanner.Scan() {
-		current++
-		if current == lineNum {
-			line := strings.TrimSpace(scanner.Text())
-			if line == "" {
-				return "", fmt.Errorf("line %d is empty", lineNum)
-			}
-
-			// Parse and pretty-print
-			var obj interface{}
-			if err := json.Unmarshal([]byte(line), &obj); err != nil {
-				return line, nil // Return raw line if not valid JSON
-			}
-
-			pretty, err := json.MarshalIndent(obj, "", "  ")
-			if err != nil {
-				return line, nil
-			}
-			return string(pretty), nil
-		}
-	}
-
-	return "", fmt.Errorf("line %d not found (file has %d lines)", lineNum, current)
 }

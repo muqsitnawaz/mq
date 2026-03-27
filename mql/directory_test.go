@@ -687,6 +687,28 @@ func TestSearchDirCacheRoundtrip(t *testing.T) {
 	engine2.Close()
 }
 
+func TestSearchDirCacheInvalidatesOnFileChange(t *testing.T) {
+	dir := t.TempDir()
+
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "guide.md"), []byte(
+		"# Deployment Guide\n\nDeployment steps live here.\n",
+	), 0o644))
+
+	results1, err := mql.SearchDir(dir, "deployment")
+	require.NoError(t, err)
+	require.Len(t, results1.Matches, 1)
+	require.Equal(t, "guide.md", filepath.Base(results1.Matches[0].File))
+
+	time.Sleep(10 * time.Millisecond)
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "guide.md"), []byte(
+		"# Deployment Guide\n\nThis file no longer mentions rollout details.\n",
+	), 0o644))
+
+	results2, err := mql.SearchDir(dir, "deployment")
+	require.NoError(t, err)
+	assert.Empty(t, results2.Matches)
+}
+
 func TestSearchExcludesUnsupportedFormats(t *testing.T) {
 	dir := t.TempDir()
 
