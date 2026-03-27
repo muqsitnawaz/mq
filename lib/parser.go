@@ -84,6 +84,7 @@ func (p *Parser) Parse(source []byte, path string) (*Document, error) {
 		path:            path,
 		format:          FormatMarkdown,
 		root:            node,
+		readableText:    string(source),
 		headingIndex:    make(map[string]*Heading),
 		headingsByLevel: make(map[int][]*Heading),
 		sectionIndex:    make(map[string]*Section),
