@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	mq "github.com/muqsitnawaz/mq/lib"
 	"github.com/muqsitnawaz/mq/mql"
@@ -667,7 +668,7 @@ func TestSearchDirCacheRoundtrip(t *testing.T) {
 
 	// Run 1: cold cache — engine is created, used, and closed (simulates CLI exit)
 	engine1 := mql.New()
-	results1, err := mq.SearchDirWithLoader(dir, "deployment", engine1.LoadDocument)
+	results1, err := engine1.SearchDir(dir, "deployment")
 	require.NoError(t, err)
 	files1 := searchFiles(results1)
 	require.Contains(t, files1, "guide.md", "cold cache should find guide.md")
@@ -678,7 +679,7 @@ func TestSearchDirCacheRoundtrip(t *testing.T) {
 
 	// Run 2: warm cache — new engine opens the same cache DB
 	engine2 := mql.New()
-	results2, err := mq.SearchDirWithLoader(dir, "deployment", engine2.LoadDocument)
+	results2, err := engine2.SearchDir(dir, "deployment")
 	require.NoError(t, err)
 	files2 := searchFiles(results2)
 	assert.Contains(t, files2, "guide.md", "warm cache should still find guide.md")
@@ -701,7 +702,7 @@ func TestSearchDirCacheInvalidatesOnFileChange(t *testing.T) {
 
 	time.Sleep(10 * time.Millisecond)
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "guide.md"), []byte(
-		"# Deployment Guide\n\nThis file no longer mentions rollout details.\n",
+		"# Operations Guide\n\nThis file no longer mentions rollout details.\n",
 	), 0o644))
 
 	results2, err := mql.SearchDir(dir, "deployment")

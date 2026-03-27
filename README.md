@@ -120,7 +120,8 @@ mq data.yaml '.text'            # Readable representation
 
 # JSONL - search logs and session files
 mq session.jsonl '.search("auth")'  # Line-level search with record context
-mq session.jsonl '.search("auth") | .nth(0) | .text'  # Expand one matched record
+mq session.jsonl '.search("auth") | .text'  # Expand all matched records
+mq session.jsonl '.search("auth") | .nth(0) | .text'  # Narrow to one matched record
 ```
 
 ## Why This Works
@@ -341,7 +342,7 @@ mq session.jsonl ".search('auth') | .text"
 # Tree view of matched records
 mq sessions/ ".search('requires OAuth') | .tree"
 
-# Pick one matched record (0-based), jq-style
+# Pick one matched record only if you need to narrow (0-based), jq-style
 mq session.jsonl ".search('auth') | .nth(0) | .text"
 ```
 

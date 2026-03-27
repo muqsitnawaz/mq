@@ -17,7 +17,8 @@ Documents → mq query → Structure enters your context → You reason → Resu
 1. See structure    →  mq <path> .tree            → Map enters your context
 2. Find relevant    →  mq <path> ".search('x')"   → Locations enter your context
 3. Extract content  →  mq <path> ".section('Y') | .text"  → Content enters your context
-                       mq <path> ".search('x') | .nth(0) | .text" → Expand one result
+                       mq <path> ".search('x') | .text" → Expand matched results
+                       mq <path> ".search('x') | .nth(0) | .text" → Narrow to one result
 4. Reason           →  You compute the answer from what's now in your context
 ```
 
@@ -40,7 +41,8 @@ mq file.md ".section('Name') | .text"   # Get section content
 mq file.md ".code('python')"            # Get code blocks by language
 mq file.md .links                       # Get all links
 mq file.md .metadata                    # Get YAML frontmatter
-mq log.jsonl ".search('error') | .nth(0) | .text"  # Expand one matching record
+mq log.jsonl ".search('error') | .text"            # Expand matching records
+mq log.jsonl ".search('error') | .nth(0) | .text"  # Narrow to one matching record
 ```
 
 ## Efficient Workflow
@@ -154,7 +156,8 @@ mq session.jsonl ".search('deploy')"  # Line-level matches with record type
 # → [line 8] assistant/tool_use: Bash
 #     ts: 2026-02-01T20:25:34Z
 
-mq session.jsonl ".search('deploy') | .nth(1) | .text"  # Full pretty-printed JSON of that record
+mq session.jsonl ".search('deploy') | .text"           # Full pretty-printed JSON of matching records
+mq session.jsonl ".search('deploy') | .nth(1) | .text" # Narrow to one matching record
 ```
 
 ### "Find how authentication works"

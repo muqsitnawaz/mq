@@ -17,10 +17,12 @@ import (
 
 // Cache bucket names.
 var (
-	bucketMeta      = []byte("meta")
-	bucketFiles     = []byte("files")
-	bucketDirs      = []byte("dirs")
-	bucketDocuments = []byte("documents")
+	bucketMeta       = []byte("meta")
+	bucketFiles      = []byte("files")
+	bucketDirs       = []byte("dirs")
+	bucketDocuments  = []byte("documents")
+	bucketDirSearch  = []byte("dir_search")
+	bucketFileSearch = []byte("file_search")
 )
 
 const (
@@ -65,6 +67,28 @@ type cachedDocument struct {
 	Tables       []cachedTable          `msgpack:"tb"`
 	Lists        []cachedList           `msgpack:"ls"`
 	Metadata     map[string]interface{} `msgpack:"md"`
+}
+
+type cachedSearchResult struct {
+	File    string   `msgpack:"f"`
+	Section string   `msgpack:"s"`
+	Lines   string   `msgpack:"l"`
+	Match   string   `msgpack:"m"`
+	Fields  []string `msgpack:"fs"`
+	Text    string   `msgpack:"t"`
+}
+
+type cachedDirSearch struct {
+	DirHash  string               `msgpack:"h"`
+	Results  []cachedSearchResult `msgpack:"r"`
+	LastUsed int64                `msgpack:"u"`
+}
+
+type cachedFileSearch struct {
+	Mtime    int64                `msgpack:"m"`
+	Size     int64                `msgpack:"s"`
+	Results  []cachedSearchResult `msgpack:"r"`
+	LastUsed int64                `msgpack:"u"`
 }
 
 type cachedHeading struct {
@@ -159,7 +183,7 @@ func OpenCache(path string) (*Cache, error) {
 
 func (c *Cache) init() error {
 	return c.db.Update(func(tx *bolt.Tx) error {
-		for _, name := range [][]byte{bucketMeta, bucketFiles, bucketDirs, bucketDocuments} {
+		for _, name := range [][]byte{bucketMeta, bucketFiles, bucketDirs, bucketDocuments, bucketDirSearch, bucketFileSearch} {
 			if _, err := tx.CreateBucketIfNotExists(name); err != nil {
 				return err
 			}
@@ -170,7 +194,7 @@ func (c *Cache) init() error {
 		v := meta.Get([]byte("version"))
 		if v != nil && string(v) != cacheSchemaVersion {
 			// Schema changed — clear all data buckets
-			for _, name := range [][]byte{bucketFiles, bucketDirs, bucketDocuments} {
+			for _, name := range [][]byte{bucketFiles, bucketDirs, bucketDocuments, bucketDirSearch, bucketFileSearch} {
 				b := tx.Bucket(name)
 				c := b.Cursor()
 				for k, _ := c.First(); k != nil; k, _ = c.Next() {
@@ -209,9 +233,20 @@ func (c *Cache) LookupFile(path string) *Document {
 		return nil
 	}
 
+	return c.LookupFileWithContent(path, source, info)
+}
+
+// LookupFileWithContent checks if a file's parsed Document is cached using bytes
+// already read by the caller.
+func (c *Cache) LookupFileWithContent(path string, content []byte, info os.FileInfo) *Document {
+	if info == nil {
+		return nil
+	}
+
 	pathKey := pathHash(path)
 
 	var contentHash string
+	statMatched := false
 	c.db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket(bucketFiles)
 		data := b.Get(pathKey)
@@ -225,34 +260,26 @@ func (c *Cache) LookupFile(path string) *Document {
 		// Fast path: if mtime and size match, trust the cached content hash
 		if fm.Mtime == info.ModTime().UnixNano() && fm.Size == info.Size() {
 			contentHash = fm.ContentHash
+			statMatched = true
 		}
 		return nil
 	})
 
 	if contentHash == "" {
-		return nil
+		contentHash = ContentHash(content)
 	}
 
-	return c.lookupDocument(contentHash, source, path)
+	doc := c.lookupDocument(contentHash, content, path)
+	if doc != nil && !statMatched {
+		_ = c.storeFileMeta(path, contentHash, info)
+	}
+	return doc
 }
 
 // StoreFile caches a parsed Document for a file.
 // info must be from the same read as content to avoid TOCTOU races.
 func (c *Cache) StoreFile(path string, content []byte, info os.FileInfo, doc *Document) error {
 	contentHash := ContentHash(content)
-	pathKey := pathHash(path)
-
-	// Store file metadata
-	fm := fileMeta{
-		Mtime:       info.ModTime().UnixNano(),
-		Size:        info.Size(),
-		ContentHash: contentHash,
-		LastUsed:    time.Now().Unix(),
-	}
-	fmData, err := msgpack.Marshal(&fm)
-	if err != nil {
-		return fmt.Errorf("marshal file meta: %w", err)
-	}
 
 	// Store document
 	cd := documentToCache(doc)
@@ -262,7 +289,7 @@ func (c *Cache) StoreFile(path string, content []byte, info os.FileInfo, doc *Do
 	}
 
 	return c.db.Update(func(tx *bolt.Tx) error {
-		if err := tx.Bucket(bucketFiles).Put(pathKey, fmData); err != nil {
+		if err := c.putFileMeta(tx, path, contentHash, info, time.Now().Unix()); err != nil {
 			return err
 		}
 		return tx.Bucket(bucketDocuments).Put([]byte(contentHash), cdData)
@@ -304,6 +331,191 @@ func (c *Cache) lookupDocument(contentHash string, source []byte, filePath strin
 	}
 
 	return doc
+}
+
+func (c *Cache) storeFileMeta(path string, contentHash string, info os.FileInfo) error {
+	return c.db.Update(func(tx *bolt.Tx) error {
+		return c.putFileMeta(tx, path, contentHash, info, time.Now().Unix())
+	})
+}
+
+func (c *Cache) putFileMeta(tx *bolt.Tx, path string, contentHash string, info os.FileInfo, lastUsed int64) error {
+	fm := fileMeta{
+		Mtime:       info.ModTime().UnixNano(),
+		Size:        info.Size(),
+		ContentHash: contentHash,
+		LastUsed:    lastUsed,
+	}
+	fmData, err := msgpack.Marshal(&fm)
+	if err != nil {
+		return fmt.Errorf("marshal file meta: %w", err)
+	}
+	return tx.Bucket(bucketFiles).Put(pathHash(path), fmData)
+}
+
+// LookupDirSearch returns cached directory search results if the directory hash
+// still matches the current on-disk tree.
+func (c *Cache) LookupDirSearch(dirPath string, query string) (*SearchResults, string, bool) {
+	currentHash := c.computeDirHash(dirPath)
+	if currentHash == "" {
+		return nil, "", false
+	}
+
+	key := searchKey(dirPath, query)
+	var results *SearchResults
+	c.db.View(func(tx *bolt.Tx) error {
+		data := tx.Bucket(bucketDirSearch).Get(key)
+		if data == nil {
+			return nil
+		}
+		var cached cachedDirSearch
+		if err := msgpack.Unmarshal(data, &cached); err != nil {
+			return nil
+		}
+		if cached.DirHash != currentHash {
+			return nil
+		}
+		results = cacheToSearchResults(query, cached.Results)
+		return nil
+	})
+
+	if results != nil {
+		c.touchDirSearch(key)
+		return results, currentHash, true
+	}
+	return nil, currentHash, false
+}
+
+// StoreDirSearch stores search results for a directory hash and query.
+func (c *Cache) StoreDirSearch(dirPath string, query string, dirHash string, results *SearchResults) error {
+	if dirHash == "" {
+		dirHash = c.computeDirHash(dirPath)
+	}
+	if dirHash == "" {
+		return nil
+	}
+
+	entry := cachedDirSearch{
+		DirHash:  dirHash,
+		Results:  searchResultsToCache(results),
+		LastUsed: time.Now().Unix(),
+	}
+	data, err := msgpack.Marshal(&entry)
+	if err != nil {
+		return fmt.Errorf("marshal dir search: %w", err)
+	}
+
+	if err := c.db.Update(func(tx *bolt.Tx) error {
+		return tx.Bucket(bucketDirSearch).Put(searchKey(dirPath, query), data)
+	}); err != nil {
+		return err
+	}
+
+	return c.storeDirHash(dirPath, dirHash)
+}
+
+// LookupFileSearch returns cached per-file search results if the file stat still matches.
+func (c *Cache) LookupFileSearch(path string, query string, info os.FileInfo) *SearchResults {
+	if info == nil {
+		return nil
+	}
+
+	key := searchKey(path, query)
+	var results *SearchResults
+	c.db.View(func(tx *bolt.Tx) error {
+		data := tx.Bucket(bucketFileSearch).Get(key)
+		if data == nil {
+			return nil
+		}
+		var cached cachedFileSearch
+		if err := msgpack.Unmarshal(data, &cached); err != nil {
+			return nil
+		}
+		if cached.Mtime != info.ModTime().UnixNano() || cached.Size != info.Size() {
+			return nil
+		}
+		results = cacheToSearchResults(query, cached.Results)
+		return nil
+	})
+
+	if results != nil {
+		c.touchFileSearch(key)
+	}
+	return results
+}
+
+// StoreFileSearch stores per-file search results keyed by path and query.
+func (c *Cache) StoreFileSearch(path string, query string, info os.FileInfo, results *SearchResults) error {
+	if info == nil {
+		return nil
+	}
+
+	entry := cachedFileSearch{
+		Mtime:    info.ModTime().UnixNano(),
+		Size:     info.Size(),
+		Results:  searchResultsToCache(results),
+		LastUsed: time.Now().Unix(),
+	}
+	data, err := msgpack.Marshal(&entry)
+	if err != nil {
+		return fmt.Errorf("marshal file search: %w", err)
+	}
+
+	return c.db.Update(func(tx *bolt.Tx) error {
+		return tx.Bucket(bucketFileSearch).Put(searchKey(path, query), data)
+	})
+}
+
+func (c *Cache) touchDirSearch(key []byte) {
+	c.db.Update(func(tx *bolt.Tx) error {
+		b := tx.Bucket(bucketDirSearch)
+		data := b.Get(key)
+		if data == nil {
+			return nil
+		}
+		var cached cachedDirSearch
+		if err := msgpack.Unmarshal(data, &cached); err != nil {
+			return nil
+		}
+		cached.LastUsed = time.Now().Unix()
+		updated, _ := msgpack.Marshal(&cached)
+		return b.Put(key, updated)
+	})
+}
+
+func (c *Cache) touchFileSearch(key []byte) {
+	c.db.Update(func(tx *bolt.Tx) error {
+		b := tx.Bucket(bucketFileSearch)
+		data := b.Get(key)
+		if data == nil {
+			return nil
+		}
+		var cached cachedFileSearch
+		if err := msgpack.Unmarshal(data, &cached); err != nil {
+			return nil
+		}
+		cached.LastUsed = time.Now().Unix()
+		updated, _ := msgpack.Marshal(&cached)
+		return b.Put(key, updated)
+	})
+}
+
+func (c *Cache) storeDirHash(dirPath string, hash string) error {
+	if hash == "" {
+		return nil
+	}
+	dm := dirMeta{
+		Mtime:      time.Now().UnixNano(),
+		MerkleHash: hash,
+		LastUsed:   time.Now().Unix(),
+	}
+	data, err := msgpack.Marshal(&dm)
+	if err != nil {
+		return fmt.Errorf("marshal dir meta: %w", err)
+	}
+	return c.db.Update(func(tx *bolt.Tx) error {
+		return tx.Bucket(bucketDirs).Put(pathHash(dirPath), data)
+	})
 }
 
 // -------------------------------------------------------------------
@@ -472,6 +684,34 @@ func (c *Cache) Trim() error {
 			}
 		}
 
+		// Trim directory search results
+		dirSearch := tx.Bucket(bucketDirSearch)
+		dirCursor := dirSearch.Cursor()
+		for k, v := dirCursor.First(); k != nil; k, v = dirCursor.Next() {
+			var cached cachedDirSearch
+			if err := msgpack.Unmarshal(v, &cached); err != nil {
+				dirCursor.Delete()
+				continue
+			}
+			if cached.LastUsed < cutoff {
+				dirCursor.Delete()
+			}
+		}
+
+		// Trim file search results
+		fileSearch := tx.Bucket(bucketFileSearch)
+		fileCursor := fileSearch.Cursor()
+		for k, v := fileCursor.First(); k != nil; k, v = fileCursor.Next() {
+			var cached cachedFileSearch
+			if err := msgpack.Unmarshal(v, &cached); err != nil {
+				fileCursor.Delete()
+				continue
+			}
+			if cached.LastUsed < cutoff {
+				fileCursor.Delete()
+			}
+		}
+
 		// Remove documents whose content hash is no longer referenced
 		// by any file entry
 		if len(staleContentHashes) > 0 {
@@ -508,7 +748,7 @@ func (c *Cache) Stats() (files, dirs, docs int) {
 // Clear removes all cached data.
 func (c *Cache) Clear() error {
 	return c.db.Update(func(tx *bolt.Tx) error {
-		for _, name := range [][]byte{bucketFiles, bucketDirs, bucketDocuments} {
+		for _, name := range [][]byte{bucketFiles, bucketDirs, bucketDocuments, bucketDirSearch, bucketFileSearch} {
 			b := tx.Bucket(name)
 			c := b.Cursor()
 			for k, _ := c.First(); k != nil; k, _ = c.Next() {
@@ -558,6 +798,56 @@ func pathHash(path string) []byte {
 	}
 	h := sha256.Sum256([]byte(abs))
 	return h[:]
+}
+
+func searchKey(path string, query string) []byte {
+	abs, err := filepath.Abs(path)
+	if err != nil {
+		abs = path
+	}
+	h := sha256.Sum256([]byte(abs + "\x00" + normalizeSearchQuery(query)))
+	return h[:]
+}
+
+func normalizeSearchQuery(query string) string {
+	return strings.ToLower(query)
+}
+
+func searchResultsToCache(results *SearchResults) []cachedSearchResult {
+	if results == nil {
+		return nil
+	}
+
+	cached := make([]cachedSearchResult, 0, len(results.Matches))
+	for _, match := range results.Matches {
+		if match == nil {
+			continue
+		}
+		cached = append(cached, cachedSearchResult{
+			File:    match.File,
+			Section: match.Section,
+			Lines:   match.Lines,
+			Match:   match.Match,
+			Fields:  append([]string(nil), match.Fields...),
+			Text:    match.Text,
+		})
+	}
+	return cached
+}
+
+func cacheToSearchResults(query string, cached []cachedSearchResult) *SearchResults {
+	results := &SearchResults{Query: query}
+	for _, match := range cached {
+		results.Matches = append(results.Matches, &SearchResult{
+			File:    match.File,
+			Section: match.Section,
+			Lines:   match.Lines,
+			Match:   match.Match,
+			Fields:  append([]string(nil), match.Fields...),
+			Text:    match.Text,
+		})
+	}
+	return results
 }
 
 // -------------------------------------------------------------------
