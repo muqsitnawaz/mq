@@ -306,6 +306,53 @@ func TestQueryExecution(t *testing.T) {
 	}
 }
 
+func TestHeadingLevelSelectors(t *testing.T) {
+	mqEngine := mq.New()
+	doc, err := mqEngine.ParseDocument([]byte(testDoc), "test.md")
+	require.NoError(t, err)
+
+	engine := mql.New()
+
+	// .h2 with no args returns headings at level 2
+	result, err := engine.Query(doc, ".h2")
+	require.NoError(t, err)
+	headings, ok := result.([]*mq.Heading)
+	require.True(t, ok)
+	assert.Len(t, headings, 2) // Section One, Section Two
+
+	// .h2("Section One") returns the full section
+	result, err = engine.Query(doc, `.h2("Section One")`)
+	require.NoError(t, err)
+	section, ok := result.(*mq.Section)
+	require.True(t, ok)
+	assert.Equal(t, "Section One", section.Heading.Text)
+
+	// .h2("section") - case-insensitive prefix matches "Section One" (first in order)
+	result, err = engine.Query(doc, `.h2("section")`)
+	require.NoError(t, err)
+	section, ok = result.(*mq.Section)
+	require.True(t, ok)
+	assert.Equal(t, "Section One", section.Heading.Text)
+
+	// .h3("Sub") - prefix match on H3
+	result, err = engine.Query(doc, `.h3("Sub")`)
+	require.NoError(t, err)
+	section, ok = result.(*mq.Section)
+	require.True(t, ok)
+	assert.Equal(t, "Subsection", section.Heading.Text)
+
+	// .h3("Section One") - wrong level, should fail
+	_, err = engine.Query(doc, `.h3("Section One")`)
+	assert.Error(t, err, "H2 heading should not be found at level 3")
+
+	// .h2("Section One") | .text - pipe to text
+	result, err = engine.Query(doc, `.h2("Section One") | .text`)
+	require.NoError(t, err)
+	text, ok := result.(string)
+	require.True(t, ok)
+	assert.Contains(t, text, "first section")
+}
+
 func TestQueryExecutionPDFDocumentText(t *testing.T) {
 	minimalPDF := []byte(`%PDF-1.4
 1 0 obj
