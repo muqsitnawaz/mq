@@ -21,7 +21,7 @@ AI agents waste tokens reading entire files. mq lets them query structure first,
 |--------|------------|---------------------|
 | Markdown | `.md` | Headings, sections, code blocks, links, tables |
 | HTML | `.html`, `.htm` | Headings, readable content (Readability algorithm) |
-| PDF | `.pdf` | Headings (font-size inference), tables, text |
+| PDF | `.pdf` | Headings (font-size inference), page numbers, tables, text |
 | JSON | `.json` | Top-level keys as headings, nested structure |
 | JSONL | `.jsonl`, `.ndjson` | Line-level search, per-record drill-in |
 | YAML | `.yaml`, `.yml` | Keys as headings, nested structure |
@@ -32,19 +32,20 @@ When browsing directories, mq uses format-aware labels:
 
 ```bash
 $ mq project/ .tree
-project/ (5 files, 14 lines total)
+project/ (6 files)
 ├── config.json (12 lines, 3 keys)
 ├── config.yaml (15 lines, 4 keys)
 ├── README.md (80 lines, 5 sections)
+├── report.pdf (24 pages, 8 sections)
 ├── events.jsonl (100 lines, 98 records)
 └── index.html (45 lines, 3 sections)
 ```
 
-Trees show format-specific heading labels:
+Trees show format-specific heading labels and sizing:
 
 ```bash
 $ mq project/ .tree
-project/ (5 files)
+project/ (6 files)
 ├── config.json (12 lines, 3 keys)
 │   ├── key name
 │   └── key database
@@ -53,6 +54,11 @@ project/ (5 files)
 │   │        "Complete reference for..."
 │   └── ## Install
 │            "Run the install script..."
+├── report.pdf (24 pages, 8 sections)
+│   ├── H1 Introduction (p. 1)
+│   │        "This report covers Q4 results..."
+│   └── H2 Methodology (p. 5)
+│            "We used a mixed-methods approach..."
 ├── events.jsonl (100 lines, 98 records)
 └── index.html (45 lines, 3 sections)
     └── H1 Welcome
@@ -297,23 +303,26 @@ Use `mq` to query markdown files. Narrow down to a specific file/subdir first, t
 
 > **Shell quoting:** Examples use double quotes for the outer string (`"..."`), which works on all platforms including Windows. On macOS and Linux, single quotes also work: `mq doc.md '.section("API")'`.
 
+The same three-step pattern works on every format: **structure -> search -> extract**.
+
 ### See Structure
 
 ```bash
-# Document tree (headings, sections, previews)
+# Any single file
 mq README.md .tree
+mq paper.pdf .tree
+mq page.html .tree
 
-# Directory overview (all files with sections + previews)
+# Directory overview (all formats, with previews)
 mq docs/ .tree
 ```
 
 ### Search
 
 ```bash
-# Search in file
+# Works the same across formats
 mq README.md ".search('OAuth')"
-
-# Search across directory
+mq paper.pdf ".search('methodology')"
 mq docs/ ".search('authentication')"
 
 # JSONL: line-level search with record type + structure
@@ -329,16 +338,42 @@ mq session.jsonl ".record(3)"
 ### Extract Content
 
 ```bash
-# Get section content
+# Same selectors, any format
 mq doc.md ".section('API') | .text"
+mq paper.pdf ".section('Results') | .text"
+mq page.html ".section('Features') | .text"
 
-# Get code blocks
-mq doc.md ".code('python')"
-mq doc.md ".section('Examples') | .code('go')"
+# Format-specific content
+mq doc.md ".code('python')"                    # Code blocks (Markdown, HTML)
+mq doc.md ".section('Examples') | .code('go')" # Code within a section
+mq doc.md .links                                # Links
+mq doc.md .metadata                             # YAML frontmatter
 
-# Get links, metadata
-mq doc.md .links
-mq doc.md .metadata
+# Data formats
+mq config.json .tree                            # Keys as structure
+mq data.yaml ".section('database') | .text"     # YAML sections
+```
+
+### PDF-Specific Output
+
+PDFs show page numbers instead of line numbers:
+
+```bash
+$ mq paper.pdf .tree
+paper.pdf (12 pages)
+├── H1 Abstract (p. 1)
+│        "We propose a new architecture for..."
+├── H1 Introduction (p. 1)
+│        "Recent advances in deep learning..."
+├── H1 Methodology (p. 3)
+│        "Our approach builds on transformer..."
+│   ├── H2 Data Collection (p. 3)
+│   └── H2 Model Architecture (p. 5)
+└── H1 Results (p. 8)
+         "Table 1 shows the comparison..."
+
+$ mq paper.pdf ".section('Methodology') | .text"
+# Returns the full text of that section
 ```
 
 ## Query Language
