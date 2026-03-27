@@ -250,6 +250,13 @@ func (v *compilerVisitor) VisitSelector(node *SelectorNode) (interface{}, error)
 			}
 		}
 
+		if results, ok := v.context.Current.(*mq.SearchResults); ok {
+			return results.BuildTree(), nil
+		}
+		if matches, ok := v.context.Current.([]*mq.SearchResult); ok {
+			return (&mq.SearchResults{Matches: matches}).BuildTree(), nil
+		}
+
 		// If current context is a section, build tree for that section
 		if section, ok := v.context.Current.(*mq.Section); ok {
 			return buildSectionTree(section), nil
@@ -917,13 +924,7 @@ func extractText(obj interface{}) string {
 	case *mq.Link:
 		return v.Text
 	case *mq.SearchResult:
-		if v.Match != "" {
-			return v.Match
-		}
-		if len(v.Fields) > 0 {
-			return strings.Join(v.Fields, "\n")
-		}
-		return v.Section
+		return v.TextContent()
 	case string:
 		return v
 	default:
@@ -1168,11 +1169,7 @@ func extractTextFromAny(obj interface{}) interface{} {
 		}
 		return results
 	case *mq.SearchResults:
-		results := make([]string, len(v.Matches))
-		for i, match := range v.Matches {
-			results[i] = extractText(match)
-		}
-		return results
+		return v.Texts()
 	case []*mq.SearchResult:
 		results := make([]string, len(v))
 		for i, match := range v {

@@ -419,74 +419,122 @@ func parseMethodCall(query string) (method string, arg string, ok bool) {
 }
 
 func handleDirectory(path string, query string) {
+	result, err := runDirectoryQuery(path, query)
+	if err != nil {
+		log.Fatal(err)
+	}
+	displayResult(result)
+}
+
+func runDirectoryQuery(path string, query string) (interface{}, error) {
 	// Directory mode: default to tree (always includes previews now)
 	if query == "" {
 		query = ".tree"
 	}
 
-	// Parse the query, handling piped modifiers like depth(N) and limit(N)
-	opts := mq.TreeOptions{}
 	parts := splitPipeline(query)
-
-	// First part should be the main method
 	method, arg, ok := parseMethodCall(parts[0])
 	if !ok {
-		log.Fatalf("Invalid query format. Supported: .tree, .search(\"term\")")
-	}
-
-	// Parse remaining parts as modifiers
-	for _, part := range parts[1:] {
-		modMethod, modArg, ok := parseMethodCall(part)
-		if !ok {
-			// Try parsing as bare function call like depth(3)
-			modMethod, modArg, ok = parseFunctionCall(part)
-			if !ok {
-				log.Fatalf("Invalid modifier: %s", part)
-			}
-		}
-
-		switch modMethod {
-		case "depth":
-			if n, err := parseInt(modArg); err == nil {
-				opts.Depth = n
-			} else {
-				log.Fatalf("depth() requires an integer argument")
-			}
-		case "limit":
-			if n, err := parseInt(modArg); err == nil {
-				opts.Limit = n
-			} else {
-				log.Fatalf("limit() requires an integer argument")
-			}
-		default:
-			log.Fatalf("Unknown modifier: %s. Supported: depth(N), limit(N)", modMethod)
-		}
+		return nil, fmt.Errorf("Invalid query format. Supported: .tree, .search(\"term\")")
 	}
 
 	switch method {
 	case "tree":
+		opts := mq.TreeOptions{}
+		for _, part := range parts[1:] {
+			modMethod, modArg, ok := parseMethodCall(part)
+			if !ok {
+				modMethod, modArg, ok = parseFunctionCall(part)
+				if !ok {
+					return nil, fmt.Errorf("Invalid modifier: %s", part)
+				}
+			}
+
+			switch modMethod {
+			case "depth":
+				if n, err := parseInt(modArg); err == nil {
+					opts.Depth = n
+				} else {
+					return nil, fmt.Errorf("depth() requires an integer argument")
+				}
+			case "limit":
+				if n, err := parseInt(modArg); err == nil {
+					opts.Limit = n
+				} else {
+					return nil, fmt.Errorf("limit() requires an integer argument")
+				}
+			default:
+				return nil, fmt.Errorf("Unknown modifier: %s. Supported: depth(N), limit(N)", modMethod)
+			}
+		}
+
 		if arg != "" {
 			fmt.Fprintf(os.Stderr, "Warning: .tree(%q) is deprecated — .tree now adapts automatically. Ignoring argument.\n", arg)
 		}
-		result, err := mql.BuildDirTreeWithOptions(path, opts)
-		if err != nil {
-			log.Fatalf("Failed to build directory tree: %v", err)
-		}
-		fmt.Print(result.String())
+		return mql.BuildDirTreeWithOptions(path, opts)
 
 	case "search":
 		if arg == "" {
-			log.Fatalf("Search requires a term: .search(\"term\")")
+			return nil, fmt.Errorf("Search requires a term: .search(\"term\")")
 		}
 		result, err := mql.SearchDir(path, arg)
 		if err != nil {
-			log.Fatalf("Search failed: %v", err)
+			return nil, fmt.Errorf("Search failed: %w", err)
 		}
-		fmt.Print(result.String())
+		return applySearchPipeline(result, parts[1:])
 
 	default:
-		log.Fatalf("Unknown method: .%s. Supported: .tree, .search", method)
+		return nil, fmt.Errorf("Unknown method: .%s. Supported: .tree, .search", method)
 	}
+}
+
+func applySearchPipeline(current interface{}, parts []string) (interface{}, error) {
+	for _, part := range parts {
+		method, _, ok := parseMethodCall(part)
+		if !ok {
+			return nil, fmt.Errorf("Invalid selector: %s", part)
+		}
+
+		switch method {
+		case "text":
+			switch v := current.(type) {
+			case *mq.SearchResults:
+				current = v.Texts()
+			case []*mq.SearchResult:
+				current = (&mq.SearchResults{Matches: v}).Texts()
+			case *mq.SearchResult:
+				current = v.TextContent()
+			default:
+				return nil, fmt.Errorf("Cannot apply .text to %T", current)
+			}
+		case "tree":
+			switch v := current.(type) {
+			case *mq.SearchResults:
+				current = v.BuildTree()
+			case []*mq.SearchResult:
+				current = (&mq.SearchResults{Matches: v}).BuildTree()
+			case *mq.SearchResult:
+				current = (&mq.SearchResults{Matches: []*mq.SearchResult{v}}).BuildTree()
+			default:
+				return nil, fmt.Errorf("Cannot apply .tree to %T", current)
+			}
+		case "length":
+			switch v := current.(type) {
+			case *mq.SearchResults:
+				current = len(v.Matches)
+			case []*mq.SearchResult:
+				current = len(v)
+			case []string:
+				current = len(v)
+			default:
+				return nil, fmt.Errorf("Cannot apply .length to %T", current)
+			}
+		default:
+			return nil, fmt.Errorf("Unknown selector: .%s. Supported after directory .search: .text, .tree, .length", method)
+		}
+	}
+
+	return current, nil
 }
 
 // splitPipeline splits a query on | while respecting parentheses.
@@ -750,11 +798,28 @@ func displayResult(result interface{}) {
 		fmt.Println(v)
 
 	case []string:
+		multiline := false
+		for _, s := range v {
+			if strings.Contains(s, "\n") {
+				multiline = true
+				break
+			}
+		}
 		for i, s := range v {
+			if multiline {
+				fmt.Printf("%d.\n%s\n", i+1, s)
+				if i < len(v)-1 {
+					fmt.Println()
+				}
+				continue
+			}
 			fmt.Printf("%d. %s\n", i+1, s)
 		}
 
 	case *mq.TreeResult:
+		fmt.Print(v.String())
+
+	case *mq.SearchTreeResult:
 		fmt.Print(v.String())
 
 	case *mq.SearchResults:
