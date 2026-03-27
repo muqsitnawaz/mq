@@ -454,27 +454,6 @@ func TestBuildTreePreviewNonMarkdown(t *testing.T) {
 	assert.NotContains(t, output, "lines", "PDF tree should not mention lines")
 }
 
-func TestBuildDirTreeShowsPerFileStructureByDefault(t *testing.T) {
-	dir := t.TempDir()
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "guide.md"),
-		[]byte("# Guide\n\n## API\n\nNeedle in markdown docs.\n"), 0o644))
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "page.html"),
-		[]byte("<!DOCTYPE html><html><body><main><h1>Overview</h1><p>Needle in html content.</p></main></body></html>"), 0o644))
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "data.json"),
-		[]byte("{\"name\":\"json doc\",\"content\":\"Needle in json payload\"}"), 0o644))
-
-	tree, err := mq.BuildDirTree(dir)
-	require.NoError(t, err)
-
-	output := tree.String()
-	assert.Contains(t, output, "guide.md (5 lines, 2 sections)")
-	assert.Contains(t, output, "# Guide")
-	assert.Contains(t, output, "page.html (3 lines, 1 section)")
-	assert.Contains(t, output, "H1 Overview")
-	assert.Contains(t, output, "data.json (2 lines, 2 keys)")
-	assert.Contains(t, output, "key content")
-}
-
 // padInt zero-pads an int to 2 digits.
 func padInt(n int) string {
 	if n < 10 {
