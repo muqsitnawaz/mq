@@ -124,12 +124,32 @@ func (e *Engine) ParseDocument(content []byte, path string) (*mq.Document, error
 
 // Query executes an MQL query string on a document.
 func (e *Engine) Query(doc *mq.Document, queryStr string) (interface{}, error) {
-	return ExecuteQuery(doc, queryStr)
+	ast, err := ParseString(queryStr)
+	if err != nil {
+		return nil, fmt.Errorf("parsing query: %w", err)
+	}
+
+	compiler := NewCompiler()
+	plan := compiler.Compile(ast)
+
+	ctx := NewEvalContext(doc)
+	ctx.Parse = e.parseFunc()
+	return plan(ctx)
 }
 
 // QueryWithExecutor uses the configured executor for caching support.
 func (e *Engine) QueryWithExecutor(doc *mq.Document, queryStr string) (interface{}, error) {
-	return e.executor.Execute(doc, queryStr)
+	return e.executor.Execute(doc, queryStr, e.parseFunc())
+}
+
+// parseFunc returns a ParseFunc that delegates to the multi-format engine.
+func (e *Engine) parseFunc() ParseFunc {
+	if e.multiEngine == nil {
+		return nil
+	}
+	return func(content []byte, hint string) (*mq.Document, error) {
+		return e.multiEngine.Parse(content, hint)
+	}
 }
 
 // From creates a fluent query builder (direct API from mq).
