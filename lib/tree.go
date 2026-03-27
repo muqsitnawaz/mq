@@ -271,12 +271,33 @@ type SearchResult struct {
 	Lines   string   // Line range (e.g., "34-89") or single line
 	Match   string   // Snippet with match context
 	Fields  []string // Key-value fields from the record (JSONL only)
+	Text    string   // Full matched content when available (e.g., pretty JSONL)
 }
 
 // SearchResults holds all search matches.
 type SearchResults struct {
 	Query   string
 	Matches []*SearchResult
+}
+
+// SearchTreeResult represents search results rendered as a grouped tree.
+type SearchTreeResult struct {
+	Query      string
+	MatchCount int
+	Files      []*SearchTreeFile
+}
+
+// SearchTreeFile groups matches for one file.
+type SearchTreeFile struct {
+	Path    string
+	Matches []*SearchTreeMatch
+}
+
+// SearchTreeMatch represents one match in tree form.
+type SearchTreeMatch struct {
+	Label    string
+	Lines    string
+	Children []string
 }
 
 type documentLoaderFunc func(path string) (*Document, error)
@@ -385,6 +406,7 @@ func (d *Document) searchJSONL(query string) *SearchResults {
 			Lines:   fmt.Sprintf("%d", lineNum),
 			Match:   snippet,
 			Fields:  fields,
+			Text:    prettyJSONRecord(trimmed),
 		})
 	}
 
