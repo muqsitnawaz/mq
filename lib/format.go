@@ -39,6 +39,11 @@ const (
 	FormatJSON
 	FormatJSONL
 	FormatYAML
+	FormatCode
+	FormatDOCX
+	FormatXLSX
+	FormatCSV
+	FormatPPTX
 )
 
 func (f Format) String() string {
@@ -55,6 +60,16 @@ func (f Format) String() string {
 		return "jsonl"
 	case FormatYAML:
 		return "yaml"
+	case FormatCode:
+		return "code"
+	case FormatDOCX:
+		return "docx"
+	case FormatXLSX:
+		return "xlsx"
+	case FormatCSV:
+		return "csv"
+	case FormatPPTX:
+		return "pptx"
 	default:
 		return "unknown"
 	}
@@ -120,6 +135,21 @@ func DetectFormat(path string, content []byte) Format {
 		return FormatJSONL
 	case ".yaml", ".yml":
 		return FormatYAML
+	case ".docx":
+		return FormatDOCX
+	case ".xlsx":
+		return FormatXLSX
+	case ".csv", ".tsv":
+		return FormatCSV
+	case ".pptx":
+		return FormatPPTX
+	}
+
+	// Check extra detectors (registered by code/, office/, etc.)
+	for _, detect := range ExtraDetectors {
+		if f, ok := detect(path, content); ok {
+			return f
+		}
 	}
 
 	// Fall back to content sniffing
@@ -151,6 +181,12 @@ func DetectFormat(path string, content []byte) Format {
 	// Default to markdown (most permissive)
 	return FormatMarkdown
 }
+
+// ExtraDetectors allows packages to register additional format detectors.
+// Each function takes a file path and optional content, and returns the
+// detected format and whether detection succeeded. Detectors are checked
+// after the built-in extension map but before content sniffing.
+var ExtraDetectors []func(path string, content []byte) (Format, bool)
 
 // ParseError wraps parsing errors with format context.
 type ParseError struct {

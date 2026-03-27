@@ -25,8 +25,6 @@ var version = "dev"
 const (
 	repo          = "muqsitnawaz/mq"
 	releaseAPIURL = "https://api.github.com/repos/" + repo + "/releases/latest"
-	yellow        = "\033[33m"
-	reset         = "\033[0m"
 )
 
 func main() {
@@ -209,7 +207,7 @@ func checkForUpdates() {
 	current := strings.TrimPrefix(version, "v")
 
 	if latest != current && latest > current {
-		fmt.Fprintf(os.Stderr, "%sA new version is available: %s (current: %s). Run 'mq upgrade' to update.%s\n\n", yellow, release.TagName, version, reset)
+		fmt.Fprintf(os.Stderr, "A new version is available: %s (current: %s). Run 'mq upgrade' to update.\n\n", release.TagName, version)
 	}
 }
 
@@ -921,7 +919,6 @@ func displayResult(result interface{}) {
 		fmt.Println(v.RawContent())
 
 	default:
-		fmt.Printf("Result type: %T\n", result)
-		fmt.Printf("Result: %+v\n", result)
+		fmt.Printf("%+v\n", result)
 	}
 }

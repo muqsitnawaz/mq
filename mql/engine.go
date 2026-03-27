@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/muqsitnawaz/mq/code"
 	"github.com/muqsitnawaz/mq/data"
 	"github.com/muqsitnawaz/mq/html"
 	mq "github.com/muqsitnawaz/mq/lib"
@@ -28,6 +29,7 @@ func New() *Engine {
 			mq.WithFormatParser(data.NewJSONParser()),
 			mq.WithFormatParser(data.NewJSONLParser()),
 			mq.WithFormatParser(data.NewYAMLParser()),
+			mq.WithFormatParser(code.NewParser()),
 		),
 		executor: NewQueryExecutor(),
 	}

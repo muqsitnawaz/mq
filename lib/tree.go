@@ -341,11 +341,27 @@ var traversalExtensions = map[string]struct{}{
 	".ndjson":   {},
 	".yaml":     {},
 	".yml":      {},
+	".docx":     {},
+	".xlsx":     {},
+	".csv":      {},
+	".tsv":      {},
+	".pptx":     {},
 }
 
 func isTraversalFile(path string) bool {
-	_, ok := traversalExtensions[strings.ToLower(filepath.Ext(path))]
-	return ok
+	ext := strings.ToLower(filepath.Ext(path))
+	if _, ok := traversalExtensions[ext]; ok {
+		return true
+	}
+	// Check extra detectors for formats not in the static map (code, office, etc.).
+	// DetectFormat defaults to FormatMarkdown for unknown extensions, so we only
+	// accept results from ExtraDetectors (which run before content sniffing).
+	for _, detect := range ExtraDetectors {
+		if _, ok := detect(path, nil); ok {
+			return true
+		}
+	}
+	return false
 }
 
 // Search finds sections containing the query term.
