@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.3.4] - 2026-03-27
+
+### Documentation
+
+- Refreshed `README.md` headline results to emphasize warm-cache PDF latency and cross-format query support.
+- Replaced stale benchmark tables in `README.md` with current Apple M3 Max measurements for Markdown, HTML, YAML, PDF, core query primitives, and MQL execution.
+- Rewrote `bench/results.md` to match the benchmark coverage that exists in the repo today, and removed misleading JSON/JSONL parse figures from the published report until a real structured-data benchmark lands.
+
 ## [0.3.3] - 2026-03-27
 
 ### Features

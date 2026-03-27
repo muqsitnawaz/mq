@@ -9,9 +9,11 @@ AI agents waste tokens reading entire files. mq lets them query structure first,
 
 **Results:**
 - **83% fewer tokens** for markdown when scoped correctly
+- **~11-17ms warm PDF reloads** on real cached benchmark documents
 - **50x more PDFs** searchable (800 vs 16 in 200k context) via structure-first approach
 
 **The philosophy**: Don't outsource reasoning to embeddings and rerankers. Expose structure, let the agent reason.
+One query model works across markdown, HTML, PDF, JSON, JSONL, and YAML.
 
 [Install](#installation) | [Agent Skill](#agent-skill) | [Usage](#usage) | [Query Language](#query-language)
 
@@ -527,18 +529,25 @@ if owner, ok := doc.GetOwner(); ok {
 
 ## Performance
 
-General parser throughput numbers below were benchmarked on Apple M4.
+Benchmarked on Apple M3 Max, Go 1.24. The tables below only include benchmark paths that currently hit the real parser/query implementations.
 
-### Parsing Speed by Format
+### Headline Numbers
 
-| Format | 100KB | 1MB | Throughput |
-|--------|-------|-----|------------|
-| Markdown | 1.7ms | 17ms | 65 MB/s |
-| HTML | 67ms | ~600ms | 1.7 MB/s |
-| YAML | 5.7ms | ~50ms | 19 MB/s |
-| JSON | 7.3us | 52us | 20 GB/s |
-| JSONL | 17us | 133us | 8 GB/s |
-| PDF | - | 1.9s | ~1 MB/s |
+| Path | Current benchmark result |
+|------|--------------------------|
+| Markdown parse | 100KB: 2.70ms, 1MB: 23.48ms, 10MB: 224.74ms |
+| Markdown throughput | ~38-47 MB/s across 100KB-10MB |
+| HTML parse | 1KB: 0.98ms, 10KB: 10.63ms, 100KB: 157.77ms |
+| HTML throughput | ~0.65-1.09 MB/s |
+| YAML parse | 1KB: 0.12ms, 10KB: 0.88ms, 100KB: 12.39ms |
+| YAML throughput | ~8.28-11.65 MB/s |
+| PDF cold parse | 10.86s-13.42s on 757KB-6.6MB real PDFs |
+| PDF warm cache hit | 11.16ms-16.68ms |
+| PDF BuildTree | 0.216ms-0.567ms |
+| PDF Search | 0.754ms-0.973ms |
+| MQL `.section("X") \| .text` | 9.58us after parse |
+
+JSON and JSONL parser timings are intentionally omitted from this section until a dedicated benchmark lands on the real structured-data parser path rather than the current benchmark stub helper.
 
 ### PDF Benchmark Profile (real PDFs, Apple M3 Max)
 
@@ -550,9 +559,9 @@ go test ./pdf/... -bench=BenchmarkPDF -benchmem -count=1
 
 | File | Size | Cold parse | Warm cache hit | BuildTree | Search |
 |------|------|------------|----------------|-----------|--------|
-| `bert.pdf` | 757KB | 10.84s | 10.88ms | 0.322ms | 0.685ms |
-| `attention.pdf` | 2.1MB | 9.90s | 11.44ms | 0.508ms | 0.731ms |
-| `raft.pdf` | 6.6MB | 11.08s | 12.33ms | 0.194ms | 0.686ms |
+| `bert.pdf` | 757KB | 13.25s | 16.68ms | 0.377ms | 0.973ms |
+| `attention.pdf` | 2.1MB | 10.86s | 11.16ms | 0.567ms | 0.845ms |
+| `raft.pdf` | 6.6MB | 13.42s | 12.00ms | 0.216ms | 0.754ms |
 
 Cold parse covers the full PDF pipeline. Warm cache hit measures `Cache.LookupFile`, which skips parsing and deserializes the cached `Document`.
 
@@ -573,35 +582,21 @@ The agent loads ~1KB structure per PDF (vs ~50KB full text), reasons over 800 st
 
 | Query | Time | Notes |
 |-------|------|-------|
-| GetSection | 7ns | O(1) - pre-indexed |
-| ReadableText | 0.2ns | O(1) - cached |
-| GetHeadings | 6us | O(n) on heading count |
-| GetCodeBlocks | 1.6us | O(n) on block count |
-| MQL `.headings` | 327ns | Full lex/parse/compile/exec |
-| MQL `.section("X") \| .text` | 5.6us | Piped query with extraction |
+| GetSection | 9.2ns | O(1) exact title lookup |
+| GetSectionFuzzy | 10.5ns | O(1) fuzzy title lookup |
+| ReadableText | 0.28ns | O(1) cached string access |
+| GetHeadings | 0.14us (1KB) to 8.34us (1MB) | Scales with heading count |
+| GetCodeBlocks | 28ns (1KB) to 1.86us (1MB) | Scales with code block count |
+| MQL `.headings` | 0.55us | Full lex/parse/compile/exec |
+| MQL `.section("X") \| .text` | 9.58us | Piped query with extraction |
 
 ### Parse + Search Cache (v0.3.3+)
 
 Parsed documents and directory search results are cached in a content-addressed bbolt database (`~/Library/Caches/mq/cache.db` on macOS). Subsequent queries on the same file skip parsing, and repeated directory searches can skip the full scan when the tree hash is unchanged.
 
-On the PDF corpus above, repeated loads drop from roughly 10-11 seconds to roughly 11-12 milliseconds once the cache is warm.
+On the PDF corpus above, repeated loads drop from roughly 10.9-13.4 seconds to roughly 11-17 milliseconds once the cache is warm.
 
-On a real session corpus (`~/.rush/sessions`), repeated directory search improved from roughly 5.1-5.6 seconds to roughly 1.38-1.40 seconds for:
-
-```bash
-mq ~/.rush/sessions '.search("requires OAuth") | .tree'
-```
-
-Corpus shape for that run:
-- `8,495` supported files total
-- `4,644` `.json` files
-- `3,083` `.jsonl` / `.ndjson` files
-- `587,122,579` bytes across all supported files
-- `352,048,374` bytes across the JSON/JSONL subset
-- `308,408` non-empty JSONL records
-- Query result: `86` matched paths and `176` matched records for `"requires OAuth"`
-
-That is roughly a 3.7x speedup, even when measured via `go run` with process startup noise included.
+Warm cache hits still validate the file and deserialize the cached `Document`, so the main user-visible win is latency, not just throughput.
 
 **How it works:**
 1. **Parse cache**: SHA256 content hash keys the parsed `Document`, so repeated file queries skip reparsing and deserialize the cached structure instead.
