@@ -7,11 +7,20 @@
 - **Fallback PDF structure inference**: when font-based heading detection finds nothing, `mq` now derives structure from label-like lines, section markers, and bullet lists so `.tree` can still show useful hierarchy on scanned forms and administrative PDFs.
 - **Structured non-markdown text output**: document-level `.text` now returns readable whole-document content for PDFs and markdown, matching the section-level extraction behavior.
 - **Structured search rendering**: search results and non-markdown data output are formatted more cleanly for downstream terminal use.
+- **Cached structured directory search for JSONL-heavy trees**: repeated `.search(...) | .tree` and `.search(...) | .text` queries on large directories now cache whole-query results by directory hash, cache per-file matches, reuse already-read bytes for matched files, and fast-path JSONL line search without reparsing unmatched records.
 
 ### Fixes
 
 - Removed whole-document `.text` struct dumps for PDFs with OCR text by routing document extraction through `ReadableText()`.
 - Preserved page-aware text normalization for inferred PDF sections so fallback tree nodes retain correct page numbers in `.tree`.
+- Directory search now closes its cache DB handle per invocation, matching CLI usage and avoiding stale long-lived search state.
+
+### Performance
+
+| Scenario | Before | After |
+|----------|--------|-------|
+| Real directory search on `~/.rush/sessions` (`.search("requires OAuth") \| .tree`) | ~5.1-5.6s | ~1.38-1.40s |
+| Improvement | baseline | ~3.7x faster |
 
 ## [0.2.1] - 2026-03-23
 

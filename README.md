@@ -122,6 +122,7 @@ mq data.yaml '.text'            # Readable representation
 mq session.jsonl '.search("auth")'  # Line-level search with record context
 mq session.jsonl '.search("auth") | .text'  # Expand all matched records
 mq session.jsonl '.search("auth") | .nth(0) | .text'  # Narrow to one matched record
+mq sessions/ '.search("requires OAuth") | .tree'  # Search whole session directories with structured record output
 ```
 
 ## Why This Works
@@ -341,6 +342,9 @@ mq session.jsonl ".search('auth') | .text"
 
 # Tree view of matched records
 mq sessions/ ".search('requires OAuth') | .tree"
+
+# Expand all matched records across a directory
+mq sessions/ ".search('requires OAuth') | .text"
 
 # Pick one matched record only if you need to narrow (0-based), jq-style
 mq session.jsonl ".search('auth') | .nth(0) | .text"
@@ -572,17 +576,27 @@ The agent loads ~1KB structure per PDF (vs ~50KB full text), reasons over 800 st
 | MQL `.headings` | 327ns | Full lex/parse/compile/exec |
 | MQL `.section("X") \| .text` | 5.6us | Piped query with extraction |
 
-### Parse Cache (v0.2.1+)
+### Parse + Search Cache (v0.3.2+)
 
-Parsed documents are cached in a content-addressed bbolt database (`~/Library/Caches/mq/cache.db` on macOS). Subsequent queries on the same file skip parsing entirely.
+Parsed documents and directory search results are cached in a content-addressed bbolt database (`~/Library/Caches/mq/cache.db` on macOS). Subsequent queries on the same file skip parsing, and repeated directory searches can skip the full scan when the tree hash is unchanged.
 
 On the PDF corpus above, repeated loads drop from roughly 10-11 seconds to roughly 11-12 milliseconds once the cache is warm.
 
+On a real JSONL-heavy session corpus (`~/.rush/sessions`, 5,098 supported files, ~711 MB raw scan), repeated directory search improved from roughly 5.1-5.6 seconds to roughly 1.38-1.40 seconds for:
+
+```bash
+mq ~/.rush/sessions '.search("requires OAuth") | .tree'
+```
+
+That is roughly a 3.7x speedup, even when measured via `go run` with process startup noise included.
+
 **How it works:**
-1. **Stat check**: mtime + size compared against cache — if unchanged, skip reading the file entirely
-2. **Content hash**: SHA256 of file content used as cache key for the parsed Document
-3. **Merkle directory tree**: Each directory stores a hash of its children's hashes. When re-scanning, unchanged subtrees are pruned — `O(changed dirs)` instead of `O(all files)`
-4. **Auto-eviction**: Entries unused for 5+ days are trimmed on startup
+1. **Parse cache**: SHA256 content hash keys the parsed `Document`, so repeated file queries skip reparsing and deserialize the cached structure instead.
+2. **Directory search cache**: `(directory hash, query)` keys exact-repeat directory searches, so unchanged trees can return cached `SearchResults` immediately.
+3. **Per-file search cache**: `(path, query, mtime, size)` caches file-level matches so partially changed trees only reread the files that actually changed.
+4. **Byte reuse on matched files**: directory search reuses bytes already read during the scan instead of rereading matched files before parse.
+5. **Merkle directory tree**: each directory stores a hash of its children's metadata, so repeated searches can detect unchanged trees without re-reading file contents first.
+6. **Auto-eviction**: entries unused for 5+ days are trimmed on startup
 
 Cache can be cleared by deleting the database file or running `rm ~/Library/Caches/mq/cache.db`.
 
