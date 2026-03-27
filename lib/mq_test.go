@@ -154,34 +154,81 @@ func TestGetSections(t *testing.T) {
 	}
 }
 
-func TestGetSectionSubstringMatch(t *testing.T) {
+func TestGetSectionMatchingLadder(t *testing.T) {
 	engine := mq.New()
 	doc, err := engine.ParseDocument([]byte(testMarkdown), "test.md")
 	require.NoError(t, err)
 
-	// Case-insensitive exact match
-	section, ok := doc.GetSection("authentication")
-	assert.True(t, ok, "case-insensitive exact match should work")
-	assert.Equal(t, "Authentication", section.Heading.Text)
-
-	// Substring match: "Rate" should match "Rate Limiting"
-	section, ok = doc.GetSection("Rate")
-	assert.True(t, ok, "substring match should work")
-	assert.Equal(t, "Rate Limiting", section.Heading.Text)
-
-	// Substring match: "Getting" should match "Getting Started"
-	section, ok = doc.GetSection("Getting")
-	assert.True(t, ok, "substring match on subsection should work")
-	assert.Equal(t, "Getting Started", section.Heading.Text)
-
-	// Exact match still takes priority over substring
-	section, ok = doc.GetSection("Authentication")
+	// Tier 1: exact match
+	section, ok := doc.GetSection("Authentication")
 	assert.True(t, ok)
 	assert.Equal(t, "Authentication", section.Heading.Text)
 
-	// No match at all
-	_, ok = doc.GetSection("Nonexistent Section")
-	assert.False(t, ok, "should not match nonexistent section")
+	// Tier 2: case-insensitive exact
+	section, ok = doc.GetSection("authentication")
+	assert.True(t, ok)
+	assert.Equal(t, "Authentication", section.Heading.Text)
+
+	// Tier 3: case-insensitive prefix ("Rate" prefixes "Rate Limiting")
+	section, ok = doc.GetSection("Rate")
+	assert.True(t, ok)
+	assert.Equal(t, "Rate Limiting", section.Heading.Text)
+
+	// Tier 4: case-insensitive contains ("Management" is inside "Token Management")
+	section, ok = doc.GetSection("Management")
+	assert.True(t, ok)
+	// First match in doc order: Token Management (H3) comes before User Management (H3)
+	assert.Equal(t, "Token Management", section.Heading.Text)
+
+	// No match
+	_, ok = doc.GetSection("Nonexistent")
+	assert.False(t, ok)
+}
+
+func TestGetSectionByLevel(t *testing.T) {
+	engine := mq.New()
+	doc, err := engine.ParseDocument([]byte(testMarkdown), "test.md")
+	require.NoError(t, err)
+
+	// .h2("Auth") - prefix match at level 2
+	section, ok := doc.GetSectionByLevel(2, "Auth")
+	assert.True(t, ok)
+	assert.Equal(t, "Authentication", section.Heading.Text)
+	assert.Equal(t, 2, section.Heading.Level)
+
+	// .h3("Getting") - prefix match at level 3
+	section, ok = doc.GetSectionByLevel(3, "Getting")
+	assert.True(t, ok)
+	assert.Equal(t, "Getting Started", section.Heading.Text)
+
+	// .h3("Management") - contains match, first H3 in doc order
+	section, ok = doc.GetSectionByLevel(3, "Management")
+	assert.True(t, ok)
+	assert.Equal(t, "Token Management", section.Heading.Text)
+
+	// .h1("API") - level 1 prefix match
+	section, ok = doc.GetSectionByLevel(1, "API")
+	assert.True(t, ok)
+	assert.Equal(t, "API Documentation", section.Heading.Text)
+
+	// Wrong level: "Authentication" is H2, not H3
+	_, ok = doc.GetSectionByLevel(3, "Authentication")
+	assert.False(t, ok, "should not find H2 heading at level 3")
+}
+
+func TestGetSectionsByLevel(t *testing.T) {
+	engine := mq.New()
+	doc, err := engine.ParseDocument([]byte(testMarkdown), "test.md")
+	require.NoError(t, err)
+
+	h2s := doc.GetSectionsByLevel(2)
+	assert.Len(t, h2s, 5, "should have 5 H2 sections") // Introduction, Authentication, Endpoints, Rate Limiting, Error Handling
+
+	h3s := doc.GetSectionsByLevel(3)
+	assert.Len(t, h3s, 3, "should have 3 H3 sections") // Getting Started, Token Management, User Management
+
+	h4s := doc.GetSectionsByLevel(4)
+	assert.Len(t, h4s, 0, "should have no H4 sections")
 }
 
 func TestGetCodeBlocks(t *testing.T) {
