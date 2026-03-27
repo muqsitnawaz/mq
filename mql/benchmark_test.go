@@ -91,7 +91,7 @@ func BenchmarkDirectorySearch(b *testing.B) {
 			b.Run("warm_exact_repeat", func(b *testing.B) {
 				benchmarkDirectorySearchWarm(b, corpus)
 			})
-			if corpus.name == "growth-book" {
+			if corpus.name == "private-manuscript" {
 				b.Run("partial_invalidation", func(b *testing.B) {
 					benchmarkDirectorySearchPartialInvalidation(b, corpus)
 				})
@@ -105,9 +105,9 @@ func resolveBenchmarkDirCorpora(b testing.TB) []benchmarkDirCorpus {
 
 	var corpora []benchmarkDirCorpus
 
-	if path := growthBookBenchmarkDir(); path != "" {
+	if path := privateManuscriptBenchmarkDir(); path != "" {
 		corpora = append(corpora, benchmarkDirCorpus{
-			name:  "growth-book",
+			name:  "private-manuscript",
 			path:  path,
 			query: "calibration",
 		})
@@ -130,7 +130,7 @@ func resolveBenchmarkDirCorpora(b testing.TB) []benchmarkDirCorpus {
 	return corpora
 }
 
-func growthBookBenchmarkDir() string {
+func privateManuscriptBenchmarkDir() string {
 	_, thisFile, _, ok := runtime.Caller(0)
 	if !ok {
 		return ""
