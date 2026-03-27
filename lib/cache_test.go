@@ -333,6 +333,8 @@ func TestCacheStoreAndLookupDirSearch(t *testing.T) {
 				Section: "Guide",
 				Lines:   "1-3",
 				Match:   "Needle in docs.",
+				Text:    "# Guide\n\nNeedle in docs.\n",
+				Raw:     "# Guide\n\nNeedle in docs.\n",
 			},
 		},
 	}
@@ -349,6 +351,8 @@ func TestCacheStoreAndLookupDirSearch(t *testing.T) {
 	assert.Equal(t, "NEEDLE", cached.Query)
 	assert.Equal(t, results.Matches[0].File, cached.Matches[0].File)
 	assert.Equal(t, results.Matches[0].Match, cached.Matches[0].Match)
+	assert.Equal(t, results.Matches[0].Text, cached.Matches[0].Text)
+	assert.Equal(t, results.Matches[0].Raw, cached.Matches[0].Raw)
 }
 
 func TestCacheDirSearchInvalidatedOnDirChange(t *testing.T) {
@@ -395,7 +399,8 @@ func TestCacheStoreAndLookupFileSearch(t *testing.T) {
 				Section: "message",
 				Lines:   "1",
 				Match:   "needle found",
-				Text:    "{\"message\":\"needle found\"}",
+				Text:    "message: needle found",
+				Raw:     "{\"message\":\"needle found\"}",
 			},
 		},
 	}
@@ -409,6 +414,8 @@ func TestCacheStoreAndLookupFileSearch(t *testing.T) {
 	assert.Equal(t, "NEEDLE", cached.Query)
 	assert.Equal(t, path, cached.Matches[0].File)
 	assert.Equal(t, "needle found", cached.Matches[0].Match)
+	assert.Equal(t, "message: needle found", cached.Matches[0].Text)
+	assert.Equal(t, "{\"message\":\"needle found\"}", cached.Matches[0].Raw)
 }
 
 func TestCacheFileSearchInvalidatedOnFileChange(t *testing.T) {

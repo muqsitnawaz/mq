@@ -380,8 +380,9 @@ func TestSearchPipelineOnJSONL(t *testing.T) {
 	texts, ok := textResult.([]string)
 	require.True(t, ok, "expected []string, got %T", textResult)
 	require.Len(t, texts, 2)
-	assert.Contains(t, texts[0], "\"event\": \"tool_use_start\"")
-	assert.Contains(t, texts[1], "\"event\": \"tool_use_finish\"")
+	assert.Contains(t, texts[0], "event: tool_use_start")
+	assert.Contains(t, texts[0], "message: first tool_use event")
+	assert.Contains(t, texts[1], "event: tool_use_finish")
 	assert.NotContains(t, texts[0], "Found 2 matches")
 	assert.NotContains(t, texts[1], "Found 2 matches")
 
@@ -399,11 +400,85 @@ func TestSearchPipelineOnJSONL(t *testing.T) {
 	assert.Contains(t, rendered, "message: first tool_use event")
 	assert.Contains(t, rendered, "[line 3] event: tool_use_finish")
 
+	rawResult, err := engine.Query(doc, `.search("tool_use") | .raw`)
+	require.NoError(t, err)
+
+	raws, ok := rawResult.([]string)
+	require.True(t, ok, "expected []string, got %T", rawResult)
+	require.Len(t, raws, 2)
+	assert.Equal(t, `{"event":"tool_use_start","message":"first tool_use event"}`, raws[0])
+	assert.Equal(t, `{"event":"tool_use_finish","message":"second tool_use event"}`, raws[1])
+
 	nthResult, err := engine.Query(doc, `.search("tool_use") | .nth(1) | .text`)
 	require.NoError(t, err)
 	text, ok := nthResult.(string)
 	require.True(t, ok, "expected string, got %T", nthResult)
-	assert.Contains(t, text, "\"event\": \"tool_use_finish\"")
+	assert.Contains(t, text, "event: tool_use_finish")
+
+	nthRawResult, err := engine.Query(doc, `.search("tool_use") | .nth(1) | .raw`)
+	require.NoError(t, err)
+	raw, ok := nthRawResult.(string)
+	require.True(t, ok, "expected string, got %T", nthRawResult)
+	assert.Equal(t, `{"event":"tool_use_finish","message":"second tool_use event"}`, raw)
+}
+
+func TestStructuredDocumentTextAndRaw(t *testing.T) {
+	engine := mql.New()
+	defer engine.Close()
+
+	t.Run("json", func(t *testing.T) {
+		source := []byte(`{"event":"Needle in json payload","meta":{"user":"muqsit"},"ok":true}`)
+		doc, err := engine.ParseDocument(source, "config.json")
+		require.NoError(t, err)
+
+		textResult, err := engine.Query(doc, `.text`)
+		require.NoError(t, err)
+		text, ok := textResult.(string)
+		require.True(t, ok, "expected string, got %T", textResult)
+		assert.Equal(t, "event: Needle in json payload\nmeta.user: muqsit\nok: true", text)
+
+		rawResult, err := engine.Query(doc, `.raw`)
+		require.NoError(t, err)
+		raw, ok := rawResult.(string)
+		require.True(t, ok, "expected string, got %T", rawResult)
+		assert.Equal(t, string(source), raw)
+	})
+
+	t.Run("yaml", func(t *testing.T) {
+		source := []byte("service:\n  name: web\n  enabled: true\n")
+		doc, err := engine.ParseDocument(source, "deploy.yaml")
+		require.NoError(t, err)
+
+		textResult, err := engine.Query(doc, `.text`)
+		require.NoError(t, err)
+		text, ok := textResult.(string)
+		require.True(t, ok, "expected string, got %T", textResult)
+		assert.Equal(t, "service.enabled: true\nservice.name: web", text)
+
+		rawResult, err := engine.Query(doc, `.raw`)
+		require.NoError(t, err)
+		raw, ok := rawResult.(string)
+		require.True(t, ok, "expected string, got %T", rawResult)
+		assert.Equal(t, string(source), raw)
+	})
+
+	t.Run("jsonl document", func(t *testing.T) {
+		source := []byte("{\"event\":\"first\"}\n{\"event\":\"second\",\"ok\":true}\n")
+		doc, err := engine.ParseDocument(source, "events.jsonl")
+		require.NoError(t, err)
+
+		textResult, err := engine.Query(doc, `.text`)
+		require.NoError(t, err)
+		text, ok := textResult.(string)
+		require.True(t, ok, "expected string, got %T", textResult)
+		assert.Equal(t, "[0].event: first\n[1].event: second\n[1].ok: true", text)
+
+		rawResult, err := engine.Query(doc, `.raw`)
+		require.NoError(t, err)
+		raw, ok := rawResult.(string)
+		require.True(t, ok, "expected string, got %T", rawResult)
+		assert.Equal(t, string(source), raw)
+	})
 }
 
 func TestComplexQueries(t *testing.T) {

@@ -166,11 +166,14 @@ mq session.jsonl ".search('error')"
 #     ts: 2026-02-01T20:25:38Z
 #     > ...command failed with error...
 
-# Expand all matching records
+# Expand all matching records as flattened text
 mq session.jsonl ".search('error') | .text"
 
 # Narrow to one matching record only if needed
-mq session.jsonl ".search('error') | .nth(0) | .text"
+mq session.jsonl ".search('error') | .nth(0)"
+
+# Request the raw record explicitly
+mq session.jsonl ".search('error') | .nth(0) | .raw"
 ```
 
 ### Filter by Level

@@ -26,7 +26,7 @@ var (
 )
 
 const (
-	cacheSchemaVersion = "1"
+	cacheSchemaVersion = "2"
 	trimMaxAge         = 5 * 24 * time.Hour // Evict entries unused for 5 days
 )
 
@@ -76,6 +76,7 @@ type cachedSearchResult struct {
 	Match   string   `msgpack:"m"`
 	Fields  []string `msgpack:"fs"`
 	Text    string   `msgpack:"t"`
+	Raw     string   `msgpack:"r"`
 }
 
 type cachedDirSearch struct {
@@ -830,6 +831,7 @@ func searchResultsToCache(results *SearchResults) []cachedSearchResult {
 			Match:   match.Match,
 			Fields:  append([]string(nil), match.Fields...),
 			Text:    match.Text,
+			Raw:     match.Raw,
 		})
 	}
 	return cached
@@ -845,6 +847,7 @@ func cacheToSearchResults(query string, cached []cachedSearchResult) *SearchResu
 			Match:   match.Match,
 			Fields:  append([]string(nil), match.Fields...),
 			Text:    match.Text,
+			Raw:     match.Raw,
 		})
 	}
 	return results

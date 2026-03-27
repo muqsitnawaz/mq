@@ -1,6 +1,8 @@
 package main
 
 import (
+	"bytes"
+	"io"
 	"os"
 	"path/filepath"
 	"testing"
@@ -76,8 +78,18 @@ func TestRunDirectoryQuerySearchPipeline(t *testing.T) {
 		texts, ok := result.([]string)
 		require.True(t, ok, "expected []string, got %T", result)
 		require.Len(t, texts, 1)
-		assert.Contains(t, texts[0], `"server_name": "notion"`)
-		assert.Contains(t, texts[0], `"level": "error"`)
+		assert.Contains(t, texts[0], "level: error")
+		assert.Contains(t, texts[0], "server_name: notion")
+	})
+
+	t.Run("raw", func(t *testing.T) {
+		result, err := runDirectoryQuery(dir, `.search("requires OAuth") | .raw`)
+		require.NoError(t, err)
+
+		raws, ok := result.([]string)
+		require.True(t, ok, "expected []string, got %T", result)
+		require.Len(t, raws, 1)
+		assert.Equal(t, `{"level":"error","server_name":"notion","message":"MCP server notion requires OAuth: "}`, raws[0])
 	})
 
 	t.Run("tree", func(t *testing.T) {
@@ -99,11 +111,60 @@ func TestRunDirectoryQuerySearchPipeline(t *testing.T) {
 	})
 
 	t.Run("nth", func(t *testing.T) {
-		result, err := runDirectoryQuery(dir, `.search("requires OAuth") | .nth(0) | .text`)
+		result, err := runDirectoryQuery(dir, `.search("requires OAuth") | .nth(0)`)
 		require.NoError(t, err)
 
-		text, ok := result.(string)
-		require.True(t, ok, "expected string, got %T", result)
-		assert.Contains(t, text, `"server_name": "notion"`)
+		match, ok := result.(*mq.SearchResult)
+		require.True(t, ok, "expected *mq.SearchResult, got %T", result)
+		assert.Equal(t, `{"level":"error","server_name":"notion","message":"MCP server notion requires OAuth: "}`, match.RawContent())
+
+		rendered := captureOutput(t, func() {
+			displayResult(match)
+		})
+		assert.Equal(t, "{\"level\":\"error\",\"server_name\":\"notion\",\"message\":\"MCP server notion requires OAuth: \"}\n", rendered)
 	})
+}
+
+func TestDisplayResultSearchMatchUsesRawContent(t *testing.T) {
+	dir := t.TempDir()
+	content := "# Guide\n\nNeedle in docs.\n\n## Details\n\nMore context.\n"
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "guide.md"), []byte(content), 0o644))
+
+	result, err := runDirectoryQuery(dir, `.search("Needle") | .nth(0)`)
+	require.NoError(t, err)
+
+	match, ok := result.(*mq.SearchResult)
+	require.True(t, ok, "expected *mq.SearchResult, got %T", result)
+	assert.Contains(t, match.RawContent(), "# Guide")
+	assert.Contains(t, match.RawContent(), "Needle in docs.")
+
+	rendered := captureOutput(t, func() {
+		displayResult(match)
+	})
+	assert.Contains(t, rendered, "# Guide")
+	assert.Contains(t, rendered, "Needle in docs.")
+	assert.NotContains(t, rendered, "Result type: *mq.SearchResult")
+}
+
+func captureOutput(t *testing.T, fn func()) string {
+	t.Helper()
+
+	oldStdout := os.Stdout
+	r, w, err := os.Pipe()
+	require.NoError(t, err)
+	os.Stdout = w
+
+	defer func() {
+		os.Stdout = oldStdout
+	}()
+
+	fn()
+
+	require.NoError(t, w.Close())
+
+	var buf bytes.Buffer
+	_, err = io.Copy(&buf, r)
+	require.NoError(t, err)
+	require.NoError(t, r.Close())
+	return buf.String()
 }

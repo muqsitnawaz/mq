@@ -236,7 +236,7 @@ func (p *JSONParser) buildDocument(source []byte, path string, data interface{},
 	}
 
 	// Generate readable text
-	readableText := generateReadableText(data)
+	readableText := mq.FlattenStructuredData(data)
 
 	return mq.NewDocument(
 		source,
@@ -385,24 +385,6 @@ func formatValue(v interface{}) string {
 	default:
 		return fmt.Sprintf("%v", val)
 	}
-}
-
-// generateReadableText creates a readable text summary.
-func generateReadableText(data interface{}) string {
-	// Pretty-print with limited depth
-	formatted, err := json.MarshalIndent(data, "", "  ")
-	if err != nil {
-		return fmt.Sprintf("%v", data)
-	}
-
-	text := string(formatted)
-
-	// Truncate if too long
-	if len(text) > 50000 {
-		return text[:50000] + "\n... (truncated)"
-	}
-
-	return text
 }
 
 // Ensure parsers implement mq.FormatParser
