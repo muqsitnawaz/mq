@@ -133,7 +133,7 @@ func printUsage() {
 	fmt.Println("SELECTORS")
 	fmt.Println("")
 	fmt.Println("  .tree                Show document/directory structure")
-	fmt.Println("  .section(\"Name\")     Get section by heading (exact match)")
+	fmt.Println("  .section(\"Name\")     Get section by heading (substring match, case-insensitive)")
 	fmt.Println("  .search(\"term\")      Find sections containing term")
 	fmt.Println("  .code(\"lang\")        Get code blocks by language")
 	fmt.Println("  .headings            List all headings")
