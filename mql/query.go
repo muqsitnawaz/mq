@@ -71,7 +71,8 @@ func NewQueryExecutor(opts ...QueryOption) *QueryExecutor {
 }
 
 // Execute executes a query on a document.
-func (qe *QueryExecutor) Execute(doc *mq.Document, query string) (interface{}, error) {
+// An optional ParseFunc enables format cast operators (md, html, json, yaml).
+func (qe *QueryExecutor) Execute(doc *mq.Document, query string, parseFn ...ParseFunc) (interface{}, error) {
 	var plan ExecutionPlan
 	var err error
 
@@ -95,5 +96,8 @@ func (qe *QueryExecutor) Execute(doc *mq.Document, query string) (interface{}, e
 
 	// Execute the plan
 	ctx := NewEvalContext(doc)
+	if len(parseFn) > 0 {
+		ctx.Parse = parseFn[0]
+	}
 	return plan(ctx)
 }

@@ -198,6 +198,21 @@ func (v *compilerVisitor) VisitSelector(node *SelectorNode) (interface{}, error)
 	case "sections":
 		return doc.GetSections(), nil
 
+	case "h1", "h2", "h3", "h4", "h5", "h6":
+		level := int(node.Name[1] - '0')
+		if len(args) == 0 {
+			return doc.GetHeadings(level), nil
+		}
+		title, ok := args[0].(string)
+		if !ok {
+			return nil, fmt.Errorf("Error: .%s requires a string title, got %T\nUsage: .%s(\"Section Title\")", node.Name, args[0], node.Name)
+		}
+		section, found := doc.GetSectionByLevel(level, title)
+		if !found {
+			return nil, fmt.Errorf("no h%d section found matching: %s", level, title)
+		}
+		return section, nil
+
 	case "code":
 		langs := extractStringArgs(args)
 		return doc.GetCodeBlocks(langs...), nil
@@ -300,9 +315,40 @@ func (v *compilerVisitor) VisitSelector(node *SelectorNode) (interface{}, error)
 		}
 		return doc.Search(query), nil
 
+	case "md", "markdown", "html", "json", "yaml":
+		return v.formatCast(node.Name)
+
 	default:
 		return nil, formatUnknownSelectorError(node.Name)
 	}
+}
+
+// formatCast reinterprets the current string value as a different document format.
+// This enables nested format parsing: e.g. a JSONL field containing markdown
+// can be cast with | md | to unlock structural queries on the inner content.
+func (v *compilerVisitor) formatCast(name string) (*mq.Document, error) {
+	if v.context.Parse == nil {
+		return nil, fmt.Errorf("Error: .%s format cast is not available in this context\nHint: use Engine.Query() instead of ExecuteQuery() for format cast support", name)
+	}
+
+	// Extract string from current value
+	str := extractText(v.context.Current)
+	if str == "" {
+		return nil, fmt.Errorf("Error: .%s requires a non-empty string value, got %T\nUsage: .text | %s | .headings", name, v.context.Current, name)
+	}
+
+	// Map cast name to file extension hint for format detection
+	ext := name
+	if ext == "markdown" {
+		ext = "md"
+	}
+
+	doc, err := v.context.Parse([]byte(str), "cast."+ext)
+	if err != nil {
+		return nil, fmt.Errorf("Error: .%s cast failed to parse content: %w", name, err)
+	}
+
+	return doc, nil
 }
 
 // formatUnknownSelectorError generates helpful error message for unknown selectors.
@@ -312,6 +358,7 @@ func formatUnknownSelectorError(name string) error {
 		"headings", "section", "sections", "code", "links", "images",
 		"tables", "lists", "metadata", "owner", "tags", "priority",
 		"text", "raw", "length", "nth", "tree", "search",
+		"md", "markdown", "html", "json", "yaml",
 	}
 
 	// Find closest match using simple string distance
