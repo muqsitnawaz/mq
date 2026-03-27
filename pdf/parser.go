@@ -25,9 +25,12 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"sort"
+	"strconv"
 	"strings"
+	"unicode"
 
 	mq "github.com/muqsitnawaz/mq/lib"
 )
@@ -134,6 +137,12 @@ type extractor struct {
 	title    string
 }
 
+var (
+	bulletPrefixPattern    = regexp.MustCompile(`^(?:[-*•·◦▪■]+|(?:\d{1,3}|[A-Za-z]|[IVXLCDMivxlcdm]{1,8})[.)])\s+`)
+	pageMarkerPattern      = regexp.MustCompile(`^\[page\s+(\d+)\]$`)
+	explicitSectionPattern = regexp.MustCompile(`(?i)^(section|article|part|chapter|appendix|schedule)\b`)
+)
+
 // structureResult holds the JSON output from extract_structure.py
 type structureResult struct {
 	Title        string  `json:"title"`
@@ -164,7 +173,9 @@ func (e *extractor) extract() (*mq.Document, error) {
 	var tables []*mq.Table
 
 	structure := e.extractStructure()
+	pageCount := 0
 	if structure != nil {
+		pageCount = structure.PageCount
 		e.title = structure.Title
 
 		// If pdftotext returned empty but OCR produced text, use OCR text
@@ -181,9 +192,6 @@ func (e *extractor) extract() (*mq.Document, error) {
 			})
 		}
 
-		// Build sections from headings with text content
-		sections = e.buildSections(headings, text)
-
 		// Convert tables
 		for _, t := range structure.Tables {
 			tables = append(tables, &mq.Table{
@@ -192,6 +200,11 @@ func (e *extractor) extract() (*mq.Document, error) {
 			})
 		}
 	}
+	text, linePages := normalizeExtractedText(text, pageCount)
+	if len(headings) == 0 {
+		headings = inferStructuredHeadings(text, linePages)
+	}
+	sections = e.buildSections(headings, text)
 
 	doc := mq.NewDocument(
 		e.source,
@@ -207,8 +220,8 @@ func (e *extractor) extract() (*mq.Document, error) {
 		nil, // lists - would be detected from bullets
 		text,
 	)
-	if structure != nil {
-		doc.SetPageCount(structure.PageCount)
+	if pageCount > 0 {
+		doc.SetPageCount(pageCount)
 	}
 	return doc, nil
 }
@@ -407,9 +420,8 @@ func (e *extractor) extractBasicText() string {
 
 	// Use pdftotext CLI (poppler-utils)
 	// -layout preserves the original physical layout
-	// -nopgbrk removes page break characters
 	// - (stdin) and - (stdout)
-	cmd := exec.Command("pdftotext", "-layout", "-nopgbrk", "-", "-")
+	cmd := exec.Command("pdftotext", "-layout", "-", "-")
 	cmd.Stdin = bytes.NewReader(e.source)
 
 	var stdout, stderr bytes.Buffer
@@ -422,6 +434,269 @@ func (e *extractor) extractBasicText() string {
 	}
 
 	return stdout.String()
+}
+
+func normalizeExtractedText(raw string, pageCount int) (string, []int) {
+	raw = strings.ReplaceAll(raw, "\r\n", "\n")
+	raw = strings.ReplaceAll(raw, "\r", "\n")
+	if raw == "" {
+		return "", nil
+	}
+
+	type pageText struct {
+		page int
+		text string
+	}
+
+	var pages []pageText
+	if strings.Contains(raw, "\f") {
+		for i, pageBody := range strings.Split(raw, "\f") {
+			pages = append(pages, pageText{
+				page: i + 1,
+				text: pageBody,
+			})
+		}
+	} else {
+		currentPage := 0
+		if pageCount == 1 {
+			currentPage = 1
+		}
+
+		var currentLines []string
+		for _, line := range strings.Split(raw, "\n") {
+			if match := pageMarkerPattern.FindStringSubmatch(strings.TrimSpace(line)); match != nil {
+				if len(currentLines) > 0 {
+					pages = append(pages, pageText{
+						page: currentPage,
+						text: strings.Join(currentLines, "\n"),
+					})
+					currentLines = nil
+				}
+				page, err := strconv.Atoi(match[1])
+				if err == nil {
+					currentPage = page
+				}
+				continue
+			}
+			currentLines = append(currentLines, line)
+		}
+		if len(currentLines) > 0 || len(pages) == 0 {
+			pages = append(pages, pageText{
+				page: currentPage,
+				text: strings.Join(currentLines, "\n"),
+			})
+		}
+	}
+
+	var lines []string
+	var linePages []int
+	for i, page := range pages {
+		pageLines := strings.Split(strings.Trim(page.text, "\n"), "\n")
+		if len(pageLines) == 1 && pageLines[0] == "" {
+			continue
+		}
+		for _, line := range pageLines {
+			lines = append(lines, line)
+			linePages = append(linePages, page.page)
+		}
+		if i < len(pages)-1 {
+			lines = append(lines, "")
+			linePages = append(linePages, page.page)
+		}
+	}
+
+	return strings.Join(lines, "\n"), linePages
+}
+
+type textStructureCandidate struct {
+	text  string
+	line  int
+	page  int
+	level int
+	kind  string
+}
+
+func inferStructuredHeadings(text string, linePages []int) []*mq.Heading {
+	if strings.TrimSpace(text) == "" {
+		return nil
+	}
+
+	lines := strings.Split(text, "\n")
+	candidates := make([]textStructureCandidate, 0)
+	seen := make(map[string]bool)
+	nonEmptySeen := 0
+
+	for i, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" {
+			continue
+		}
+
+		prevBlank := i == 0 || strings.TrimSpace(lines[i-1]) == ""
+		nextBlank := i == len(lines)-1 || strings.TrimSpace(lines[i+1]) == ""
+		candidateText, level, kind, ok := classifyStructureLine(trimmed, prevBlank, nextBlank, nonEmptySeen < 3)
+		nonEmptySeen++
+		if !ok {
+			continue
+		}
+
+		normalized := strings.ToLower(candidateText)
+		if seen[normalized] {
+			continue
+		}
+		seen[normalized] = true
+
+		page := 0
+		if i < len(linePages) {
+			page = linePages[i]
+		}
+		candidates = append(candidates, textStructureCandidate{
+			text:  candidateText,
+			line:  i + 1,
+			page:  page,
+			level: level,
+			kind:  kind,
+		})
+	}
+
+	if len(candidates) == 0 {
+		return nil
+	}
+
+	hasTopLevel := false
+	for _, candidate := range candidates {
+		if candidate.level == 1 {
+			hasTopLevel = true
+			break
+		}
+	}
+	if !hasTopLevel {
+		for i, candidate := range candidates {
+			if candidate.kind != "bullet" && candidate.line <= 10 {
+				candidates[i].level = 1
+				hasTopLevel = true
+				break
+			}
+		}
+	}
+	if !hasTopLevel {
+		candidates[0].level = 1
+	}
+
+	headings := make([]*mq.Heading, 0, len(candidates))
+	for _, candidate := range candidates {
+		headings = append(headings, &mq.Heading{
+			Level: candidate.level,
+			Text:  candidate.text,
+			Line:  candidate.line,
+			Page:  candidate.page,
+		})
+	}
+	return headings
+}
+
+func classifyStructureLine(text string, prevBlank, nextBlank, nearTop bool) (string, int, string, bool) {
+	cleaned := normalizeCandidateText(text)
+	if cleaned == "" {
+		return "", 0, "", false
+	}
+
+	if explicitSectionPattern.MatchString(cleaned) {
+		return cleaned, 2, "section", true
+	}
+
+	if strings.HasSuffix(text, ":") && looksLikeSectionLabel(cleaned) {
+		return cleaned, 2, "label", true
+	}
+
+	if looksLikeAllCapsHeading(cleaned) && (prevBlank || nextBlank || nearTop) {
+		return cleaned, 2, "caps", true
+	}
+
+	if looksLikeBulletLine(text) {
+		return cleaned, 3, "bullet", true
+	}
+
+	if (prevBlank || nextBlank || nearTop) && looksLikeShortHeading(cleaned) {
+		return cleaned, 2, "text", true
+	}
+
+	return "", 0, "", false
+}
+
+func normalizeCandidateText(text string) string {
+	text = bulletPrefixPattern.ReplaceAllString(text, "")
+	text = strings.TrimSpace(text)
+	text = strings.TrimSuffix(text, ":")
+	return strings.Join(strings.Fields(text), " ")
+}
+
+func looksLikeBulletLine(text string) bool {
+	return bulletPrefixPattern.MatchString(text) && len(strings.Fields(text)) <= 12
+}
+
+func looksLikeSectionLabel(text string) bool {
+	words := strings.Fields(text)
+	return len(words) > 0 && len(words) <= 8 && len(text) <= 80 && !isSentenceLike(text)
+}
+
+func looksLikeAllCapsHeading(text string) bool {
+	letters := 0
+	upper := 0
+	for _, r := range text {
+		if !unicode.IsLetter(r) {
+			continue
+		}
+		letters++
+		if unicode.IsUpper(r) {
+			upper++
+		}
+	}
+	if letters < 4 {
+		return false
+	}
+	return float64(upper)/float64(letters) >= 0.8 && len(strings.Fields(text)) <= 16
+}
+
+func looksLikeShortHeading(text string) bool {
+	words := strings.Fields(text)
+	if len(words) == 0 || len(words) > 12 || len(text) > 80 {
+		return false
+	}
+	if isSentenceLike(text) {
+		return false
+	}
+	return capitalizedWordRatio(words) >= 0.6
+}
+
+func isSentenceLike(text string) bool {
+	return strings.Contains(text, ". ") ||
+		strings.HasSuffix(text, ".") ||
+		strings.HasSuffix(text, "?") ||
+		strings.HasSuffix(text, "!") ||
+		(strings.Count(text, ",") > 0 && len(strings.Fields(text)) > 8)
+}
+
+func capitalizedWordRatio(words []string) float64 {
+	if len(words) == 0 {
+		return 0
+	}
+
+	capitalized := 0
+	for _, word := range words {
+		word = strings.Trim(word, `"'()[]{}.,;:`)
+		if word == "" {
+			continue
+		}
+		runes := []rune(word)
+		if len(runes) == 0 {
+			continue
+		}
+		if unicode.IsUpper(runes[0]) || unicode.IsDigit(runes[0]) {
+			capitalized++
+		}
+	}
+	return float64(capitalized) / float64(len(words))
 }
 
 // Ensure Parser implements mq.FormatParser

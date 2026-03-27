@@ -1,18 +1,18 @@
-package pdf_test
+package pdf
 
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	mq "github.com/muqsitnawaz/mq/lib"
-	"github.com/muqsitnawaz/mq/pdf"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestParserFormat(t *testing.T) {
-	p := pdf.NewParser()
+	p := NewParser()
 	assert.Equal(t, mq.FormatPDF, p.Format())
 }
 
@@ -48,7 +48,7 @@ startxref
 312
 %%EOF`)
 
-	parser := pdf.NewParser()
+	parser := NewParser()
 	doc, err := parser.Parse(minimalPDF, "test.pdf")
 	require.NoError(t, err)
 
@@ -64,7 +64,7 @@ startxref
 
 func TestParseInvalidPDF(t *testing.T) {
 	// Not a PDF - should still parse but with empty content
-	parser := pdf.NewParser()
+	parser := NewParser()
 	doc, err := parser.Parse([]byte("not a pdf"), "test.pdf")
 	require.NoError(t, err)
 
@@ -78,7 +78,7 @@ func TestParsePDFFile(t *testing.T) {
 		t.Skip("attention.pdf test file not found")
 	}
 
-	parser := pdf.NewParser()
+	parser := NewParser()
 	doc, err := parser.ParseFile(testFile)
 	require.NoError(t, err)
 
@@ -106,7 +106,7 @@ func TestParseLargePDF(t *testing.T) {
 		t.Skip("gpt3.pdf test file not found")
 	}
 
-	parser := pdf.NewParser()
+	parser := NewParser()
 	doc, err := parser.ParseFile(testFile)
 	require.NoError(t, err)
 
@@ -122,7 +122,7 @@ func TestParseLargePDF(t *testing.T) {
 }
 
 func TestParseFileNotFound(t *testing.T) {
-	parser := pdf.NewParser()
+	parser := NewParser()
 	_, err := parser.ParseFile("nonexistent.pdf")
 	require.Error(t, err)
 
@@ -134,22 +134,22 @@ func TestParseFileNotFound(t *testing.T) {
 
 func TestParserOptions(t *testing.T) {
 	// Test heading inference option
-	parser := pdf.NewParser(pdf.WithHeadingInference(true))
+	parser := NewParser(WithHeadingInference(true))
 	assert.NotNil(t, parser)
 
 	// Test table detection option
-	parser = pdf.NewParser(pdf.WithTableDetection(false))
+	parser = NewParser(WithTableDetection(false))
 	assert.NotNil(t, parser)
 
 	// Test heading ratio option
-	parser = pdf.NewParser(pdf.WithHeadingRatio(1.3))
+	parser = NewParser(WithHeadingRatio(1.3))
 	assert.NotNil(t, parser)
 
 	// Test combining options
-	parser = pdf.NewParser(
-		pdf.WithHeadingInference(true),
-		pdf.WithTableDetection(true),
-		pdf.WithHeadingRatio(1.2),
+	parser = NewParser(
+		WithHeadingInference(true),
+		WithTableDetection(true),
+		WithHeadingRatio(1.2),
 	)
 	assert.NotNil(t, parser)
 }
@@ -159,7 +159,7 @@ func TestConvenienceFunctions(t *testing.T) {
 1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj 2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj 3 0 obj<</Type/Page/Parent 2 0 R>>endobj xref 0 4 0000000000 65535 f 0000000009 00000 n 0000000052 00000 n 0000000101 00000 n trailer<</Size 4/Root 1 0 R>>startxref 150 %%EOF`)
 
 	// Test ParsePDF
-	doc, err := pdf.ParsePDF(minimalPDF, "test.pdf")
+	doc, err := ParsePDF(minimalPDF, "test.pdf")
 	require.NoError(t, err)
 	assert.Equal(t, mq.FormatPDF, doc.Format())
 }
@@ -170,7 +170,85 @@ func TestParsePDFFileConvenience(t *testing.T) {
 		t.Skip("attention.pdf test file not found")
 	}
 
-	doc, err := pdf.ParsePDFFile(testFile)
+	doc, err := ParsePDFFile(testFile)
 	require.NoError(t, err)
 	assert.Equal(t, mq.FormatPDF, doc.Format())
+}
+
+func TestNormalizeExtractedTextTracksPages(t *testing.T) {
+	raw := "Cover Page\n\fSection One\nLine Two"
+
+	text, linePages := normalizeExtractedText(raw, 2)
+
+	assert.Equal(t, "Cover Page\n\nSection One\nLine Two", text)
+	assert.Equal(t, []int{1, 1, 2, 2}, linePages)
+}
+
+func TestInferStructuredHeadingsFromTextFallback(t *testing.T) {
+	text := strings.Join([]string{
+		"Application Form",
+		"",
+		"Applicant Details:",
+		"- Legal Name",
+		"- Mailing Address",
+		"",
+		"Contact Information:",
+		"- Email Address",
+		"- Phone Number",
+	}, "\n")
+	linePages := []int{1, 1, 1, 1, 1, 1, 2, 2, 2}
+
+	headings := inferStructuredHeadings(text, linePages)
+	require.Len(t, headings, 7)
+
+	assert.Equal(t, "Application Form", headings[0].Text)
+	assert.Equal(t, 1, headings[0].Level)
+	assert.Equal(t, 1, headings[0].Page)
+
+	assert.Equal(t, "Applicant Details", headings[1].Text)
+	assert.Equal(t, 2, headings[1].Level)
+	assert.Equal(t, "Legal Name", headings[2].Text)
+	assert.Equal(t, 3, headings[2].Level)
+	assert.Equal(t, "Mailing Address", headings[3].Text)
+	assert.Equal(t, 3, headings[3].Level)
+	assert.Equal(t, "Contact Information", headings[4].Text)
+	assert.Equal(t, 2, headings[4].Level)
+	assert.Equal(t, 2, headings[4].Page)
+	assert.Equal(t, "Email Address", headings[5].Text)
+	assert.Equal(t, 3, headings[5].Level)
+	assert.Equal(t, "Phone Number", headings[6].Text)
+}
+
+func TestFallbackTextStructureBuildsPDFTree(t *testing.T) {
+	text := strings.Join([]string{
+		"Application Form",
+		"",
+		"Applicant Details:",
+		"- Legal Name",
+		"- Mailing Address",
+		"",
+		"Contact Information:",
+		"- Email Address",
+		"- Phone Number",
+	}, "\n")
+	linePages := []int{1, 1, 1, 1, 1, 1, 2, 2, 2}
+
+	headings := inferStructuredHeadings(text, linePages)
+	sections := (&extractor{}).buildSections(headings, text)
+	doc := mq.NewDocument(
+		[]byte("%PDF-1.4"), "fallback.pdf", mq.FormatPDF, "",
+		headings, sections, nil, nil, nil, nil, nil,
+		text,
+	)
+	doc.SetPageCount(2)
+
+	tree := doc.BuildTree()
+	require.NotEmpty(t, tree.Root)
+
+	output := tree.String()
+	assert.Contains(t, output, "Application Form")
+	assert.Contains(t, output, "Applicant Details")
+	assert.Contains(t, output, "Legal Name")
+	assert.Contains(t, output, "(2 pages)")
+	assert.Contains(t, output, "(p. 2)")
 }
