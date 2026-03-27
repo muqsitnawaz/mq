@@ -1,154 +1,102 @@
 # mq Benchmark Results
 
-Benchmarked on Apple M4, Go 1.24
+Benchmarked on Apple M3 Max, Go 1.24, on 2026-03-27.
 
-## Context Window Analysis (200k tokens = 800KB)
+This file only reports benchmark paths that currently hit the real parser or query implementations in the repo. JSON and JSONL parser timings are intentionally excluded until a dedicated benchmark lands on the real structured-data parser path rather than the current stub helper in `lib/benchmark_test.go`.
 
-For a single AI agent with 200k token context:
+## Headline Summary
 
-### Traditional Approach (load full text)
-
-| Format | Docs per Context | Total Parse Time | Memory | Bottleneck |
-|--------|------------------|------------------|--------|------------|
-| PDF | 16 papers | 30s | ~800MB | Full text in context |
-| Markdown | 16 docs (50KB) | 350ms | 432MB | Full text in context |
-
-### mq Structure-First Approach
-
-| Format | Docs per Context | Total Parse Time | Memory | Bottleneck |
-|--------|------------------|------------------|--------|------------|
-| PDF | **800 PDFs** | ~25min* | ~50MB | Python subprocess |
-| Markdown | 80 docs (10KB) | 16ms | 22MB | None |
-| HTML | 40 pages | 2.3s | ~200MB | Readability extraction |
-| JSON | 800KB total | <1ms | 1MB | None |
-| JSONL | 8000 lines | <1ms | 1.2MB | None |
-| YAML | 800KB total | <1ms | 1MB | None |
-
-*PDF parsing is 1.9s each, but structure output is only ~1KB per PDF.
-
-**Key insight**: Structure-first approach enables **50x more PDFs** in context (800 vs 16) because you load ~1KB structure instead of ~50KB full text. The agent reasons over structure, then extracts only the sections it needs.
-
-### PDF Structure-First vs PageIndex
-
-| Approach | PDFs Searchable | Index Size | Cost | Build Time |
-|----------|-----------------|------------|------|------------|
-| Traditional (full text) | 16 | 50KB/PDF | $0 | - |
-| **mq** (structure-first) | **800** | 1KB/PDF | $0 | 1.9s/PDF |
-| PageIndex (LLM tree) | 266 | 3KB/PDF | $0.01-0.10/PDF | 6s/PDF |
-
-mq wins on density (800 vs 266) because local extraction produces more compact structure than LLM-generated trees.
+| Path | Current benchmark result |
+|------|--------------------------|
+| Markdown parse | 100KB: 2.70ms, 1MB: 23.48ms, 10MB: 224.74ms |
+| Markdown throughput | ~38-47 MB/s across 100KB-10MB |
+| HTML parse | 1KB: 0.98ms, 10KB: 10.63ms, 100KB: 157.77ms |
+| HTML throughput | ~0.65-1.09 MB/s |
+| YAML parse | 1KB: 0.12ms, 10KB: 0.88ms, 100KB: 12.39ms |
+| YAML throughput | ~8.28-11.65 MB/s |
+| PDF cold parse | 10.86s-13.42s on 757KB-6.6MB real PDFs |
+| PDF warm cache hit | 11.16ms-16.68ms |
+| PDF BuildTree | 0.216ms-0.567ms |
+| PDF Search | 0.754ms-0.973ms |
+| MQL `.section("X") \| .text` | 9.58us after parse |
 
 ## Markdown Parsing
 
-| Size | Time | Throughput | Memory | Allocs |
-|------|------|------------|--------|--------|
-| 1KB | 20µs | 73 MB/s | 40KB | 414 |
-| 10KB | 141µs | 74 MB/s | 284KB | 2,685 |
-| 100KB | 1.7ms | 59 MB/s | 2.8MB | 25,316 |
-| 1MB | 17ms | 61 MB/s | 29MB | 255,109 |
-| 10MB | 161ms | 65 MB/s | 288MB | 2,533,525 |
+`go test ./lib -bench 'BenchmarkMarkdownParsing$' -run '^$' -count=1`
 
-Memory overhead: ~27x document size
+| Size | Time | Throughput |
+|------|------|------------|
+| 1KB | 38.30us | 37.99 MB/s |
+| 10KB | 244.58us | 42.69 MB/s |
+| 100KB | 2.70ms | 37.92 MB/s |
+| 1MB | 23.48ms | 44.66 MB/s |
+| 10MB | 224.74ms | 46.66 MB/s |
 
 ## HTML Parsing
 
-| Size | Time | Throughput | Memory | Allocs |
-|------|------|------------|--------|--------|
-| 1KB | 511µs | 2.1 MB/s | 1.2MB | 8,098 |
-| 10KB | 5.5ms | 1.9 MB/s | 12.9MB | 84,269 |
-| 100KB | 67ms | 1.5 MB/s | 125MB | 810,830 |
+`go test ./html -bench 'BenchmarkHTMLParsing$' -run '^$' -count=1`
 
-HTML parsing includes Readability extraction (main content identification, DOM scoring, cleanup). Readability-focused benchmark (13KB article with nav/sidebar/footer noise): 1.2ms at 10.8 MB/s.
+| Size | Time | Throughput |
+|------|------|------------|
+| 1KB | 0.98ms | 1.09 MB/s |
+| 10KB | 10.63ms | 1.01 MB/s |
+| 100KB | 157.77ms | 0.65 MB/s |
+
+HTML includes readability-style main-content extraction, so these numbers cover DOM parse plus content selection.
 
 ## YAML Parsing
 
-| Size | Time | Throughput | Memory | Allocs |
-|------|------|------------|--------|--------|
-| 1KB | 64µs | 20 MB/s | 75KB | 1,218 |
-| 10KB | 496µs | 21 MB/s | 537KB | 9,166 |
-| 100KB | 5.7ms | 18 MB/s | 5.6MB | 89,706 |
+`go test ./data -bench 'BenchmarkYAMLParsing$' -run '^$' -count=1`
 
-YAML parsing uses gopkg.in/yaml.v3 then converts to mq document structure.
+| Size | Time | Throughput |
+|------|------|------------|
+| 1KB | 0.12ms | 10.63 MB/s |
+| 10KB | 0.88ms | 11.65 MB/s |
+| 100KB | 12.39ms | 8.28 MB/s |
 
-## JSON/JSONL Parsing
+## PDF Parse / Cache / Query
 
-| Format | Size | Time | Throughput | Memory |
-|--------|------|------|------------|--------|
-| JSON | 1KB | 153ns | 7.1 GB/s | 1.4KB |
-| JSON | 10KB | 882ns | 11.7 GB/s | 11KB |
-| JSON | 100KB | 7.3µs | 14 GB/s | 107KB |
-| JSON | 1MB | 52µs | 20 GB/s | 1MB |
-| JSONL | 1KB | 278ns | 3.8 GB/s | 1.6KB |
-| JSONL | 10KB | 1.8µs | 5.7 GB/s | 13KB |
-| JSONL | 100KB | 17µs | 5.9 GB/s | 120KB |
-| JSONL | 1MB | 133µs | 8 GB/s | 1.2MB |
-| JSONL | 10MB | 1.1ms | 9.3 GB/s | 12MB |
+`go test ./pdf -bench . -run '^$' -count=1`
 
-JSON/JSONL parsing is significantly faster than Markdown due to simpler structure.
+| File | Size | Cold parse | Warm cache hit | BuildTree | Search |
+|------|------|------------|----------------|-----------|--------|
+| `bert.pdf` | 757KB | 13.25s | 16.68ms | 0.377ms | 0.973ms |
+| `attention.pdf` | 2.1MB | 10.86s | 11.16ms | 0.567ms | 0.845ms |
+| `raft.pdf` | 6.6MB | 13.42s | 12.00ms | 0.216ms | 0.754ms |
 
-## Query Performance (after parsing)
+Cold parse covers the full PDF pipeline: text extraction, structure extraction, normalization, and section building. Warm cache hit measures `Cache.LookupFile`, which validates the file, then deserializes the cached `Document`.
 
-| Query | 1KB | 10KB | 100KB | 1MB |
-|-------|-----|------|-------|-----|
-| GetHeadings | 69ns | 109ns | 1µs | 6µs |
-| GetCodeBlocks | 21ns | 32ns | 277ns | 1.6µs |
-| GetSection | 7ns | 7ns | 7ns | 7ns |
-| ReadableText | 0.2ns | 0.2ns | 0.2ns | 0.2ns |
+## Core Query Performance
 
-- GetSection and ReadableText are O(1) - pre-indexed/cached
-- GetHeadings/GetCodeBlocks scale with count, not document size
+`go test ./lib -bench 'Benchmark(HeadingsQuery|CodeBlockQuery|SectionQuery|ReadableText)$' -run '^$' -count=1`
 
-## Tree Rendering
-
-| Size | Compact | Preview | Full |
-|------|---------|---------|------|
-| 1KB | 457ns | 8.3µs | 8.3µs |
-| 10KB | 2.8µs | 253µs | 253µs |
-| 100KB | 31µs | 23ms | 23ms |
-
-- Compact mode (headings only) is 50-700x faster than preview/full
-- Preview and full modes have identical cost for single documents
-
-## Search Performance
-
-| Size | Time | Memory |
-|------|------|--------|
-| 1KB | 19µs | 36KB |
-| 10KB | 323µs | 946KB |
-| 100KB | 24ms | 81MB |
-
-Search scans all sections for matching content. Scales linearly with document size.
+| Query | Current result | Notes |
+|-------|----------------|-------|
+| `GetSection` | 9.2ns | Exact title lookup |
+| `GetSectionFuzzy` | 10.5ns | Fuzzy title lookup |
+| `ReadableText` | 0.28ns | Cached string access |
+| `GetHeadings` | 0.14us (1KB) to 8.34us (1MB) | Scales with heading count |
+| `GetCodeBlocks` | 28ns (1KB) to 1.86us (1MB) | Scales with code block count |
 
 ## MQL Query Pipeline
 
-End-to-end time for lex -> parse -> compile -> execute:
+`go test ./mql -bench 'BenchmarkMQLQuery$' -run '^$' -count=1`
 
-| Query | Time | Allocs |
-|-------|------|--------|
-| `.headings` | 327ns | 12 |
-| `.sections` | 552ns | 10 |
-| `.code("go")` | 354ns | 15 |
-| `.section("X") \| .text` | 5.6µs | 21 |
-| `.headings \| filter(.level == 2)` | 1.5µs | 27 |
+| Query | Time |
+|-------|------|
+| `.headings` | 0.55us |
+| `.sections` | 0.27us |
+| `.code("go")` | 0.56us |
+| `.section("Section 1") \| .text` | 9.58us |
+| `.headings \| filter(.level == 2)` | 3.18us |
 
-MQL overhead is minimal. Simple selectors add ~300ns to the raw query time. Piped queries with text extraction are dominated by the text operation itself.
+## Notes
 
-## Multi-Document Scale
-
-| Documents | Doc Size | Total | Time | Memory |
-|-----------|----------|-------|------|--------|
-| 10 | 10KB | 100KB | 1.5ms | 2.8MB |
-| 100 | 10KB | 1MB | 17ms | 28MB |
-| 1000 | 10KB | 10MB | 167ms | 284MB |
-
-Linear scaling. For 1GB RAM, can hold ~3500 10KB documents.
-
-## Comparison Notes
-
-- **vs jq**: JSON parsing is ~10x faster than jq for equivalent operations
-- **vs grep**: Structure-aware queries impossible with grep; mq provides semantic access
-- **Memory trade-off**: Higher memory usage enables O(1) queries after initial parse
+- The biggest user-visible win right now is PDF cache latency: repeated loads drop from roughly 11-13 seconds to roughly 11-17 milliseconds.
+- Markdown is still the highest-throughput general parser path in the repo.
+- HTML remains slower because readability extraction does more work than plain structural parsing.
+- JSON and JSONL remain supported features; they are just missing a publishable real-parser benchmark in this file today.
 
 ## Raw Output
 
-See `results.txt` for full `go test -bench` output.
+See `results.txt` for historical raw benchmark output. The tables above are the current measured release numbers.
