@@ -19,7 +19,7 @@
 
 | Scenario | Before | After |
 |----------|--------|-------|
-| Real directory search on `~/.rush/sessions` (`.search("requires OAuth") \| .tree`) | ~5.1-5.6s | ~1.38-1.40s |
+| Real directory search on `~/.rush/sessions` (`.search("requires OAuth") \| .tree`, corpus: 8,495 supported files / 4,644 `.json` / 3,083 `.jsonl` / 587MB total / 308,408 JSONL records / 86 matched paths / 176 matched records) | ~5.1-5.6s | ~1.38-1.40s |
 | Improvement | baseline | ~3.7x faster |
 
 ## [0.2.1] - 2026-03-23

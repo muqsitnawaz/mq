@@ -582,11 +582,20 @@ Parsed documents and directory search results are cached in a content-addressed 
 
 On the PDF corpus above, repeated loads drop from roughly 10-11 seconds to roughly 11-12 milliseconds once the cache is warm.
 
-On a real JSONL-heavy session corpus (`~/.rush/sessions`, 5,098 supported files, ~711 MB raw scan), repeated directory search improved from roughly 5.1-5.6 seconds to roughly 1.38-1.40 seconds for:
+On a real session corpus (`~/.rush/sessions`), repeated directory search improved from roughly 5.1-5.6 seconds to roughly 1.38-1.40 seconds for:
 
 ```bash
 mq ~/.rush/sessions '.search("requires OAuth") | .tree'
 ```
+
+Corpus shape for that run:
+- `8,495` supported files total
+- `4,644` `.json` files
+- `3,083` `.jsonl` / `.ndjson` files
+- `587,122,579` bytes across all supported files
+- `352,048,374` bytes across the JSON/JSONL subset
+- `308,408` non-empty JSONL records
+- Query result: `86` matched paths and `176` matched records for `"requires OAuth"`
 
 That is roughly a 3.7x speedup, even when measured via `go run` with process startup noise included.
 
