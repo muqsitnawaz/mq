@@ -335,7 +335,16 @@ mq session.jsonl ".search('auth')"
 #     ts: 2026-02-01T20:25:34Z
 #     > ...searching for auth configuration...
 
-# Drill into a specific record
+# Expand matching records directly
+mq session.jsonl ".search('auth') | .text"
+
+# Tree view of matched records
+mq sessions/ ".search('requires OAuth') | .tree"
+
+# Pick one matched record (0-based), jq-style
+mq session.jsonl ".search('auth') | .nth(0) | .text"
+
+# Direct line lookup when you already know the JSONL line number
 mq session.jsonl ".record(3)"
 ```
 
@@ -392,7 +401,8 @@ The query language stays the same across formats. What changes is the structure 
 |----------|-------------|
 | `.tree` | Document structure (adapts to file vs directory) |
 | `.search("term")` | Find sections containing term (JSONL: line-level) |
-| `.record(N)` | Get JSONL record at line N (pretty-printed) |
+| `.nth(N)` | Pick the Nth item from current results (0-based) |
+| `.record(N)` | Get JSONL record at line N directly (pretty-printed) |
 | `.section("name")` | Section by heading |
 | `.sections` | All sections |
 | `.headings` | All headings |

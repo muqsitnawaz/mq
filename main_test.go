@@ -97,4 +97,13 @@ func TestRunDirectoryQuerySearchPipeline(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, 1, result)
 	})
+
+	t.Run("nth", func(t *testing.T) {
+		result, err := runDirectoryQuery(dir, `.search("requires OAuth") | .nth(0) | .text`)
+		require.NoError(t, err)
+
+		text, ok := result.(string)
+		require.True(t, ok, "expected string, got %T", result)
+		assert.Contains(t, text, `"server_name": "notion"`)
+	})
 }

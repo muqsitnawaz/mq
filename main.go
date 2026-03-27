@@ -117,6 +117,7 @@ func printUsage() {
 	fmt.Println("Pipes:")
 	fmt.Println("  | .text            Extract raw content")
 	fmt.Println("  | .tree            Show structure of selection")
+	fmt.Println("  | .nth(N)          Pick the Nth item from current results (0-based)")
 	fmt.Println("")
 	fmt.Println("Examples:")
 	fmt.Println("  mq docs/ .tree                              # See all docs structure")
@@ -490,7 +491,7 @@ func runDirectoryQuery(path string, query string) (interface{}, error) {
 
 func applySearchPipeline(current interface{}, parts []string) (interface{}, error) {
 	for _, part := range parts {
-		method, _, ok := parseMethodCall(part)
+		method, arg, ok := parseMethodCall(part)
 		if !ok {
 			return nil, fmt.Errorf("Invalid selector: %s", part)
 		}
@@ -529,8 +530,32 @@ func applySearchPipeline(current interface{}, parts []string) (interface{}, erro
 			default:
 				return nil, fmt.Errorf("Cannot apply .length to %T", current)
 			}
+		case "nth":
+			index, err := parseInt(arg)
+			if err != nil {
+				return nil, fmt.Errorf(".nth() requires an integer argument")
+			}
+			switch v := current.(type) {
+			case *mq.SearchResults:
+				if index < 0 || index >= len(v.Matches) {
+					return nil, fmt.Errorf("index out of range: %d", index)
+				}
+				current = v.Matches[index]
+			case []*mq.SearchResult:
+				if index < 0 || index >= len(v) {
+					return nil, fmt.Errorf("index out of range: %d", index)
+				}
+				current = v[index]
+			case []string:
+				if index < 0 || index >= len(v) {
+					return nil, fmt.Errorf("index out of range: %d", index)
+				}
+				current = v[index]
+			default:
+				return nil, fmt.Errorf("Cannot apply .nth to %T", current)
+			}
 		default:
-			return nil, fmt.Errorf("Unknown selector: .%s. Supported after directory .search: .text, .tree, .length", method)
+			return nil, fmt.Errorf("Unknown selector: .%s. Supported after directory .search: .text, .tree, .length, .nth(index)", method)
 		}
 	}
 
