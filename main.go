@@ -856,6 +856,9 @@ func displayResult(result interface{}) {
 	case *mq.TreeResult:
 		fmt.Print(v.String())
 
+	case *mq.DirTreeResult:
+		fmt.Print(v.String())
+
 	case *mq.SearchTreeResult:
 		fmt.Print(v.String())
 

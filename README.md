@@ -30,25 +30,15 @@ One query model works across markdown, HTML, PDF, JSON, JSONL, and YAML.
 
 ### Directory Tree Labels
 
-When browsing directories, mq uses format-aware labels:
+When browsing directories, mq uses format-aware labels and expands per-file structure when available:
 
 ```bash
 $ mq project/ .tree
 project/ (6 files)
 ├── config.json (12 lines, 3 keys)
+│   ├── key name
+│   └── key database
 ├── config.yaml (15 lines, 4 keys)
-├── README.md (80 lines, 5 sections)
-├── report.pdf (24 pages, 8 sections)
-├── events.jsonl (100 lines, 98 records)
-└── index.html (45 lines, 3 sections)
-```
-
-Trees show format-specific heading labels and sizing:
-
-```bash
-$ mq project/ .tree
-project/ (6 files)
-├── config.json (12 lines, 3 keys)
 │   ├── key name
 │   └── key database
 ├── README.md (80 lines, 5 sections)
@@ -64,6 +54,7 @@ project/ (6 files)
 ├── events.jsonl (100 lines, 98 records)
 └── index.html (45 lines, 3 sections)
     └── H1 Welcome
+             "Needle in html content."
 ```
 
 | Format | Count Label | Heading Label |
