@@ -1,6 +1,7 @@
 package mq
 
 import (
+	"strings"
 	"sync"
 
 	"github.com/yuin/goldmark/ast"
