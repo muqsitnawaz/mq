@@ -359,6 +359,7 @@ func formatUnknownSelectorError(name string) error {
 		"tables", "lists", "metadata", "owner", "tags", "priority",
 		"text", "raw", "length", "nth", "tree", "search",
 		"md", "markdown", "html", "json", "yaml",
+		"h1", "h2", "h3", "h4", "h5", "h6",
 	}
 
 	// Find closest match using simple string distance
