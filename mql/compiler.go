@@ -12,11 +12,16 @@ import (
 // ExecutionPlan is a compiled query ready for execution.
 type ExecutionPlan func(*EvalContext) (interface{}, error)
 
+// ParseFunc parses raw content into a Document. The hint parameter controls
+// format detection (e.g. "inline.md" for markdown, "inline.html" for HTML).
+type ParseFunc func(content []byte, hint string) (*mq.Document, error)
+
 // EvalContext maintains state during query execution.
 type EvalContext struct {
 	Document  *mq.Document
 	Current   interface{}
 	Variables map[string]interface{}
+	Parse     ParseFunc // Format cast support (md, html, json, yaml)
 }
 
 // NewEvalContext creates a new evaluation context.

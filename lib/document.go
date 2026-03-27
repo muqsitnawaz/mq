@@ -295,31 +295,84 @@ func (d *Document) GetHeadingByText(text string) (*Heading, bool) {
 	return heading, ok
 }
 
-// GetSection returns a section by title.
-// It tries exact match first, then case-insensitive exact match, then
-// case-insensitive substring match. If multiple sections match by
-// substring, the first one in document order wins.
+// GetSection returns a section by title, searching all heading levels.
+// Matching: exact -> case-insensitive exact -> case-insensitive prefix
+// -> case-insensitive contains. First match in document order wins.
 func (d *Document) GetSection(title string) (*Section, bool) {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
+	return matchSection(d.sectionIndex, d.sectionList, title, 0)
+}
 
-	// 1. Exact match
-	if section, ok := d.sectionIndex[title]; ok {
-		return section, true
+// GetSectionByLevel finds a section at a specific heading level by title.
+// Same matching ladder as GetSection but restricted to the given level.
+func (d *Document) GetSectionByLevel(level int, title string) (*Section, bool) {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+	return matchSection(d.sectionIndex, d.sectionList, title, level)
+}
+
+// GetSectionsByLevel returns all sections at the given heading level.
+func (d *Document) GetSectionsByLevel(level int) []*Section {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+
+	var result []*Section
+	for _, s := range d.sectionList {
+		if s.Heading != nil && s.Heading.Level == level {
+			result = append(result, s)
+		}
 	}
+	return result
+}
 
-	// 2. Case-insensitive exact match
+// matchSection implements the 4-tier matching ladder.
+// If level is 0, all levels are searched. Otherwise only headings at that level.
+func matchSection(index map[string]*Section, ordered []*Section, title string, level int) (*Section, bool) {
 	titleLower := strings.ToLower(title)
-	for key, section := range d.sectionIndex {
-		if strings.ToLower(key) == titleLower {
-			return section, true
+
+	// Build candidate list in document order, filtered by level
+	candidates := ordered
+	if level > 0 {
+		candidates = nil
+		for _, s := range ordered {
+			if s.Heading != nil && s.Heading.Level == level {
+				candidates = append(candidates, s)
+			}
 		}
 	}
 
-	// 3. Case-insensitive substring match (first in document order)
-	for _, section := range d.sectionList {
-		if section.Heading != nil && strings.Contains(strings.ToLower(section.Heading.Text), titleLower) {
-			return section, true
+	// 1. Exact match (fast path via index when unfiltered)
+	if level == 0 {
+		if s, ok := index[title]; ok {
+			return s, true
+		}
+	} else {
+		for _, s := range candidates {
+			if s.Heading.Text == title {
+				return s, true
+			}
+		}
+	}
+
+	// 2. Case-insensitive exact
+	for _, s := range candidates {
+		if strings.ToLower(s.Heading.Text) == titleLower {
+			return s, true
+		}
+	}
+
+	// 3. Case-insensitive prefix
+	for _, s := range candidates {
+		if strings.HasPrefix(strings.ToLower(s.Heading.Text), titleLower) {
+			return s, true
+		}
+	}
+
+	// 4. Case-insensitive contains
+	for _, s := range candidates {
+		if strings.Contains(strings.ToLower(s.Heading.Text), titleLower) {
+			return s, true
 		}
 	}
 
