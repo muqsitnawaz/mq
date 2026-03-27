@@ -26,7 +26,7 @@ var (
 )
 
 const (
-	cacheSchemaVersion = "2"
+	cacheSchemaVersion = "3"
 	trimMaxAge         = 5 * 24 * time.Hour // Evict entries unused for 5 days
 )
 

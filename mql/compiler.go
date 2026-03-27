@@ -360,6 +360,12 @@ func (v *compilerVisitor) formatCast(name string) (*mq.Document, error) {
 		ext = "md"
 	}
 
+	// For text-based formats (md, html), unescape literal \n sequences
+	// that FlattenStructuredData produces from JSON string values.
+	if ext == "md" || ext == "html" {
+		str = strings.ReplaceAll(str, "\\n", "\n")
+	}
+
 	doc, err := v.context.Parse([]byte(str), "cast."+ext)
 	if err != nil {
 		return nil, fmt.Errorf("Error: .%s cast failed to parse content: %w", name, err)
