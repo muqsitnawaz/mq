@@ -127,6 +127,13 @@ func (v *compilerVisitor) VisitPipe(node *PipeNode) (interface{}, error) {
 
 // VisitSelector compiles a selector operation.
 func (v *compilerVisitor) VisitSelector(node *SelectorNode) (interface{}, error) {
+	// Format casts take priority — they consume the current value and produce
+	// a new Document, so they must be checked before property access.
+	switch node.Name {
+	case "md", "markdown", "html", "json", "yaml":
+		return v.formatCast(node.Name)
+	}
+
 	// Check if selector is a property accessor on current item
 	if v.context.Current != nil && v.context.Current != v.context.Document {
 		// Try to handle as property access
@@ -314,9 +321,6 @@ func (v *compilerVisitor) VisitSelector(node *SelectorNode) (interface{}, error)
 			return nil, fmt.Errorf("Error: .search requires a string query, got %T\nUsage: .search(\"query\")", args[0])
 		}
 		return doc.Search(query), nil
-
-	case "md", "markdown", "html", "json", "yaml":
-		return v.formatCast(node.Name)
 
 	default:
 		return nil, formatUnknownSelectorError(node.Name)
