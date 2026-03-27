@@ -85,13 +85,23 @@ func NewDocument(
 		doc.headingsByLevel[h.Level] = append(doc.headingsByLevel[h.Level], h)
 	}
 
-	// Build section index and ordered list
+	// Build section index and ordered list, including nested children.
+	// This allows .section("child") to find sections at any depth.
 	doc.sectionList = sections
-	for _, s := range sections {
-		if s.Heading != nil {
-			doc.sectionIndex[s.Heading.Text] = s
+	var indexSections func([]*Section)
+	indexSections = func(ss []*Section) {
+		for _, s := range ss {
+			if s.Heading != nil {
+				if _, exists := doc.sectionIndex[s.Heading.Text]; !exists {
+					doc.sectionIndex[s.Heading.Text] = s
+				}
+			}
+			if len(s.Children) > 0 {
+				indexSections(s.Children)
+			}
 		}
 	}
+	indexSections(sections)
 
 	// Build code block language index
 	for _, cb := range codeBlocks {
