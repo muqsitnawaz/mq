@@ -576,7 +576,7 @@ The agent loads ~1KB structure per PDF (vs ~50KB full text), reasons over 800 st
 | MQL `.headings` | 327ns | Full lex/parse/compile/exec |
 | MQL `.section("X") \| .text` | 5.6us | Piped query with extraction |
 
-### Parse + Search Cache (v0.3.2+)
+### Parse + Search Cache (v0.3.3+)
 
 Parsed documents and directory search results are cached in a content-addressed bbolt database (`~/Library/Caches/mq/cache.db` on macOS). Subsequent queries on the same file skip parsing, and repeated directory searches can skip the full scan when the tree hash is unchanged.
 
