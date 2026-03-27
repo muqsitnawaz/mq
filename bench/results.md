@@ -90,6 +90,23 @@ Cold parse covers the full PDF pipeline: text extraction, structure extraction, 
 | `.section("Section 1") \| .text` | 9.58us |
 | `.headings \| filter(.level == 2)` | 3.18us |
 
+## Multi-Document Scale
+
+`go test ./lib -bench 'BenchmarkMultipleDocuments$' -run '^$' -count=1`
+
+| Documents | Doc Size | Total Corpus | Time |
+|-----------|----------|--------------|------|
+| 10 | 10KB | 100KB | 2.93ms |
+| 100 | 10KB | 1MB | 24.17ms |
+| 1000 | 10KB | 10MB | 222.97ms |
+
+This benchmark parses a batch of same-sized markdown documents, then queries all of them for headings. It is a real repo benchmark, but it does not measure directory cache behavior.
+
+## Current Gaps
+
+- No benchmark yet covers cold directory search, warm exact-repeat directory cache hits, or partial invalidation on a changed subtree.
+- No benchmark yet covers a real JSON or JSONL parser hot path; the old `lib/benchmark_test.go` helper is still a stub for those formats and is intentionally excluded from this report.
+
 ## Notes
 
 - The biggest user-visible win right now is PDF cache latency: repeated loads drop from roughly 11-13 seconds to roughly 11-17 milliseconds.
