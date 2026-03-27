@@ -22,6 +22,7 @@ var skipExtensions = map[string]struct{}{
 	".json": {}, ".jsonl": {}, ".ndjson": {},
 	".yaml": {}, ".yml": {},
 	".docx": {}, ".xlsx": {}, ".csv": {}, ".tsv": {}, ".pptx": {},
+	".txt": {}, ".text": {}, ".log": {},
 }
 
 func detectCode(path string, _ []byte) (mq.Format, bool) {

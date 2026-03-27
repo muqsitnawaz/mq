@@ -175,7 +175,8 @@ func (d *Document) ReadableText() string {
 // RawText returns the original textual source when it is safe to display.
 // Binary formats like PDF fall back to extracted readable text.
 func (d *Document) RawText() string {
-	if d.format == FormatPDF {
+	switch d.format {
+	case FormatPDF, FormatDOCX, FormatXLSX, FormatPPTX:
 		return d.readableText
 	}
 	return string(d.source)

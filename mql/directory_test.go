@@ -717,7 +717,7 @@ func TestSearchExcludesUnsupportedFormats(t *testing.T) {
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "readme.md"),
 		[]byte("# Readme\n\nSearch target here.\n"), 0o644))
 
-	// Unsupported formats that happen to contain the text
+	// Previously unsupported formats that are now supported (code, csv)
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "notes.txt"),
 		[]byte("Search target here."), 0o644))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "code.go"),
@@ -733,6 +733,11 @@ func TestSearchExcludesUnsupportedFormats(t *testing.T) {
 	require.NoError(t, err)
 
 	files := searchFiles(results)
-	assert.Equal(t, 1, len(files), "only .md should match")
+	// .md, .csv, .py, .toml are now all supported formats
+	// .txt is excluded (not a supported format)
 	assert.Contains(t, files, "readme.md")
+	assert.Contains(t, files, "data.csv")
+	assert.Contains(t, files, "script.py")
+	assert.Contains(t, files, "config.toml")
+	assert.NotContains(t, files, "notes.txt")
 }

@@ -335,15 +335,19 @@ func (v *compilerVisitor) formatCast(name string) (*mq.Document, error) {
 		return nil, fmt.Errorf("Error: .%s format cast is not available in this context\nHint: use Engine.Query() instead of ExecuteQuery() for format cast support", name)
 	}
 
-	// Extract string from current value — join []string with newlines
+	// Extract string from current value.
+	// Handles common nested structures: []string, SearchResults, and
+	// Claude-style content arrays [{"type":"text","text":"..."}].
 	var str string
 	switch val := v.context.Current.(type) {
 	case string:
 		str = val
 	case []string:
 		str = strings.Join(val, "\n\n")
+	case *mq.Section:
+		str = val.GetText()
 	default:
-		str = extractText(v.context.Current)
+		str = extractDeepText(v.context.Current)
 	}
 
 	if str == "" {
@@ -948,6 +952,40 @@ func negate(v interface{}) (interface{}, error) {
 	default:
 		return nil, fmt.Errorf("Error: cannot negate %T\nHint: negation (-) only works with numbers", v)
 	}
+}
+
+// extractDeepText recursively extracts text from nested data structures.
+// For maps, it looks for "text" or "content" string fields.
+// For slices, it recurses into each element and joins with newlines.
+// This handles common patterns like Claude's content blocks:
+// [{"type":"text","text":"..."}, {"type":"tool_use",...}]
+func extractDeepText(v interface{}) string {
+	switch val := v.(type) {
+	case string:
+		return val
+	case []interface{}:
+		var parts []string
+		for _, item := range val {
+			if t := extractDeepText(item); t != "" {
+				parts = append(parts, t)
+			}
+		}
+		return strings.Join(parts, "\n\n")
+	case map[string]interface{}:
+		// Prefer "text" field, then "content" field
+		for _, key := range []string{"text", "content"} {
+			if s, ok := val[key].(string); ok {
+				return s
+			}
+			// Recurse if it's a nested structure
+			if nested, ok := val[key]; ok {
+				if t := extractDeepText(nested); t != "" {
+					return t
+				}
+			}
+		}
+	}
+	return extractText(v)
 }
 
 func contains(obj, search interface{}) (bool, error) {

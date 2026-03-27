@@ -8,6 +8,7 @@ import (
 	"github.com/muqsitnawaz/mq/data"
 	"github.com/muqsitnawaz/mq/html"
 	mq "github.com/muqsitnawaz/mq/lib"
+	"github.com/muqsitnawaz/mq/office"
 	"github.com/muqsitnawaz/mq/pdf"
 )
 
@@ -30,6 +31,10 @@ func New() *Engine {
 			mq.WithFormatParser(data.NewJSONLParser()),
 			mq.WithFormatParser(data.NewYAMLParser()),
 			mq.WithFormatParser(code.NewParser()),
+			mq.WithFormatParser(office.NewCSVParser()),
+			mq.WithFormatParser(office.NewXLSXParser()),
+			mq.WithFormatParser(office.NewDOCXParser()),
+			mq.WithFormatParser(office.NewPPTXParser()),
 		),
 		executor: NewQueryExecutor(),
 	}

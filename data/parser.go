@@ -292,6 +292,10 @@ func extractObjectStructure(obj map[string]interface{}, level int) ([]*mq.Headin
 		case string:
 			// Store string value as section source so .text and format casts work
 			s = mq.NewSectionWithSource(h, 1, strings.Count(v, "\n")+1, []byte(v))
+		case []interface{}:
+			// Array: flatten to readable text (preserves nested string values)
+			text := mq.FlattenStructuredData(v)
+			s = mq.NewSectionWithSource(h, 1, strings.Count(text, "\n")+1, []byte(text))
 		default:
 			// Scalars: format as string
 			text := fmt.Sprintf("%v", value)
