@@ -604,10 +604,10 @@ Measured with:
 go test ./mql -bench 'BenchmarkDirectorySearch$' -run '^$' -benchtime=1x -count=1
 ```
 
-| Corpus | Query | Cold | Warm exact repeat | Partial invalidation |
-|--------|-------|------|-------------------|----------------------|
-| `../agents/growth/book` (12MB) | `calibration` | 2.21s | 11.98ms | 1.62s |
-| `~/.rush/sessions` (4.2GB) | `requires OAuth` | 51.86s | 440.34ms | - |
+| Corpus | Cold | Warm exact repeat | Partial invalidation |
+|--------|------|-------------------|----------------------|
+| `private-manuscript` (185 files, 178 Markdown docs, 65,175 Markdown lines) | 2.21s | 11.98ms | 1.62s |
+| `~/.rush/sessions` (4.2GB) | 51.86s | 440.34ms | - |
 
 Warm exact-repeat is still not free on very large trees because `LookupDirSearch` first recomputes the current directory hash before reusing cached results.
 

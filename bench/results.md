@@ -16,7 +16,7 @@ Benchmarked on Apple M3 Max, Go 1.24, on 2026-03-27.
 | PDF warm cache hit | 11.16ms-16.68ms |
 | PDF BuildTree | 0.216ms-0.567ms |
 | PDF Search | 0.754ms-0.973ms |
-| Directory search (`growth-book`) | cold: 2.21s, warm exact-repeat: 11.98ms, partial invalidation: 1.62s |
+| Directory search (`private-manuscript`) | cold: 2.21s, warm exact-repeat: 11.98ms, partial invalidation: 1.62s |
 | Directory search (`rush-sessions`) | cold: 51.86s, warm exact-repeat: 440.34ms |
 | MQL `.section("X") \| .text` | 9.58us after parse |
 
@@ -94,10 +94,10 @@ Cold parse covers the full PDF pipeline: text extraction, structure extraction, 
 
 `go test ./mql -bench 'BenchmarkDirectorySearch$' -run '^$' -benchtime=1x -count=1`
 
-| Corpus | Query | Cold | Warm exact repeat | Partial invalidation |
-|--------|-------|------|-------------------|----------------------|
-| `../agents/growth/book` | `calibration` | 2.21s | 11.98ms | 1.62s |
-| `~/.rush/sessions` | `requires OAuth` | 51.86s | 440.34ms | - |
+| Corpus | Cold | Warm exact repeat | Partial invalidation |
+|--------|------|-------------------|----------------------|
+| `private-manuscript` (185 files, 178 Markdown docs, 65,175 Markdown lines) | 2.21s | 11.98ms | 1.62s |
+| `~/.rush/sessions` | 51.86s | 440.34ms | - |
 
 These benchmarks hit the real cache-aware directory search path through `mql.Engine.SearchDir`, not the older markdown-only `doc.Search(...)` helper benchmark.
 

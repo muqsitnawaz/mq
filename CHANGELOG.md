@@ -1,11 +1,18 @@
 # Changelog
 
+## [0.3.6] - 2026-03-27
+
+### Documentation
+
+- Anonymized the private manuscript directory benchmark in `README.md` and `bench/results.md` while preserving safe scale context with file and line counts.
+- Renamed the benchmark label in `mql/benchmark_test.go` to `private-manuscript` so benchmark output matches the published docs.
+
 ## [0.3.5] - 2026-03-27
 
 ### Benchmarks
 
 - Added real cache-aware directory search benchmarks in `mql/benchmark_test.go` for cold search, warm exact-repeat cache hits, and partial invalidation.
-- Benchmarks now cover two real local corpora when available: `../agents/growth/book` and `~/.rush/sessions`.
+- Benchmarks now cover two real local corpora when available: an anonymized private manuscript corpus and `~/.rush/sessions`.
 
 ### Documentation
 
