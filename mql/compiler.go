@@ -890,6 +890,11 @@ func getLength(obj interface{}) int {
 		return 0
 	}
 
+	switch v := obj.(type) {
+	case *mq.SearchResults:
+		return len(v.Matches)
+	}
+
 	rv := reflect.ValueOf(obj)
 	switch rv.Kind() {
 	case reflect.Slice, reflect.Array, reflect.Map, reflect.String:
@@ -909,6 +914,14 @@ func extractText(obj interface{}) string {
 		return v.Content
 	case *mq.Link:
 		return v.Text
+	case *mq.SearchResult:
+		if v.Match != "" {
+			return v.Match
+		}
+		if len(v.Fields) > 0 {
+			return strings.Join(v.Fields, "\n")
+		}
+		return v.Section
 	case string:
 		return v
 	default:
@@ -1150,6 +1163,18 @@ func extractTextFromAny(obj interface{}) interface{} {
 		results := make([]string, len(v))
 		for i, img := range v {
 			results[i] = img.AltText
+		}
+		return results
+	case *mq.SearchResults:
+		results := make([]string, len(v.Matches))
+		for i, match := range v.Matches {
+			results[i] = extractText(match)
+		}
+		return results
+	case []*mq.SearchResult:
+		results := make([]string, len(v))
+		for i, match := range v {
+			results[i] = extractText(match)
 		}
 		return results
 	case []interface{}:
