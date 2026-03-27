@@ -1,6 +1,14 @@
 package main
 
-import "testing"
+import (
+	"os"
+	"path/filepath"
+	"testing"
+
+	mq "github.com/muqsitnawaz/mq/lib"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
 
 func TestParseMethodCall(t *testing.T) {
 	tests := []struct {
@@ -53,4 +61,40 @@ func TestParseMethodCall(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestRunDirectoryQuerySearchPipeline(t *testing.T) {
+	dir := t.TempDir()
+	content := `{"level":"error","server_name":"notion","message":"MCP server notion requires OAuth: "}` + "\n" +
+		`{"level":"info","message":"all good"}`
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "logs.jsonl"), []byte(content), 0o644))
+
+	t.Run("text", func(t *testing.T) {
+		result, err := runDirectoryQuery(dir, `.search("requires OAuth") | .text`)
+		require.NoError(t, err)
+
+		texts, ok := result.([]string)
+		require.True(t, ok, "expected []string, got %T", result)
+		require.Len(t, texts, 1)
+		assert.Contains(t, texts[0], `"server_name": "notion"`)
+		assert.Contains(t, texts[0], `"level": "error"`)
+	})
+
+	t.Run("tree", func(t *testing.T) {
+		result, err := runDirectoryQuery(dir, `.search("requires OAuth") | .tree`)
+		require.NoError(t, err)
+
+		tree, ok := result.(*mq.SearchTreeResult)
+		require.True(t, ok, "expected *mq.SearchTreeResult, got %T", result)
+		rendered := tree.String()
+		assert.Contains(t, rendered, "[line 1] level: error")
+		assert.Contains(t, rendered, "server_name: notion")
+		assert.Contains(t, rendered, "message: MCP server notion requires OAuth:")
+	})
+
+	t.Run("length", func(t *testing.T) {
+		result, err := runDirectoryQuery(dir, `.search("requires OAuth") | .length`)
+		require.NoError(t, err)
+		assert.Equal(t, 1, result)
+	})
 }

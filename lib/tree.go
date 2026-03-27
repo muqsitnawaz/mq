@@ -533,6 +533,19 @@ func jsonlRecordInfo(line string) (string, []string) {
 	return label, fields
 }
 
+func prettyJSONRecord(line string) string {
+	var obj interface{}
+	if err := json.Unmarshal([]byte(line), &obj); err != nil {
+		return line
+	}
+
+	pretty, err := json.MarshalIndent(obj, "", "  ")
+	if err != nil {
+		return line
+	}
+	return string(pretty)
+}
+
 // extractSnippet extracts text around the first match.
 func extractSnippet(text, query string, contextLen int) string {
 	lower := strings.ToLower(text)
@@ -589,6 +602,98 @@ func (r *SearchResults) String() string {
 		}
 		if m.Match != "" {
 			buf.WriteString(fmt.Sprintf("    > %s\n", m.Match))
+		}
+	}
+
+	return buf.String()
+}
+
+// TextContent returns the best text representation of a single match.
+func (r *SearchResult) TextContent() string {
+	if r.Text != "" {
+		return r.Text
+	}
+	if len(r.Fields) > 0 {
+		return strings.Join(r.Fields, "\n")
+	}
+	if r.Match != "" {
+		return r.Match
+	}
+	return r.Section
+}
+
+// Texts returns the best text representation of each match.
+func (r *SearchResults) Texts() []string {
+	results := make([]string, len(r.Matches))
+	for i, match := range r.Matches {
+		results[i] = match.TextContent()
+	}
+	return results
+}
+
+// BuildTree renders search results as a grouped tree.
+func (r *SearchResults) BuildTree() *SearchTreeResult {
+	tree := &SearchTreeResult{
+		Query:      r.Query,
+		MatchCount: len(r.Matches),
+	}
+
+	filesByPath := make(map[string]*SearchTreeFile)
+	for _, match := range r.Matches {
+		fileNode, ok := filesByPath[match.File]
+		if !ok {
+			fileNode = &SearchTreeFile{Path: match.File}
+			filesByPath[match.File] = fileNode
+			tree.Files = append(tree.Files, fileNode)
+		}
+
+		children := append([]string{}, match.Fields...)
+		if len(children) == 0 && match.Match != "" {
+			children = append(children, "match: "+match.Match)
+		}
+
+		fileNode.Matches = append(fileNode.Matches, &SearchTreeMatch{
+			Label:    match.Section,
+			Lines:    match.Lines,
+			Children: children,
+		})
+	}
+
+	return tree
+}
+
+// String renders search results as a tree grouped by file.
+func (t *SearchTreeResult) String() string {
+	if t.MatchCount == 0 {
+		return fmt.Sprintf("No matches for %q\n", t.Query)
+	}
+
+	var buf strings.Builder
+	buf.WriteString(fmt.Sprintf("Found %d matches for %q:\n\n", t.MatchCount, t.Query))
+
+	for fileIdx, file := range t.Files {
+		buf.WriteString(file.Path + "\n")
+		for matchIdx, match := range file.Matches {
+			matchLast := matchIdx == len(file.Matches)-1
+			matchConnector := "├── "
+			childPrefix := "│   "
+			if matchLast {
+				matchConnector = "└── "
+				childPrefix = "    "
+			}
+
+			buf.WriteString(fmt.Sprintf("%s[line %s] %s\n", matchConnector, match.Lines, match.Label))
+			for childIdx, child := range match.Children {
+				childLast := childIdx == len(match.Children)-1
+				childConnector := "├── "
+				if childLast {
+					childConnector = "└── "
+				}
+				buf.WriteString(fmt.Sprintf("%s%s%s\n", childPrefix, childConnector, child))
+			}
+		}
+		if fileIdx < len(t.Files)-1 {
+			buf.WriteString("\n")
 		}
 	}
 

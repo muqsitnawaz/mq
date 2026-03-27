@@ -368,14 +368,24 @@ func TestSearchPipelineOnJSONL(t *testing.T) {
 	texts, ok := textResult.([]string)
 	require.True(t, ok, "expected []string, got %T", textResult)
 	require.Len(t, texts, 2)
-	assert.Contains(t, texts[0], "tool_use")
-	assert.Contains(t, texts[1], "tool_use")
+	assert.Contains(t, texts[0], "\"event\": \"tool_use_start\"")
+	assert.Contains(t, texts[1], "\"event\": \"tool_use_finish\"")
 	assert.NotContains(t, texts[0], "Found 2 matches")
 	assert.NotContains(t, texts[1], "Found 2 matches")
 
 	lengthResult, err := engine.Query(doc, `.search("tool_use") | .length`)
 	require.NoError(t, err)
 	assert.Equal(t, 2, lengthResult)
+
+	treeResult, err := engine.Query(doc, `.search("tool_use") | .tree`)
+	require.NoError(t, err)
+
+	tree, ok := treeResult.(*mq.SearchTreeResult)
+	require.True(t, ok, "expected *mq.SearchTreeResult, got %T", treeResult)
+	rendered := tree.String()
+	assert.Contains(t, rendered, "[line 1] event: tool_use_start")
+	assert.Contains(t, rendered, "message: first tool_use event")
+	assert.Contains(t, rendered, "[line 3] event: tool_use_finish")
 }
 
 func TestComplexQueries(t *testing.T) {
