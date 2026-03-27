@@ -4,7 +4,12 @@
 
 ### Added
 
-- `.section()` now supports **substring matching** with case-insensitive fallback. `.section("Chapter 1")` now matches `### Chapter 1: What Is an Agent?`. Exact match is tried first, then case-insensitive exact, then case-insensitive substring (first in document order wins).
+- **Level-specific selectors**: `.h1` through `.h6` for precise heading-level queries.
+  - `.h2` — list all H2 headings (triage mode)
+  - `.h2("Auth") | .text` — full section under the matching H2 (read mode)
+- **4-tier matching ladder** for `.section()` and `.hN()`: exact -> case-insensitive exact -> case-insensitive prefix -> case-insensitive contains. First match in document order wins.
+  - `.section("Auth")` matches `## Authentication`
+  - `.h3("Chapter 1")` matches `### Chapter 1: What Is an Agent?`
 
 ## [0.3.7] - 2026-03-27
 
