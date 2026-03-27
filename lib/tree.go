@@ -273,7 +273,8 @@ type SearchResult struct {
 	Lines   string   // Line range (e.g., "34-89") or single line
 	Match   string   // Snippet with match context
 	Fields  []string // Key-value fields from the record (JSONL only)
-	Text    string   // Full matched content when available (e.g., pretty JSONL)
+	Text    string   // Text projection of the matched content
+	Raw     string   // Raw matched content safe to display in the terminal
 }
 
 // SearchResults holds all search matches.
@@ -372,6 +373,8 @@ func (d *Document) Search(query string) *SearchResults {
 				Section: section.Heading.Text,
 				Lines:   fmt.Sprintf("%d-%d", section.Start, section.End),
 				Match:   snippet,
+				Text:    text,
+				Raw:     text,
 			})
 		}
 	}
@@ -390,6 +393,8 @@ func (d *Document) Search(query string) *SearchResults {
 				Section: section,
 				Lines:   "n/a",
 				Match:   extractSnippet(text, query, 60),
+				Text:    text,
+				Raw:     d.RawText(),
 			})
 		}
 	}
@@ -420,8 +425,8 @@ func (d *Document) searchJSONL(query string) *SearchResults {
 			continue
 		}
 
-		// Only parse JSON for matching lines to extract structure
-		label, fields := jsonlRecordInfo(trimmed)
+		// Only parse JSON for matching lines to extract structure + text projection.
+		label, fields, text := jsonlRecordProjection(trimmed)
 		snippet := extractSnippet(trimmed, query, 80)
 
 		results.Matches = append(results.Matches, &SearchResult{
@@ -430,7 +435,8 @@ func (d *Document) searchJSONL(query string) *SearchResults {
 			Lines:   fmt.Sprintf("%d", lineNum),
 			Match:   snippet,
 			Fields:  fields,
-			Text:    prettyJSONRecord(trimmed),
+			Text:    text,
+			Raw:     trimmed,
 		})
 	}
 
@@ -449,12 +455,25 @@ func searchJSONLContent(path string, content []byte, query string) *SearchResult
 // jsonlRecordInfo extracts a label and key fields from a JSONL record.
 // Returns a short label for the heading and a list of "key: value" strings
 // showing the record's structure. Only parses JSON for matched lines.
+func jsonlRecordProjection(line string) (string, []string, string) {
+	var obj map[string]interface{}
+	if err := json.Unmarshal([]byte(line), &obj); err != nil {
+		return "record", nil, line
+	}
+
+	label, fields := jsonlRecordInfoFromObject(obj)
+	return label, fields, FlattenStructuredData(obj)
+}
+
 func jsonlRecordInfo(line string) (string, []string) {
 	var obj map[string]interface{}
 	if err := json.Unmarshal([]byte(line), &obj); err != nil {
 		return "record", nil
 	}
+	return jsonlRecordInfoFromObject(obj)
+}
 
+func jsonlRecordInfoFromObject(obj map[string]interface{}) (string, []string) {
 	var label string
 	var fields []string
 
@@ -566,19 +585,6 @@ func jsonlRecordInfo(line string) (string, []string) {
 	return label, fields
 }
 
-func prettyJSONRecord(line string) string {
-	var obj interface{}
-	if err := json.Unmarshal([]byte(line), &obj); err != nil {
-		return line
-	}
-
-	pretty, err := json.MarshalIndent(obj, "", "  ")
-	if err != nil {
-		return line
-	}
-	return string(pretty)
-}
-
 // extractSnippet extracts text around the first match.
 func extractSnippet(text, query string, contextLen int) string {
 	lower := strings.ToLower(text)
@@ -646,6 +652,9 @@ func (r *SearchResult) TextContent() string {
 	if r.Text != "" {
 		return r.Text
 	}
+	if r.Raw != "" {
+		return r.Raw
+	}
 	if len(r.Fields) > 0 {
 		return strings.Join(r.Fields, "\n")
 	}
@@ -655,11 +664,28 @@ func (r *SearchResult) TextContent() string {
 	return r.Section
 }
 
+// RawContent returns the raw payload for a single match when available.
+func (r *SearchResult) RawContent() string {
+	if r.Raw != "" {
+		return r.Raw
+	}
+	return r.TextContent()
+}
+
 // Texts returns the best text representation of each match.
 func (r *SearchResults) Texts() []string {
 	results := make([]string, len(r.Matches))
 	for i, match := range r.Matches {
 		results[i] = match.TextContent()
+	}
+	return results
+}
+
+// RawTexts returns the raw payload of each match when available.
+func (r *SearchResults) RawTexts() []string {
+	results := make([]string, len(r.Matches))
+	for i, match := range r.Matches {
+		results[i] = match.RawContent()
 	}
 	return results
 }

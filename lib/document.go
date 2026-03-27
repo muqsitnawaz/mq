@@ -161,6 +161,15 @@ func (d *Document) ReadableText() string {
 	return d.readableText
 }
 
+// RawText returns the original textual source when it is safe to display.
+// Binary formats like PDF fall back to extracted readable text.
+func (d *Document) RawText() string {
+	if d.format == FormatPDF {
+		return d.readableText
+	}
+	return string(d.source)
+}
+
 // PageCount returns the document page count for paginated formats like PDF.
 // Falls back to the highest heading page if no explicit count was stored.
 func (d *Document) PageCount() int {

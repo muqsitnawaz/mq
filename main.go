@@ -115,7 +115,8 @@ func printUsage() {
 	fmt.Println("  .links             Get all links")
 	fmt.Println("")
 	fmt.Println("Pipes:")
-	fmt.Println("  | .text            Extract raw content")
+	fmt.Println("  | .text            Extract text content")
+	fmt.Println("  | .raw             Extract source text")
 	fmt.Println("  | .tree            Show structure of selection")
 	fmt.Println("  | .nth(N)          Pick the Nth item from current results (0-based)")
 	fmt.Println("")
@@ -508,6 +509,17 @@ func applySearchPipeline(current interface{}, parts []string) (interface{}, erro
 			default:
 				return nil, fmt.Errorf("Cannot apply .text to %T", current)
 			}
+		case "raw":
+			switch v := current.(type) {
+			case *mq.SearchResults:
+				current = v.RawTexts()
+			case []*mq.SearchResult:
+				current = (&mq.SearchResults{Matches: v}).RawTexts()
+			case *mq.SearchResult:
+				current = v.RawContent()
+			default:
+				return nil, fmt.Errorf("Cannot apply .raw to %T", current)
+			}
 		case "tree":
 			switch v := current.(type) {
 			case *mq.SearchResults:
@@ -555,7 +567,7 @@ func applySearchPipeline(current interface{}, parts []string) (interface{}, erro
 				return nil, fmt.Errorf("Cannot apply .nth to %T", current)
 			}
 		default:
-			return nil, fmt.Errorf("Unknown selector: .%s. Supported after directory .search: .text, .tree, .length, .nth(index)", method)
+			return nil, fmt.Errorf("Unknown selector: .%s. Supported after directory .search: .text, .raw, .tree, .length, .nth(index)", method)
 		}
 	}
 
@@ -849,6 +861,9 @@ func displayResult(result interface{}) {
 
 	case *mq.SearchResults:
 		fmt.Print(v.String())
+
+	case *mq.SearchResult:
+		fmt.Println(v.RawContent())
 
 	default:
 		fmt.Printf("Result type: %T\n", result)

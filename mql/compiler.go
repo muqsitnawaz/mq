@@ -228,6 +228,9 @@ func (v *compilerVisitor) VisitSelector(node *SelectorNode) (interface{}, error)
 		// Extract text from current context
 		return extractTextFromAny(v.context.Current), nil
 
+	case "raw":
+		return extractRawFromAny(v.context.Current), nil
+
 	case "length":
 		return getLength(v.context.Current), nil
 
@@ -296,7 +299,7 @@ func formatUnknownSelectorError(name string) error {
 	knownSelectors := []string{
 		"headings", "section", "sections", "code", "links", "images",
 		"tables", "lists", "metadata", "owner", "tags", "priority",
-		"text", "length", "nth", "tree", "search",
+		"text", "raw", "length", "nth", "tree", "search",
 	}
 
 	// Find closest match using simple string distance
@@ -306,7 +309,7 @@ func formatUnknownSelectorError(name string) error {
 		return fmt.Errorf("Error: unknown selector: .%s\nDid you mean: .%s?", name, suggestion)
 	}
 
-	return fmt.Errorf("Error: unknown selector: .%s\nAvailable selectors: .headings, .section(title), .sections, .code, .links, .images, .tables, .lists, .metadata, .owner, .tags, .priority, .text, .length, .nth(index), .tree, .search(query)", name)
+	return fmt.Errorf("Error: unknown selector: .%s\nAvailable selectors: .headings, .section(title), .sections, .code, .links, .images, .tables, .lists, .metadata, .owner, .tags, .priority, .text, .raw, .length, .nth(index), .tree, .search(query)", name)
 }
 
 // findClosestMatch finds the closest matching string using simple heuristics.
@@ -939,6 +942,29 @@ func extractText(obj interface{}) string {
 	}
 }
 
+func extractRaw(obj interface{}) string {
+	switch v := obj.(type) {
+	case *mq.Document:
+		return v.RawText()
+	case *mq.Heading:
+		return v.Text
+	case *mq.Section:
+		return v.GetText()
+	case *mq.CodeBlock:
+		return v.Content
+	case *mq.Link:
+		return v.Text
+	case *mq.Image:
+		return v.AltText
+	case *mq.SearchResult:
+		return v.RawContent()
+	case string:
+		return v
+	default:
+		return extractText(obj)
+	}
+}
+
 // handleCollectionPropertyAccess handles property access on collections
 func (v *compilerVisitor) handleCollectionPropertyAccess(property string) (interface{}, bool) {
 	current := v.context.Current
@@ -1192,6 +1218,57 @@ func extractTextFromAny(obj interface{}) interface{} {
 	default:
 		// Single item
 		return extractText(obj)
+	}
+}
+
+func extractRawFromAny(obj interface{}) interface{} {
+	switch v := obj.(type) {
+	case []*mq.Heading:
+		results := make([]string, len(v))
+		for i, item := range v {
+			results[i] = item.Text
+		}
+		return results
+	case []*mq.Section:
+		results := make([]string, len(v))
+		for i, item := range v {
+			results[i] = item.GetText()
+		}
+		return results
+	case []*mq.CodeBlock:
+		results := make([]string, len(v))
+		for i, item := range v {
+			results[i] = item.Content
+		}
+		return results
+	case []*mq.Link:
+		results := make([]string, len(v))
+		for i, item := range v {
+			results[i] = item.Text
+		}
+		return results
+	case []*mq.Image:
+		results := make([]string, len(v))
+		for i, item := range v {
+			results[i] = item.AltText
+		}
+		return results
+	case *mq.SearchResults:
+		return v.RawTexts()
+	case []*mq.SearchResult:
+		results := make([]string, len(v))
+		for i, match := range v {
+			results[i] = match.RawContent()
+		}
+		return results
+	case []interface{}:
+		results := make([]string, len(v))
+		for i, item := range v {
+			results[i] = extractRaw(item)
+		}
+		return results
+	default:
+		return extractRaw(obj)
 	}
 }
 

@@ -116,12 +116,14 @@ mq paper.pdf '.tables'
 
 # JSON/YAML - query data files
 mq config.json '.headings'      # Top-level keys
-mq data.yaml '.text'            # Readable representation
+mq data.yaml '.text'            # Flattened path:value text
+mq data.yaml '.raw'             # Original source text
 
 # JSONL - search logs and session files
 mq session.jsonl '.search("auth")'  # Line-level search with record context
-mq session.jsonl '.search("auth") | .text'  # Expand all matched records
-mq session.jsonl '.search("auth") | .nth(0) | .text'  # Narrow to one matched record
+mq session.jsonl '.search("auth") | .text'  # Flatten all matched records
+mq session.jsonl '.search("auth") | .nth(0)'  # Show one raw matched record
+mq session.jsonl '.search("auth") | .nth(0) | .raw'  # Explicit raw record
 mq sessions/ '.search("requires OAuth") | .tree'  # Search whole session directories with structured record output
 ```
 
@@ -347,7 +349,7 @@ mq sessions/ ".search('requires OAuth') | .tree"
 mq sessions/ ".search('requires OAuth') | .text"
 
 # Pick one matched record only if you need to narrow (0-based), jq-style
-mq session.jsonl ".search('auth') | .nth(0) | .text"
+mq session.jsonl ".search('auth') | .nth(0)"
 ```
 
 ### Extract Content
@@ -404,6 +406,8 @@ The query language stays the same across formats. What changes is the structure 
 | `.tree` | Document structure (adapts to file vs directory) |
 | `.search("term")` | Find sections containing term (JSONL: line-level) |
 | `.nth(N)` | Pick the Nth item from current results (0-based) |
+| `.text` | Extract text content / flattened structured text |
+| `.raw` | Extract source text / raw matched record |
 | `.section("name")` | Section by heading |
 | `.sections` | All sections |
 | `.headings` | All headings |
