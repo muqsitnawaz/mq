@@ -906,6 +906,8 @@ func getLength(obj interface{}) int {
 
 func extractText(obj interface{}) string {
 	switch v := obj.(type) {
+	case *mq.Document:
+		return v.ReadableText()
 	case *mq.Heading:
 		return v.Text
 	case *mq.Section:
