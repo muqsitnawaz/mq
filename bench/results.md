@@ -2,8 +2,6 @@
 
 Benchmarked on Apple M3 Max, Go 1.24, on 2026-03-27.
 
-This file only reports benchmark paths that currently hit the real parser or query implementations in the repo. JSON and JSONL parser timings are intentionally excluded until a dedicated benchmark lands on the real structured-data parser path rather than the current stub helper in `lib/benchmark_test.go`.
-
 ## Headline Summary
 
 | Path | Current benchmark result |
@@ -18,6 +16,8 @@ This file only reports benchmark paths that currently hit the real parser or que
 | PDF warm cache hit | 11.16ms-16.68ms |
 | PDF BuildTree | 0.216ms-0.567ms |
 | PDF Search | 0.754ms-0.973ms |
+| Directory search (`growth-book`) | cold: 2.21s, warm exact-repeat: 11.98ms, partial invalidation: 1.62s |
+| Directory search (`rush-sessions`) | cold: 51.86s, warm exact-repeat: 440.34ms |
 | MQL `.section("X") \| .text` | 9.58us after parse |
 
 ## Markdown Parsing
@@ -90,6 +90,17 @@ Cold parse covers the full PDF pipeline: text extraction, structure extraction, 
 | `.section("Section 1") \| .text` | 9.58us |
 | `.headings \| filter(.level == 2)` | 3.18us |
 
+## Directory Search Cache
+
+`go test ./mql -bench 'BenchmarkDirectorySearch$' -run '^$' -benchtime=1x -count=1`
+
+| Corpus | Query | Cold | Warm exact repeat | Partial invalidation |
+|--------|-------|------|-------------------|----------------------|
+| `../agents/growth/book` | `calibration` | 2.21s | 11.98ms | 1.62s |
+| `~/.rush/sessions` | `requires OAuth` | 51.86s | 440.34ms | - |
+
+These benchmarks hit the real cache-aware directory search path through `mql.Engine.SearchDir`, not the older markdown-only `doc.Search(...)` helper benchmark.
+
 ## Multi-Document Scale
 
 `go test ./lib -bench 'BenchmarkMultipleDocuments$' -run '^$' -count=1`
@@ -102,17 +113,12 @@ Cold parse covers the full PDF pipeline: text extraction, structure extraction, 
 
 This benchmark parses a batch of same-sized markdown documents, then queries all of them for headings. It is a real repo benchmark, but it does not measure directory cache behavior.
 
-## Current Gaps
-
-- No benchmark yet covers cold directory search, warm exact-repeat directory cache hits, or partial invalidation on a changed subtree.
-- No benchmark yet covers a real JSON or JSONL parser hot path; the old `lib/benchmark_test.go` helper is still a stub for those formats and is intentionally excluded from this report.
-
 ## Notes
 
 - The biggest user-visible win right now is PDF cache latency: repeated loads drop from roughly 11-13 seconds to roughly 11-17 milliseconds.
+- On very large directories, warm exact-repeat search is much faster than cold search, but it still pays the directory-hash check first.
 - Markdown is still the highest-throughput general parser path in the repo.
 - HTML remains slower because readability extraction does more work than plain structural parsing.
-- JSON and JSONL remain supported features; they are just missing a publishable real-parser benchmark in this file today.
 
 ## Raw Output
 

@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.3.5] - 2026-03-27
+
+### Benchmarks
+
+- Added real cache-aware directory search benchmarks in `mql/benchmark_test.go` for cold search, warm exact-repeat cache hits, and partial invalidation.
+- Benchmarks now cover two real local corpora when available: `../agents/growth/book` and `~/.rush/sessions`.
+
+### Documentation
+
+- Replaced the “benchmark gap” note with measured directory-search cache numbers in `README.md` and `bench/results.md`.
+- Restored multi-document scale data in `bench/results.md` alongside the new real-corpus directory benchmark section.
+
 ## [0.3.4] - 2026-03-27
 
 ### Documentation

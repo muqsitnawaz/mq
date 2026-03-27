@@ -547,8 +547,6 @@ Benchmarked on Apple M3 Max, Go 1.24. The tables below only include benchmark pa
 | PDF Search | 0.754ms-0.973ms |
 | MQL `.section("X") \| .text` | 9.58us after parse |
 
-JSON and JSONL parser timings are intentionally omitted from this section until a dedicated benchmark lands on the real structured-data parser path rather than the current benchmark stub helper.
-
 ### PDF Benchmark Profile (real PDFs, Apple M3 Max)
 
 Measured with:
@@ -597,6 +595,21 @@ Parsed documents and directory search results are cached in a content-addressed 
 On the PDF corpus above, repeated loads drop from roughly 10.9-13.4 seconds to roughly 11-17 milliseconds once the cache is warm.
 
 Warm cache hits still validate the file and deserialize the cached `Document`, so the main user-visible win is latency, not just throughput.
+
+### Directory Search Cache (real corpora, Apple M3 Max)
+
+Measured with:
+
+```bash
+go test ./mql -bench 'BenchmarkDirectorySearch$' -run '^$' -benchtime=1x -count=1
+```
+
+| Corpus | Query | Cold | Warm exact repeat | Partial invalidation |
+|--------|-------|------|-------------------|----------------------|
+| `../agents/growth/book` (12MB) | `calibration` | 2.21s | 11.98ms | 1.62s |
+| `~/.rush/sessions` (4.2GB) | `requires OAuth` | 51.86s | 440.34ms | - |
+
+Warm exact-repeat is still not free on very large trees because `LookupDirSearch` first recomputes the current directory hash before reusing cached results.
 
 **How it works:**
 1. **Parse cache**: SHA256 content hash keys the parsed `Document`, so repeated file queries skip reparsing and deserialize the cached structure instead.
