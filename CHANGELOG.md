@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.3.8] - 2026-03-27
+
+### Added
+
+- `.section()` now supports **substring matching** with case-insensitive fallback. `.section("Chapter 1")` now matches `### Chapter 1: What Is an Agent?`. Exact match is tried first, then case-insensitive exact, then case-insensitive substring (first in document order wins).
+
 ## [0.3.7] - 2026-03-27
 
 ### Improved
