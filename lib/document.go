@@ -29,6 +29,7 @@ type Document struct {
 	// Format-agnostic content
 	title        string // Document title (HTML: <title>, PDF: metadata, MD: first H1)
 	readableText string // Main content as plain text (for LLM context)
+	pageCount    int    // Total page count (PDF only, 0 if not applicable)
 
 	// Pre-computed indexes for O(1) lookups
 	mu              sync.RWMutex
@@ -163,6 +164,27 @@ func (d *Document) Title() string {
 // For PDF: extracted text content
 func (d *Document) ReadableText() string {
 	return d.readableText
+}
+
+// PageCount returns the document page count for paginated formats like PDF.
+// Falls back to the highest heading page if no explicit count was stored.
+func (d *Document) PageCount() int {
+	if d.pageCount > 0 {
+		return d.pageCount
+	}
+
+	maxPage := 0
+	for _, s := range d.sectionList {
+		if s.Heading != nil && s.Heading.Page > maxPage {
+			maxPage = s.Heading.Page
+		}
+	}
+	return maxPage
+}
+
+// SetPageCount stores the total page count for paginated formats like PDF.
+func (d *Document) SetPageCount(pageCount int) {
+	d.pageCount = pageCount
 }
 
 // AST returns the root AST node (Markdown only).

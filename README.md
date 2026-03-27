@@ -243,33 +243,35 @@ PageIndex: 6.3s   ████████████████████�
 
 When the consumer is an LLM, it already has reasoning capability. mq leverages that instead of adding redundant computation layers.
 
-### Why Markdown is Different
+### Why Markdown Is Still Easier
 
-PageIndex uses heavy LLM processing because **PDF structure isn't deterministic** - you need an LLM to detect TOC pages, extract hierarchy, map page indices, and verify correctness.
+Markdown structure is explicit. Headings, code blocks, links, tables, and lists can be parsed directly from the AST with stable line ranges.
 
-But **markdown structure IS deterministic**. Headings, code blocks, lists - these can be parsed with an AST. No LLM needed to understand structure, only to reason over it.
+PDFs are supported too, but their structure is inferred from layout cues like font size, boldness, and page position. That makes PDF parsing slower and more heuristic than markdown, even though the query interface stays the same once the `Document` is built.
 
-This is mq's advantage: zero-cost structure extraction for formats where structure is explicit.
+This is the tradeoff mq makes: keep one query language, but let each parser extract the strongest deterministic structure it can for that format.
 
 ## Roadmap: Vision Support
 
-For non-deterministic formats (PDFs, images, scanned documents), we're exploring a sub-agent architecture:
+Text PDFs already go through the built-in PDF parser. The remaining frontier is image-heavy inputs: scanned PDFs, screenshots, diagrams, and pages where layout matters more than extracted text.
+
+For those cases, we're exploring a sub-agent architecture:
 
 ```
 Main Agent (Opus/Sonnet)
     └── spawns Explorer Sub-Agent (Haiku with vision)
-            └── examines PDF/image
+            └── examines scanned page / image
             └── returns structured summary to main context
 ```
 
-**The insight**: Vision-capable models (even Haiku) can do OCR. Instead of pre-processing documents with a separate service, reuse the agent infrastructure:
+**The insight**: vision-capable models can recover structure when text extraction and layout heuristics stop being enough. Instead of pre-processing everything with a separate service, reuse the agent infrastructure only for the hard cases:
 
 - **No pre-processing step** - explore on demand
 - **Cheaper models for exploration** - Haiku has vision but costs less
 - **Disposable context** - sub-agent's work doesn't pollute main context
-- **Unified interface** - same query patterns for markdown and vision
+- **Unified interface** - same high-level workflow: structure, search, extract
 
-This extends the mq philosophy: let agents reason over structure, but use sub-agents to extract structure from non-deterministic formats.
+This extends the mq philosophy: ordinary markdown, HTML, JSON, YAML, JSONL, and text PDFs stay on the fast local path; sub-agents are reserved for inputs that do not expose usable structure directly.
 
 ## Installation
 
@@ -302,6 +304,8 @@ Use `mq` to query markdown files. Narrow down to a specific file/subdir first, t
 ## Usage
 
 > **Shell quoting:** Examples use double quotes for the outer string (`"..."`), which works on all platforms including Windows. On macOS and Linux, single quotes also work: `mq doc.md '.section("API")'`.
+
+The CLI shape does not change by format: `mq <path> [query]`.
 
 The same three-step pattern works on every format: **structure -> search -> extract**.
 
@@ -379,6 +383,8 @@ $ mq paper.pdf ".section('Methodology') | .text"
 ## Query Language
 
 mq uses a jq-inspired query syntax with piping and selectors. If you're familiar with jq, see [docs/syntax.md](docs/syntax.md) for differences and design rationale.
+
+The query language stays the same across formats. What changes is the structure that the parser can populate for a given document.
 
 ### Selectors
 
@@ -506,7 +512,7 @@ if owner, ok := doc.GetOwner(); ok {
 
 ## Performance
 
-Benchmarked on Apple M4.
+General parser throughput numbers below were benchmarked on Apple M4.
 
 ### Parsing Speed by Format
 
@@ -518,6 +524,22 @@ Benchmarked on Apple M4.
 | JSON | 7.3us | 52us | 20 GB/s |
 | JSONL | 17us | 133us | 8 GB/s |
 | PDF | - | 1.9s | ~1 MB/s |
+
+### PDF Benchmark Profile (real PDFs, Apple M3 Max)
+
+Measured with:
+
+```bash
+go test ./pdf/... -bench=BenchmarkPDF -benchmem -count=1
+```
+
+| File | Size | Cold parse | Warm cache hit | BuildTree | Search |
+|------|------|------------|----------------|-----------|--------|
+| `bert.pdf` | 757KB | 10.84s | 10.88ms | 0.322ms | 0.685ms |
+| `attention.pdf` | 2.1MB | 9.90s | 11.44ms | 0.508ms | 0.731ms |
+| `raft.pdf` | 6.6MB | 11.08s | 12.33ms | 0.194ms | 0.686ms |
+
+Cold parse covers the full PDF pipeline. Warm cache hit measures `Cache.LookupFile`, which skips parsing and deserializes the cached `Document`.
 
 ### Context Window Budget (200k tokens = 800KB)
 
@@ -547,12 +569,7 @@ The agent loads ~1KB structure per PDF (vs ~50KB full text), reasons over 800 st
 
 Parsed documents are cached in a content-addressed bbolt database (`~/Library/Caches/mq/cache.db` on macOS). Subsequent queries on the same file skip parsing entirely.
 
-| Scenario | Time | Speedup |
-|----------|------|---------|
-| PDF query (cold cache) | 1.69s | - |
-| PDF query (cached) | 0.02s | **85x** |
-| HTML query (cold cache) | 600ms | - |
-| HTML query (cached) | 0.02s | **30x** |
+On the PDF corpus above, repeated loads drop from roughly 10-11 seconds to roughly 11-12 milliseconds once the cache is warm.
 
 **How it works:**
 1. **Stat check**: mtime + size compared against cache — if unchanged, skip reading the file entirely

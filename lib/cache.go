@@ -56,6 +56,7 @@ type cachedDocument struct {
 	Format       Format                 `msgpack:"f"`
 	Title        string                 `msgpack:"t"`
 	ReadableText string                 `msgpack:"r"`
+	PageCount    int                    `msgpack:"pc"`
 	Headings     []cachedHeading        `msgpack:"h"`
 	Sections     []cachedSection        `msgpack:"s"`
 	CodeBlocks   []cachedCode           `msgpack:"c"`
@@ -568,6 +569,7 @@ func documentToCache(doc *Document) cachedDocument {
 		Format:       doc.format,
 		Title:        doc.title,
 		ReadableText: doc.readableText,
+		PageCount:    doc.pageCount,
 		Metadata:     doc.metadata,
 	}
 
@@ -770,6 +772,7 @@ func cacheToDocument(cd *cachedDocument, source []byte, path string) *Document {
 		headings, sections, codeBlocks, links, images, tables, lists,
 		cd.ReadableText,
 	)
+	doc.SetPageCount(cd.PageCount)
 
 	// Restore metadata (unexported field, settable within lib package)
 	if cd.Metadata != nil {

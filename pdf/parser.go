@@ -193,7 +193,7 @@ func (e *extractor) extract() (*mq.Document, error) {
 		}
 	}
 
-	return mq.NewDocument(
+	doc := mq.NewDocument(
 		e.source,
 		e.path,
 		mq.FormatPDF,
@@ -206,7 +206,11 @@ func (e *extractor) extract() (*mq.Document, error) {
 		tables,
 		nil, // lists - would be detected from bullets
 		text,
-	), nil
+	)
+	if structure != nil {
+		doc.SetPageCount(structure.PageCount)
+	}
+	return doc, nil
 }
 
 // extractStructure uses PyMuPDF to extract headings and tables.

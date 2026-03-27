@@ -49,13 +49,8 @@ func (d *Document) BuildTree() *TreeResult {
 		Lines:  d.countLines(),
 	}
 
-	// For PDFs, compute page count from max heading page number
 	if d.format == FormatPDF {
-		for _, s := range d.sectionList {
-			if s.Heading != nil && s.Heading.Page > result.Pages {
-				result.Pages = s.Heading.Page
-			}
-		}
+		result.Pages = d.PageCount()
 	}
 
 	// Add frontmatter if present
@@ -717,13 +712,8 @@ func buildDirNode(path string, opts TreeOptions, currentDepth int, result *DirTr
 			node.Format = doc.Format()
 			node.Count, node.Structure = describeStructure(doc)
 
-			// For PDFs, compute page count from max heading page number
 			if doc.Format() == FormatPDF {
-				for _, s := range sections {
-					if s.Heading != nil && s.Heading.Page > node.Pages {
-						node.Pages = s.Heading.Page
-					}
-				}
+				node.Pages = doc.PageCount()
 			}
 
 			result.TotalFiles++

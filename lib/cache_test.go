@@ -770,6 +770,7 @@ func TestCacheRoundtripNonMarkdownSectionText(t *testing.T) {
 		headings, sections, nil, nil, nil, nil, nil,
 		readableText,
 	)
+	doc.SetPageCount(4)
 
 	// Verify sections have readable text before caching
 	setupSection, ok := doc.GetSection("Setup")
@@ -793,10 +794,10 @@ func TestCacheRoundtripNonMarkdownSectionText(t *testing.T) {
 
 	// Verify tree uses page numbers and readable text line count
 	tree := cached.BuildTree()
-	assert.Equal(t, 2, tree.Pages,
+	assert.Equal(t, 4, tree.Pages,
 		"cached PDF page count should survive roundtrip")
 	output := tree.String()
-	assert.Contains(t, output, "(2 pages)",
+	assert.Contains(t, output, "(4 pages)",
 		"cached PDF tree header should show pages, not lines")
 	assert.Contains(t, output, "(p. 1)",
 		"cached PDF tree sections should show page numbers")
