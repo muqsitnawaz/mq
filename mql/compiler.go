@@ -231,6 +231,16 @@ func (v *compilerVisitor) VisitSelector(node *SelectorNode) (interface{}, error)
 	case "length":
 		return getLength(v.context.Current), nil
 
+	case "nth":
+		if len(args) == 0 {
+			return nil, fmt.Errorf("Error: .nth requires an index\nUsage: .collection | .nth(0)")
+		}
+		index, ok := toInt(args[0])
+		if !ok {
+			return nil, fmt.Errorf("Error: .nth requires an integer index, got %T\nUsage: .collection | .nth(0)", args[0])
+		}
+		return getNth(v.context.Current, index)
+
 	case "select", "filter":
 		// These are treated as filters with predicates
 		if len(node.Args) == 0 {
@@ -296,7 +306,7 @@ func formatUnknownSelectorError(name string) error {
 	knownSelectors := []string{
 		"headings", "section", "sections", "code", "links", "images",
 		"tables", "lists", "metadata", "owner", "tags", "priority",
-		"text", "length", "tree", "search", "record",
+		"text", "length", "nth", "tree", "search", "record",
 	}
 
 	// Find closest match using simple string distance
@@ -306,7 +316,7 @@ func formatUnknownSelectorError(name string) error {
 		return fmt.Errorf("Error: unknown selector: .%s\nDid you mean: .%s?", name, suggestion)
 	}
 
-	return fmt.Errorf("Error: unknown selector: .%s\nAvailable selectors: .headings, .section(title), .sections, .code, .links, .images, .tables, .lists, .metadata, .owner, .tags, .priority, .text, .length, .tree, .search(query)", name)
+	return fmt.Errorf("Error: unknown selector: .%s\nAvailable selectors: .headings, .section(title), .sections, .code, .links, .images, .tables, .lists, .metadata, .owner, .tags, .priority, .text, .length, .nth(index), .tree, .search(query)", name)
 }
 
 // findClosestMatch finds the closest matching string using simple heuristics.
@@ -909,6 +919,13 @@ func getLength(obj interface{}) int {
 	default:
 		return 0
 	}
+}
+
+func getNth(obj interface{}, index int) (interface{}, error) {
+	if results, ok := obj.(*mq.SearchResults); ok {
+		return getIndex(results.Matches, index)
+	}
+	return getIndex(obj, index)
 }
 
 func extractText(obj interface{}) string {

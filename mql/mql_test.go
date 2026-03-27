@@ -386,6 +386,12 @@ func TestSearchPipelineOnJSONL(t *testing.T) {
 	assert.Contains(t, rendered, "[line 1] event: tool_use_start")
 	assert.Contains(t, rendered, "message: first tool_use event")
 	assert.Contains(t, rendered, "[line 3] event: tool_use_finish")
+
+	nthResult, err := engine.Query(doc, `.search("tool_use") | .nth(1) | .text`)
+	require.NoError(t, err)
+	text, ok := nthResult.(string)
+	require.True(t, ok, "expected string, got %T", nthResult)
+	assert.Contains(t, text, "\"event\": \"tool_use_finish\"")
 }
 
 func TestComplexQueries(t *testing.T) {

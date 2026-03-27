@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.3.2] - 2026-03-27
+
+### Features
+
+- **Fallback PDF structure inference**: when font-based heading detection finds nothing, `mq` now derives structure from label-like lines, section markers, and bullet lists so `.tree` can still show useful hierarchy on scanned forms and administrative PDFs.
+- **Structured non-markdown text output**: document-level `.text` now returns readable whole-document content for PDFs and markdown, matching the section-level extraction behavior.
+- **Structured search rendering**: search results and non-markdown data output are formatted more cleanly for downstream terminal use.
+
+### Fixes
+
+- Removed whole-document `.text` struct dumps for PDFs with OCR text by routing document extraction through `ReadableText()`.
+- Preserved page-aware text normalization for inferred PDF sections so fallback tree nodes retain correct page numbers in `.tree`.
+
 ## [0.2.1] - 2026-03-23
 
 ### Features
