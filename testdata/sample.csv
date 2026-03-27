@@ -1,0 +1,8 @@
+name,email,role,salary,department
+Alice Johnson,alice@example.com,Engineer,120000,Engineering
+Bob Smith,bob@example.com,Designer,95000,Design
+Charlie Brown,charlie@example.com,Manager,140000,Engineering
+Diana Prince,diana@example.com,Engineer,130000,Engineering
+Eve Wilson,eve@example.com,Analyst,85000,Analytics
+Frank Castle,frank@example.com,Designer,98000,Design
+Grace Hopper,grace@example.com,Engineer,150000,Engineering
