@@ -149,14 +149,20 @@ func TestDisplayResultSearchMatchUsesRawContent(t *testing.T) {
 func TestDisplayResultDirectoryTreeUsesTreeString(t *testing.T) {
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "guide.md"), []byte("# Guide\n\n## API\n\nNeedle in docs.\n"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "page.html"), []byte("<!DOCTYPE html><html><body><main><h1>Overview</h1><p>Needle in html content.</p></main></body></html>"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "data.json"), []byte(`{"name":"json doc","content":"Needle in json payload"}`), 0o644))
 
 	result, err := runDirectoryQuery(dir, ".tree")
 	require.NoError(t, err)
 
 	tree, ok := result.(*mq.DirTreeResult)
 	require.True(t, ok, "expected *mq.DirTreeResult, got %T", result)
-	require.Contains(t, tree.String(), "guide.md (5 lines, 2 sections)")
+	require.Contains(t, tree.String(), "guide.md (6 lines, 2 sections)")
 	require.Contains(t, tree.String(), "# Guide")
+	require.Contains(t, tree.String(), "page.html")
+	require.Contains(t, tree.String(), "H1 Overview")
+	require.Contains(t, tree.String(), "data.json")
+	require.Contains(t, tree.String(), "key content")
 
 	rendered := captureOutput(t, func() {
 		displayResult(tree)
