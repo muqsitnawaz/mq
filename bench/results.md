@@ -168,7 +168,14 @@ Tested on a corpus of 123 PDFs, 365MB total, 317K lines.
 |-------|-------|------|---------------|---------|
 | `.tree` | 9 | 24.5s | 0.25s | **98x** |
 | `.tree` | 29 | 2:24 | 0.62s | **233x** |
+| `.tree` | 58 | 1:40* | 0.96s | **104x** |
 | `.tree` | 123 | 5:02 | 2.97s | **101x** |
+| `.search("algorithm")` | 123 | — | 4.0s | — |
+| `.search("security")` | 123 | — | 4.4s | 3,311 match lines |
+| `.search("neural network")` | 123 | — | 4.1s | — |
+| `.section("risk") \| .text` | 1 (48pg) | — | 0.2s | — |
+
+*58-file cold run benefited from 29 files already cached from prior round. Per-file warm cost: ~20ms. Cache DB: 56MB for 123 PDFs.
 
 ## Real-World Code Directory Benchmarks
 
