@@ -408,6 +408,7 @@ The query language stays the same across formats. What changes is the structure 
 | `.code` / `.code("lang")` | Code blocks |
 | `.links` / `.images` / `.tables` | Other elements |
 | `.metadata` / `.owner` / `.tags` | Frontmatter |
+| `.md` / `.html` / `.json` / `.yaml` | Format cast: reparse string as another format |
 
 ### Operations
 
@@ -418,6 +419,30 @@ The query language stays the same across formats. What changes is the structure 
 | `filter(.level == 2)` | Filter results |
 | `depth(N)` | Limit tree traversal to N levels |
 | `limit(N)` | Show max N entries per directory |
+
+### Format Casts
+
+Cast operators reinterpret a string value as a different document format mid-pipeline.
+Use when structured content is embedded inside another format (e.g. markdown inside JSONL).
+
+| Cast | Parses as | Example |
+|------|-----------|---------|
+| `.md` | Markdown | `.text \| .md \| .headings` |
+| `.html` | HTML | `.text \| .html \| .links` |
+| `.json` | JSON | `.raw \| .json \| .section("key")` |
+| `.yaml` | YAML | `.text \| .yaml \| .tree` |
+
+```bash
+# JSON field containing markdown -> extract headings
+mq data.json '.section("readme") | .text | .md | .headings'
+
+# JSONL record -> parse as JSON -> drill to a field -> cast to markdown
+mq log.jsonl '.search("report") | .nth(0) | .raw | .json | .section("content") | .text | .md | .section("Summary") | .text'
+
+# Claude session files: search conversations, extract structured content
+mq ~/.claude/projects/-Users-you-project/ '.search("auth")'
+mq session.jsonl '.search("AUDIT") | .nth(0) | .raw | .json | .section("content") | .text | .md | .headings'
+```
 
 ### Examples
 
