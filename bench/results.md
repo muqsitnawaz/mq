@@ -160,7 +160,17 @@ Cache hit latency is ~33ms per file (bbolt stat check + msgpack deserialize). Fo
 
 CSV and DOCX are stdlib-only parsers (encoding/csv, archive/zip + encoding/xml). XLSX uses excelize which is heavier. All office formats parse under 1ms except XLSX at larger sizes.
 
-## Real-World Directory Benchmarks
+## Real-World PDF Directory Benchmark
+
+Tested on a corpus of 123 PDFs, 365MB total, 317K lines.
+
+| Query | Files | Cold | Warm (cached) | Speedup |
+|-------|-------|------|---------------|---------|
+| `.tree` | 9 | 24.5s | 0.25s | **98x** |
+| `.tree` | 29 | 2:24 | 0.62s | **233x** |
+| `.tree` | 123 | 5:02 | 2.97s | **101x** |
+
+## Real-World Code Directory Benchmarks
 
 Tested on `agents/harness/` -- a production Go codebase with 560 .go files, 50 .md files, 111K total lines.
 
