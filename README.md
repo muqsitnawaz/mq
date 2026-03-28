@@ -8,8 +8,9 @@
 AI agents waste tokens reading entire files. mq lets them query structure first, then extract only what they need. The agent's context window becomes the working index.
 
 **Results:**
+- **123 PDFs (365MB) triaged in 2.97s** with warm cache — full structural map of every document
 - **83% fewer tokens** for markdown when scoped correctly
-- **~11-17ms warm PDF reloads** on real cached benchmark documents
+- **~20ms per PDF** on warm cache — sub-second `.tree` on 60+ PDFs, ~3s on 123
 - **50x more PDFs** searchable (800 vs 16 in 200k context) via structure-first approach
 
 **The philosophy**: Don't outsource reasoning to embeddings and rerankers. Expose structure, let the agent reason.
@@ -603,6 +604,22 @@ The agent loads ~1KB structure per PDF (vs ~50KB full text), reasons over 800 st
 | GetCodeBlocks | 28ns (1KB) to 1.86us (1MB) | Scales with code block count |
 | MQL `.headings` | 0.55us | Full lex/parse/compile/exec |
 | MQL `.section("X") \| .text` | 9.58us | Piped query with extraction |
+
+### PDF Directory Benchmark (real corpus, 123 arXiv/NIST/OpenStax PDFs)
+
+Tested on Apple M3 Max. Corpus: 123 PDFs, 365MB, 317K lines across arXiv papers, NIST reports, and OpenStax textbooks.
+
+| Query | Files | Cold | Warm (cached) | Speedup |
+|-------|-------|------|---------------|---------|
+| `.tree` | 9 | 24.5s | 0.25s | **98x** |
+| `.tree` | 29 | 2:24 | 0.62s | **233x** |
+| `.tree` | 58 | 1:40 | 0.96s | **104x** |
+| `.tree` | 123 | 5:02 | **2.97s** | **101x** |
+| `.search("algorithm")` | 123 | — | **4.0s** | — |
+| `.search("security")` | 123 | — | **4.4s** | 3,311 match lines |
+| `.section("risk") \| .text` | 1 (48pg) | — | **0.2s** | — |
+
+Cold parse is the one-time cost (PDF text + structure extraction). The cache (56MB bbolt DB for 123 PDFs) persists across sessions. Per-file warm cost: ~20ms.
 
 ### Parse + Search Cache (v0.3.3+)
 

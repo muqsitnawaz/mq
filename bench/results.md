@@ -172,21 +172,21 @@ Tested on a corpus of 123 PDFs, 365MB total, 317K lines.
 
 ## Real-World Code Directory Benchmarks
 
-Tested on `agents/harness/` -- a production Go codebase with 560 .go files, 50 .md files, 111K total lines.
+Tested on a mixed codebase with 560 source files and 50 markdown files, 111K total lines.
 
 ### Single File Cold vs Warm
 
 | File | Lines | Cold | Warm | Speedup |
 |------|-------|------|------|---------|
-| `agent/agent.go` | 745 | 360ms | 33ms | **11x** |
-| `agent/builder.go` | 2808 | 13.9s | 33ms | **420x** |
+| 745-line source file | 745 | 360ms | 33ms | **11x** |
+| 2808-line source file | 2808 | 13.9s | 33ms | **420x** |
 
 ### Directory Tree
 
 | Query | Scope | Cold | Warm | Speedup |
 |-------|-------|------|------|---------|
-| `.tree \| depth(1)` | harness root (12 files) | 1.1s | 1.0s | ~1x (only root files parsed) |
-| `.tree \| depth(1)` | `agent/` (60 Go files, 25K lines) | 94s | **0.54s** | **174x** |
+| `.tree \| depth(1)` | root (12 files) | 1.1s | 1.0s | ~1x (only root files parsed) |
+| `.tree \| depth(1)` | subdirectory (60 files, 25K lines) | 94s | **0.54s** | **174x** |
 
 ### Key Findings
 
