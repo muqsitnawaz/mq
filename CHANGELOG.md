@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.3.9] - 2026-03-29
+
+### Documentation
+
+- **PDF directory benchmark**: Tested on 123 real PDFs (365MB) — arXiv papers, NIST reports, OpenStax textbooks. Warm `.tree` on 58 PDFs in 0.96s, 123 PDFs in 2.97s. Search across 123 PDFs in ~4s.
+- Updated `--help` SCALE section with real PDF corpus numbers instead of generic "sub-second" claims.
+- Added PDF directory triage example to README showing real `.tree` output across a collection of papers and government reports.
+- Updated SKILL.md with PDF-at-scale use case, level-specific heading queries, and fuzzy matching examples.
+- Updated `bench/results.md` with full search benchmarks (algorithm, security, neural network) and per-file warm cost.
+
 ## [0.3.8] - 2026-03-27
 
 ### Added

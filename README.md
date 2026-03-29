@@ -387,6 +387,41 @@ $ mq paper.pdf ".section('Methodology') | .text"
 # Returns the full text of that section
 ```
 
+### PDF Directory Triage
+
+Run `.tree` on a directory of PDFs to get a structural map of every document:
+
+```bash
+$ mq papers/ .tree
+papers/ (9 files, 11143 lines total)
+├── ai_2301.00001.pdf (11 pages, 20 sections)
+│   └── H2 NFTrig: Using Blockchain Technologies for Math Education
+│            "JORDAN THOMPSON, Augustana College, USA"
+├── cl_2302.00001.pdf (20 pages, 27 sections)
+│   ├── H2 Quantum Computing for Plasma Physics
+│   │        "Oscar Amaro and Diogo Cruz"
+│   ├── H2 Introduction
+│   │        "Quantum Computing (QC) is a branch of computing..."
+│   ├── H2 Conclusions
+│   └── H2 References
+├── govt_nist_ai_risk.pdf (48 pages, 131 sections)
+│   ├── H1 Artificial Intelligence Risk Management
+│   ├── H1 Framework (AI RMF 1.0)
+│   │        "NIST AI 100-1"
+│   ├── H2 Executive Summary
+│   └── H2 How AI Risks Differ from Traditional Software Risks
+├── govt_nist_cybersecurity.pdf (55 pages, 696 sections)
+│   ├── H1 Critical Infrastructure Cybersecurity
+│   ├── H2 Executive Summary
+│   │        "The United States depends on the reliable..."
+│   └── H2 Appendix A: Framework Core
+└── govt_nist_zero_trust.pdf (59 pages, 100 sections)
+    ├── H1 NIST Special Publication 800-207
+    └── H1 Zero Trust Architecture
+```
+
+One call. Title, authors, page count, section count, and heading hierarchy for every PDF. With warm cache, this runs in **<1s for 60 PDFs** and **~3s for 123 PDFs**.
+
 ## Query Language
 
 mq uses a jq-inspired query syntax with piping and selectors. If you're familiar with jq, see [docs/syntax.md](docs/syntax.md) for differences and design rationale.
