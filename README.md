@@ -7,13 +7,16 @@
 
 AI agents waste tokens reading entire files. mq lets them query structure first, then extract only what they need. The agent's context window becomes the working index.
 
+Embedding-based retrieval is [provably limited](https://arxiv.org/abs/2508.21038) by dimensionality — a fundamental ceiling, not a training problem. Stuffing full documents into context [degrades performance 14–85%](https://arxiv.org/abs/2510.05381) even with perfect retrieval. And [keyword search + agent reasoning matches 90%+ of RAG](https://arxiv.org/abs/2602.23368) without a vector database. Anthropic themselves [replaced RAG with agentic search](https://arxiv.org/abs/2501.09136) in Claude Code.
+
+mq is built on this: expose structure, let the agent reason. No embeddings, no vector DB, no external APIs.
+
 **Results:**
 - **123 PDFs (365MB) triaged in 2.97s** with warm cache — full structural map of every document
 - **83% fewer tokens** for markdown when scoped correctly
 - **~20ms per PDF** on warm cache — sub-second `.tree` on 60+ PDFs, ~3s on 123
 - **50x more PDFs** searchable (800 vs 16 in 200k context) via structure-first approach
 
-**The philosophy**: Don't outsource reasoning to embeddings and rerankers. Expose structure, let the agent reason.
 One query model works across markdown, HTML, PDF, JSON, JSONL, and YAML.
 
 [Install](#installation) | [Agent Skill](#agent-skill) | [Usage](#usage) | [Query Language](#query-language)
@@ -147,6 +150,71 @@ Traditional retrieval adds external API hops. mq keeps everything in the agent's
 mq is an **interface**, not an answer engine. It extracts structure into the agent's context, where the agent can reason over it directly.
 
 **The insight**: Agents like Claude Code and Codex are already LLMs with reasoning capability. Adding embedding APIs and rerankers just adds latency and cost. The agent can find what it needs - it just needs to **see** the structure.
+
+## Research Background
+
+Recent research validates the structure-first, agent-driven approach over traditional embedding pipelines.
+
+### Embeddings Are Provably Limited
+
+Weller et al. (2025) prove mathematically that the number of distinct top-k result sets an embedding model can return is bounded by its dimensionality — a fundamental limit of the single-vector paradigm, not a training problem. State-of-the-art models fail on straightforward retrieval tasks in their LIMIT benchmark, even when embeddings are optimized directly on test data.
+
+> *"These theoretical limits manifest in realistic settings with simple queries... requiring entirely new approaches rather than incremental improvements."*
+> — [On the Theoretical Limitations of Embedding-Based Retrieval](https://arxiv.org/abs/2508.21038)
+
+Benescu & de Jong (2026) argue that "similarity is a short-sighted interpretation of relevance" and that LLM-based reasoning should theoretically outperform embedding retrieval — but current benchmarks can't measure the difference because human annotations contain the same short-sightedness.
+
+> — [Why LLMs can Secretly Outperform Embedding Similarity in IR](https://arxiv.org/abs/2603.08077)
+
+### Context Stuffing Hurts — Structure Helps
+
+Longer context doesn't mean better results. Du et al. (EMNLP 2025) show that even when models can perfectly retrieve all relevant information, performance still degrades 13.9–85% as input length increases — sheer token volume hurts reasoning regardless of retrieval quality.
+
+> *"Even when all relevant evidence is placed immediately before the question, performance degrades substantially."*
+> — [Context Length Alone Hurts LLM Performance Despite Perfect Retrieval](https://arxiv.org/abs/2510.05381)
+
+Chroma Research (2025) tested 18 models (Claude Opus 4, GPT-4.1, Gemini 2.5 Pro) and found performance declined with increasing context across all of them. A single distractor reduces accuracy. Models performed better on randomly shuffled haystacks than coherent ones — meaning how you organize context matters more than having it all.
+
+> — [Context Rot](https://www.trychroma.com/research/context-rot)
+
+This is why mq loads ~1KB of structure per document instead of ~50KB of full text. The agent sees more documents and reasons better over less noise.
+
+### Keyword Search + Agent Reasoning Matches RAG
+
+Subramanian et al. at Amazon (2025) show that tool-based keyword search within an agentic framework achieves over 90% of traditional RAG performance — without a vector database. Simpler to implement, cheaper to run, and no index to maintain.
+
+> — [Keyword Search Is All You Need](https://arxiv.org/abs/2602.23368)
+
+Wang et al. (2025) propose ELITE, an embedding-less retrieval system using iterative LLM reasoning. It outperforms embedding baselines on long-context QA with over an order of magnitude reduction in storage and runtime:
+
+> *"Embedding-based retrieval can retrieve content that is semantically similar in form but misaligned with the question's true intent."*
+> — [ELITE: Embedding-Less Retrieval with Iterative Text Exploration](https://arxiv.org/abs/2505.11908)
+
+### Agentic Search Wins in Practice
+
+Anthropic built a full RAG pipeline for Claude Code with embeddings and vector DB, then replaced it with agentic search (grep, glob, file reads). Boris Cherny, creator of Claude Code: *"We found pretty quickly that agentic search generally works better. It is also simpler and doesn't have the same issues around security, privacy, staleness, and reliability."*
+
+Google DeepMind's LOFT benchmark (2024) found that long-context LLMs show *"surprising ability to rival state-of-the-art retrieval and RAG systems, despite never having been explicitly trained for these tasks"* on tasks requiring up to millions of tokens of context.
+
+> — [Can Long-Context Language Models Subsume Retrieval, RAG, SQL, and More?](https://arxiv.org/abs/2406.13121)
+
+Microsoft Research's Code Researcher (2025) validates the Map-Narrow-Extract pattern: agents that explore 10 unique files per trajectory achieve 58% crash resolution vs 37.5% for agents that explore 1.33 files. Depth of structural exploration directly correlates with success.
+
+> — [Code Researcher: Deep Research Agent for Large Systems](https://arxiv.org/abs/2506.11060)
+
+### Long Context Beats RAG — When Used Right
+
+Li et al. at Google (EMNLP 2024) found that *"when resourced sufficiently, long-context consistently outperforms RAG in average performance."* Their Self-Route hybrid routes queries to RAG or long-context based on model self-reflection, using only 38–61% of tokens while matching full long-context performance.
+
+> — [Retrieval Augmented Generation or Long-Context LLMs?](https://arxiv.org/abs/2407.16833)
+
+The Agentic RAG survey (Singh et al., 2025) establishes the taxonomy: traditional RAG operates through *"static workflows and lacks adaptability for multi-step reasoning."* Agentic RAG uses *"reflection, planning, tool use, and multi-agent collaboration to dynamically manage retrieval strategies."*
+
+> — [Agentic Retrieval-Augmented Generation: A Survey](https://arxiv.org/abs/2501.09136)
+
+### The Direction
+
+The research consensus is clear: naive single-shot embedding lookup is being superseded. The future is agents that reason over structure iteratively — which is exactly what mq enables. Expose structure, let the agent reason, extract only what's needed.
 
 ## Benchmark: Up to 83% Token Reduction
 
