@@ -147,9 +147,26 @@ Traditional retrieval adds external API hops. mq keeps everything in the agent's
 └─────────────────────────────────────────────────────────────────────────┘
 ```
 
-mq is an **interface**, not an answer engine. It extracts structure into the agent's context, where the agent can reason over it directly.
+### Test-Time Semantic Search
 
-**The insight**: Agents like Claude Code and Codex are already LLMs with reasoning capability. Adding embedding APIs and rerankers just adds latency and cost. The agent can find what it needs - it just needs to **see** the structure.
+mq is grep for a caller that already understands meaning.
+
+Traditional semantic search pre-computes embeddings and finds "nearness" — how close a query is to stored documents in vector space. Smart index, dumb query. mq inverts this: dumb index, smart caller.
+
+An LLM already knows that "token refresh" is semantically near "OAuth," "session expiry," "credential rotation." It doesn't need a vector database to tell it that. So instead of pre-computing embeddings, let the model generate the right exact-match search terms itself:
+
+1. **Read structure** (`.tree`) — see what each document contains and how it's organized
+2. **Reason about nearness** — which terms would appear close to the target concept in these documents
+3. **Search** (`.search("term")`) — fast, exact, deterministic
+4. **Read matched sections, narrow further** — iterate until found
+
+The semantic computation moves from a pre-built index to the model's inference pass. The LLM performs the "embedding" and "similarity search" implicitly when it decides what to search for. No pre-processing step, because the model that searches is the model that understands.
+
+Structure is what makes this work. A flat text dump doesn't tell the model what's near what. Section headings, document hierarchy, and content previews give the model context to reason about better queries. mq exposes that structure; the model does the rest.
+
+And unlike static embeddings, the model's sense of nearness is **contextual**. A vector embedding for "authentication" is the same vector regardless of what you're doing. A model searching for "authentication" while debugging logouts will look for different terms than one adding SSO. The search adapts to the task. Pre-computed embeddings can't.
+
+mq is an **interface**, not an answer engine. It extracts structure into the agent's context, where the agent can reason over it directly. Agents like Claude Code and Codex are already LLMs with reasoning capability. Adding embedding APIs and rerankers just adds latency and cost. The agent can find what it needs — it just needs to **see** the structure.
 
 ## Research Background
 
