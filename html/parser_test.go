@@ -390,7 +390,7 @@ func TestFigureNestedContentCounted(t *testing.T) {
 	  <h1>T</h1>
 	  <p>Body text long enough to keep the article as the main content region here now.</p>
 	  <figure><svg><rect/></svg><figcaption>diagram</figcaption></figure>
-	  <figure><img src="/g.png"><a href="https://ext.example/i">gallery source</a></figure>
+	  <figure><img src="/g.png"><img src="/g2.png"><a href="https://ext.example/i">gallery source</a></figure>
 	</article></body></html>`)
 
 	doc, err := html.NewParser(html.WithReadability(false)).Parse(src, "t.html")

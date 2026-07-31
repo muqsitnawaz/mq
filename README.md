@@ -100,7 +100,7 @@ Assets
   Media    2 (1 video, 1 audio) [skipped]
 ```
 
-Kinds for `--only`/`--drop`: `images, figures, links, tables, code, svg, media`
+Kinds for `--only`/`--drop`: `images, figures, links, tables, lists, code, svg, media`
 (plus heading levels `h1`..`h6`).
 
 ### Works With

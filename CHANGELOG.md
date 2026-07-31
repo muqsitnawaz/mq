@@ -16,7 +16,7 @@
 - **`--depth N`**, **`--only <list>`**, **`--drop <list>`**: filter the heading
   spine by level and/or element kind. Hidden headings reparent their descendants
   so the tree stays connected. Tokens: `h1`..`h6` and
-  `images, figures, links, tables, code, svg, media`.
+  `images, figures, links, tables, lists, code, svg, media`.
 - **Asset index footer** for HTML/PDF (on by default, `--no-assets` to hide):
   a compact summary of images, figures, tables, lists, code (by language), links
   (external vs relative), inline SVG (counted with approximate size, never

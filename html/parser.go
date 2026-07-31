@@ -545,10 +545,11 @@ func (e *extractor) extractFigure(n *html.Node) {
 							fig.ImageURL = attr.Val
 						}
 					}
-					// Mark this img as owned by the figure so the normal
-					// recursion doesn't also tally it as a standalone image.
-					e.seen[c] = true
 				}
+				// Every img inside a figure belongs to the figure, not the
+				// standalone Images tally — mark them all seen (a gallery
+				// figure can hold several).
+				e.seen[c] = true
 			case atom.Figcaption:
 				if fig.Caption == "" {
 					fig.Caption = strings.TrimSpace(e.getTextContent(c))

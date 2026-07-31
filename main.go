@@ -72,6 +72,11 @@ func main() {
 	}
 
 	if info.IsDir() {
+		// File-tree flags don't apply to directories — fail loudly instead of
+		// silently discarding them. (len(raw) - len(positional) = consumed flags.)
+		if len(os.Args[1:])-len(args) > 0 {
+			log.Fatalf("file-tree flags (--trim/--depth/--only/--drop/...) don't apply to a directory; use a query modifier, e.g. mq %s '.tree | depth(2)'", path)
+		}
 		handleDirectory(path, query)
 		return
 	}
@@ -353,7 +358,7 @@ func printUsage() {
 	fmt.Println("    --more off         Hide the '…+N' remainder marker")
 	fmt.Println("    --depth <N>        Max heading level shown (--depth 2 = just h1/h2)")
 	fmt.Println("    --only <list>      Show only these: levels h1..h6 and/or kinds")
-	fmt.Println("                       (images,figures,links,tables,code,svg,media)")
+	fmt.Println("                       (images,figures,links,tables,lists,code,svg,media)")
 	fmt.Println("    --drop <list>      Hide these (drop wins over only)")
 	fmt.Println("    --assets           Force the asset index footer (default on for HTML/PDF)")
 	fmt.Println("    --no-assets        Suppress the asset index footer")
