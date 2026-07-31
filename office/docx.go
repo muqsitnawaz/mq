@@ -97,11 +97,11 @@ func (p *DOCXParser) parseDocumentXML(docXML, content []byte, path string) (*mq.
 		return stack[len(stack)-1]
 	}
 
-	var paraStyle string      // style of current paragraph
-	var paraTexts []string    // text runs in current paragraph
-	var tableRows [][]string  // rows of current table
-	var rowCells []string     // cells of current table row
-	var cellText []string     // text in current cell
+	var paraStyle string     // style of current paragraph
+	var paraTexts []string   // text runs in current paragraph
+	var tableRows [][]string // rows of current table
+	var rowCells []string    // cells of current table row
+	var cellText []string    // text in current cell
 	inTable := false
 
 	for {

@@ -18,7 +18,7 @@ func init() {
 var skipExtensions = map[string]struct{}{
 	".md": {}, ".markdown": {}, ".mdown": {}, ".mkd": {},
 	".html": {}, ".htm": {}, ".xhtml": {},
-	".pdf": {},
+	".pdf":  {},
 	".json": {}, ".jsonl": {}, ".ndjson": {},
 	".yaml": {}, ".yml": {},
 	".docx": {}, ".xlsx": {}, ".csv": {}, ".tsv": {}, ".pptx": {},
