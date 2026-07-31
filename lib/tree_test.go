@@ -393,7 +393,7 @@ func TestBuildTreeLineCountNonMarkdown(t *testing.T) {
 		readableText,
 	)
 
-	tree := doc.BuildTree()
+	tree := doc.BuildTree(mq.DefaultFileTreeOptions())
 	assert.Equal(t, expectedLines, tree.Lines,
 		"PDF tree should count lines in readableText, not raw binary source")
 
@@ -408,7 +408,7 @@ func TestBuildTreeLineCountNonMarkdown(t *testing.T) {
 		headings, mdSections, nil, nil, nil, nil, nil,
 		readableText,
 	)
-	mdTree := mdDoc.BuildTree()
+	mdTree := mdDoc.BuildTree(mq.DefaultFileTreeOptions())
 	assert.Equal(t, expectedLines, mdTree.Lines,
 		"Markdown tree should count lines in source")
 }
@@ -438,7 +438,7 @@ func TestBuildTreePreviewNonMarkdown(t *testing.T) {
 	)
 	doc.SetPageCount(4)
 
-	tree := doc.BuildTree()
+	tree := doc.BuildTree(mq.DefaultFileTreeOptions())
 	require.NotEmpty(t, tree.Root)
 
 	// The preview should contain readable content from the section

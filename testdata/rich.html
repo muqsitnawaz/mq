@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head><title>Rich HTML fixture</title><meta name="description" content="A fixture exercising every asset kind."></head>
+<body>
+<article>
+  <h1>Rich fixture</h1>
+  <p>This document exercises every asset kind mq can surface. It has headings at
+  several levels, paragraphs long enough to trigger the trim marker, tables,
+  lists, code, images, a figure, an inline SVG, and skipped media.</p>
+  <p>The second paragraph exists so that a paragraph-unit trim has something to
+  hide. It rambles on for a couple of sentences. Here is one more sentence to be
+  safe about sentence-unit trimming as well.</p>
+
+  <h2>Assets everywhere</h2>
+  <p>Below this heading are the non-text elements.</p>
+  <img src="/images/diagram.png" alt="architecture diagram">
+  <img src="https://cdn.example.com/hero.jpg" alt="hero">
+
+  <figure>
+    <img src="/images/flow.svg" alt="flow">
+    <figcaption>Figure 1: the data flow.</figcaption>
+  </figure>
+
+  <table>
+    <thead><tr><th>Col A</th><th>Col B</th></tr></thead>
+    <tbody><tr><td>1</td><td>2</td></tr><tr><td>3</td><td>4</td></tr></tbody>
+  </table>
+
+  <ul><li>first item</li><li>second item</li><li>third item</li></ul>
+
+  <pre><code class="language-go">func main() { println("hi") }</code></pre>
+  <pre><code class="language-python">print("hi")</code></pre>
+
+  <svg viewBox="0 0 100 100"><rect x="0" y="0" width="100" height="100"/><circle cx="50" cy="50" r="40"/></svg>
+
+  <video src="/media/clip.mp4"></video>
+  <audio src="/media/track.mp3"></audio>
+
+  <h3>Deep detail</h3>
+  <p>An h3 under the assets section, used to test --depth and --only level filters.</p>
+
+  <h4>Even deeper</h4>
+  <p>An h4 that --depth 2 should collapse into its ancestor.</p>
+
+  <h2>Links</h2>
+  <p>A section with a mix of link kinds for the external/relative split.</p>
+  <a href="https://example.com/docs">external docs</a>
+  <a href="/local/page">relative page</a>
+  <a href="mailto:hi@example.com">email</a>
+</article>
+</body>
+</html>

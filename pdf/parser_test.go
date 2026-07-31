@@ -242,7 +242,7 @@ func TestFallbackTextStructureBuildsPDFTree(t *testing.T) {
 	)
 	doc.SetPageCount(2)
 
-	tree := doc.BuildTree()
+	tree := doc.BuildTree(mq.DefaultFileTreeOptions())
 	require.NotEmpty(t, tree.Root)
 
 	output := tree.String()

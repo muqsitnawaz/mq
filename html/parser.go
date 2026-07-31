@@ -111,6 +111,7 @@ func (p *Parser) Parse(content []byte, path string) (*mq.Document, error) {
 		path:   path,
 		root:   node,
 		seen:   make(map[*html.Node]bool),
+		media:  make(map[string]int),
 	}
 
 	return ext.extract()
@@ -142,6 +143,12 @@ type extractor struct {
 	lists      []*mq.List
 	codeBlocks []*mq.CodeBlock
 	sections   []*mq.Section
+
+	// Non-text assets: captured or counted, not rendered as content.
+	figures  []*mq.Figure
+	svgCount int
+	svgBytes int
+	media    map[string]int // skipped media by tag name
 }
 
 func (e *extractor) extract() (*mq.Document, error) {
@@ -165,7 +172,7 @@ func (e *extractor) extract() (*mq.Document, error) {
 	// Build section hierarchy from headings (with text content)
 	e.buildSections(readableText)
 
-	return mq.NewDocument(
+	doc := mq.NewDocument(
 		e.source,
 		e.path,
 		mq.FormatHTML,
@@ -178,7 +185,9 @@ func (e *extractor) extract() (*mq.Document, error) {
 		e.tables,
 		e.lists,
 		readableText,
-	), nil
+	)
+	doc.SetAssets(e.figures, e.svgCount, e.svgBytes, e.media)
+	return doc, nil
 }
 
 // extractTitle finds the <title> tag content.
@@ -297,6 +306,23 @@ func (e *extractor) extractElements(n *html.Node, depth int) {
 	}
 
 	if n.Type == html.ElementNode {
+		// Tally non-content assets before they're skipped, so a page built
+		// from diagrams/media doesn't read as empty.
+		switch n.DataAtom {
+		case atom.Svg:
+			e.svgCount++
+			e.svgBytes += renderedLen(n)
+			return
+		case atom.Video, atom.Audio, atom.Canvas, atom.Iframe, atom.Object, atom.Embed:
+			e.media[n.Data]++
+			return
+		case atom.Figure:
+			e.extractFigure(n)
+			// Recurse normally below so nested <svg>/links/tables/extra images
+			// inside the figure still get tallied. extractFigure marked the
+			// figure's primary <img> as seen to avoid a double count.
+		}
+
 		// Skip non-content elements
 		if e.shouldSkip(n) {
 			return
@@ -503,6 +529,57 @@ func (e *extractor) extractImage(n *html.Node) {
 		AltText: alt,
 		Title:   title,
 	})
+}
+
+// extractFigure records a <figure> as an image URL + <figcaption> text.
+func (e *extractor) extractFigure(n *html.Node) {
+	fig := &mq.Figure{}
+	var walk func(*html.Node)
+	walk = func(c *html.Node) {
+		if c.Type == html.ElementNode {
+			switch c.DataAtom {
+			case atom.Img:
+				if fig.ImageURL == "" {
+					for _, attr := range c.Attr {
+						if attr.Key == "src" || (attr.Key == "data-src" && fig.ImageURL == "") {
+							fig.ImageURL = attr.Val
+						}
+					}
+				}
+				// Every img inside a figure belongs to the figure, not the
+				// standalone Images tally — mark them all seen (a gallery
+				// figure can hold several).
+				e.seen[c] = true
+			case atom.Figcaption:
+				if fig.Caption == "" {
+					fig.Caption = strings.TrimSpace(e.getTextContent(c))
+				}
+			}
+		}
+		for ch := c.FirstChild; ch != nil; ch = ch.NextSibling {
+			walk(ch)
+		}
+	}
+	walk(n)
+	e.figures = append(e.figures, fig)
+}
+
+// countWriter tallies bytes written without buffering them.
+type countWriter int
+
+func (c *countWriter) Write(p []byte) (int, error) {
+	*c += countWriter(len(p))
+	return len(p), nil
+}
+
+// renderedLen returns the approximate serialized byte length of a node subtree
+// without buffering it — important for large inline <svg> we never keep.
+func renderedLen(n *html.Node) int {
+	var c countWriter
+	if err := html.Render(&c, n); err != nil {
+		return 0
+	}
+	return int(c)
 }
 
 func (e *extractor) extractTable(n *html.Node) {

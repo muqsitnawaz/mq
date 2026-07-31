@@ -14,23 +14,47 @@ import (
 	"sync"
 )
 
-// TreeOptions controls tree traversal bounds.
+// TreeOptions controls tree traversal bounds (directory mode) and the file
+// tree's snippet/filter/asset rendering.
 type TreeOptions struct {
-	Depth int // Max depth to traverse (0 = unlimited)
+	// Directory-mode traversal bounds.
+	Depth int // Max directory depth to traverse (0 = unlimited)
 	Limit int // Max children per directory (0 = unlimited)
+
+	// File-tree snippet control (--trim).
+	TrimN    int    // magnitude of the --trim value (0 = headings only)
+	TrimUnit string // "L" lines, "P" paragraphs, "C" chars, "S" sentences, "W" words
+	TrimTail bool   // keep the tail (last N) instead of the head
+	TrimFull bool   // print the whole section body, no truncation (--full)
+	More     string // remainder marker: "" follow TrimUnit, "off" to hide it
+
+	// File-tree filtering.
+	MaxLevel int             // --depth N: max heading level shown (0 = unlimited)
+	Only     map[string]bool // whitelist tokens: "h1".."h6" and/or kinds
+	Drop     map[string]bool // blacklist tokens (drop wins over only)
+
+	// Asset index footer (rendered by the caller for HTML/PDF).
+	Assets bool
+}
+
+// DefaultFileTreeOptions returns the adaptive default snippet settings used when
+// no flags are given (and by the MQL .tree path).
+func DefaultFileTreeOptions() TreeOptions {
+	return TreeOptions{TrimN: 2, TrimUnit: "L"}
 }
 
 // TreeNode represents a node in the document structure tree.
 type TreeNode struct {
-	Type     string      // "section", "code", "table", "list", "link", "image", "frontmatter"
-	Text     string      // Display text (heading text, language, etc.)
-	Preview  string      // First few words of section content
-	Start    int         // Starting line number
-	End      int         // Ending line number
-	Level    int         // Heading level (1-6) for sections
-	Page     int         // Page number (PDF only, 0 if not applicable)
-	Meta     string      // Additional metadata (e.g., "3 blocks", "5 items")
-	Children []*TreeNode // Child nodes
+	Type      string      // "section", "code", "table", "list", "link", "image", "frontmatter"
+	Text      string      // Display text (heading text, language, etc.)
+	Preview   string      // Section snippet (may contain newlines for multi-line trims)
+	Remainder string      // "how much more" marker, e.g. "+3P" (empty if nothing hidden)
+	Start     int         // Starting line number
+	End       int         // Ending line number
+	Level     int         // Heading level (1-6) for sections
+	Page      int         // Page number (PDF only, 0 if not applicable)
+	Meta      string      // Additional metadata (e.g., "3 blocks", "5 items")
+	Children  []*TreeNode // Child nodes
 }
 
 // TreeResult represents the result of a .tree query.
@@ -43,8 +67,10 @@ type TreeResult struct {
 	Metadata []string    // Frontmatter field names
 }
 
-// BuildTree creates a tree representation of the document.
-func (d *Document) BuildTree() *TreeResult {
+// BuildTree creates a tree representation of the document. opts controls snippet
+// length (--trim), heading filtering (--depth/--only/--drop), and the remainder
+// marker. Pass DefaultFileTreeOptions() for the adaptive default.
+func (d *Document) BuildTree(opts TreeOptions) *TreeResult {
 	result := &TreeResult{
 		Path:   d.path,
 		Format: d.format,
@@ -67,34 +93,39 @@ func (d *Document) BuildTree() *TreeResult {
 	// Build section tree
 	toc := d.GetTableOfContents()
 	for _, section := range toc {
-		node := d.buildSectionTree(section)
+		node := d.buildSectionTree(section, opts)
 		result.Root = append(result.Root, node)
 	}
+
+	// Apply heading-level filtering, reparenting kept descendants.
+	result.Root = filterTreeLevels(result.Root, opts)
 
 	return result
 }
 
 // buildSectionTree recursively builds tree nodes from sections.
-func (d *Document) buildSectionTree(section *Section) *TreeNode {
+func (d *Document) buildSectionTree(section *Section, opts TreeOptions) *TreeNode {
+	preview, remainder := sectionPreview(section.GetText(), opts)
 	node := &TreeNode{
-		Type:    "section",
-		Text:    section.Heading.Text,
-		Start:   section.Start,
-		End:     section.End,
-		Level:   section.Heading.Level,
-		Page:    section.Heading.Page,
-		Preview: ExtractPreview(section.GetText(), 50),
+		Type:      "section",
+		Text:      section.Heading.Text,
+		Start:     section.Start,
+		End:       section.End,
+		Level:     section.Heading.Level,
+		Page:      section.Heading.Page,
+		Preview:   preview,
+		Remainder: remainder,
 	}
 
 	// Add child sections
 	for _, child := range section.Children {
-		childNode := d.buildSectionTree(child)
+		childNode := d.buildSectionTree(child, opts)
 		node.Children = append(node.Children, childNode)
 	}
 
 	// Code blocks in this section (not children)
 	codeBlocks := section.codeBlocks
-	if len(codeBlocks) > 0 {
+	if len(codeBlocks) > 0 && kindAllowed("code", opts) {
 		for lang, count := range CountCodeByLanguage(codeBlocks) {
 			meta := fmt.Sprintf("%d block", count)
 			if count > 1 {
@@ -109,6 +140,69 @@ func (d *Document) buildSectionTree(section *Section) *TreeNode {
 	}
 
 	return node
+}
+
+// filterTreeLevels drops section nodes whose heading level is filtered out by
+// --depth/--only/--drop, splicing their (already-filtered) children up to the
+// nearest kept ancestor so the spine stays connected.
+func filterTreeLevels(nodes []*TreeNode, opts TreeOptions) []*TreeNode {
+	if opts.MaxLevel == 0 && !hasLevelTokens(opts.Only) && !hasLevelTokens(opts.Drop) {
+		return nodes
+	}
+	var out []*TreeNode
+	for _, n := range nodes {
+		n.Children = filterTreeLevels(n.Children, opts)
+		if n.Type == "section" && !levelAllowed(n.Level, opts) {
+			out = append(out, n.Children...)
+			continue
+		}
+		out = append(out, n)
+	}
+	return out
+}
+
+func levelAllowed(level int, opts TreeOptions) bool {
+	tok := fmt.Sprintf("h%d", level)
+	if opts.Drop[tok] {
+		return false
+	}
+	if opts.MaxLevel > 0 && level > opts.MaxLevel {
+		return false
+	}
+	if hasLevelTokens(opts.Only) && !opts.Only[tok] {
+		return false
+	}
+	return true
+}
+
+// kindAllowed reports whether an element kind (code/images/tables/...) should be
+// shown, honoring --only/--drop. Level tokens in Only do not constrain kinds.
+func kindAllowed(kind string, opts TreeOptions) bool {
+	if opts.Drop[kind] {
+		return false
+	}
+	if hasKindTokens(opts.Only) && !opts.Only[kind] {
+		return false
+	}
+	return true
+}
+
+func hasLevelTokens(set map[string]bool) bool {
+	for k := range set {
+		if len(k) == 2 && k[0] == 'h' && k[1] >= '1' && k[1] <= '6' {
+			return true
+		}
+	}
+	return false
+}
+
+func hasKindTokens(set map[string]bool) bool {
+	for k := range set {
+		if !(len(k) == 2 && k[0] == 'h' && k[1] >= '1' && k[1] <= '6') {
+			return true
+		}
+	}
+	return false
 }
 
 // ExtractPreview extracts the first few words from section content.
@@ -213,7 +307,7 @@ func (t *TreeResult) renderNode(buf *strings.Builder, node *TreeNode, prefix str
 				prefix, connector, levelPrefix, node.Text, node.Start, node.End))
 		}
 
-		// Render preview if available
+		// Render preview if available (may span multiple lines).
 		if node.Preview != "" {
 			previewPrefix := prefix
 			if isLast {
@@ -221,7 +315,22 @@ func (t *TreeResult) renderNode(buf *strings.Builder, node *TreeNode, prefix str
 			} else {
 				previewPrefix += "│   "
 			}
-			buf.WriteString(fmt.Sprintf("%s     \"%s\"\n", previewPrefix, node.Preview))
+			plines := strings.Split(node.Preview, "\n")
+			for i, pl := range plines {
+				if i == 0 {
+					buf.WriteString(fmt.Sprintf("%s     \"%s", previewPrefix, pl))
+				} else {
+					// align continuation under the opening quote's text
+					buf.WriteString(fmt.Sprintf("%s      %s", previewPrefix, pl))
+				}
+				if i == len(plines)-1 {
+					buf.WriteString("\"")
+					if node.Remainder != "" {
+						buf.WriteString(" …" + node.Remainder)
+					}
+				}
+				buf.WriteString("\n")
+			}
 		}
 	case "code":
 		buf.WriteString(fmt.Sprintf("%s%s[code: %s, %s]\n",

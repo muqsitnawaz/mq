@@ -345,3 +345,61 @@ func TestSkipElements(t *testing.T) {
 	assert.NotContains(t, readable, "Comments section")
 	assert.NotContains(t, readable, "Hidden content")
 }
+
+func TestParseCountsFiguresSVGMedia(t *testing.T) {
+	src := []byte(`<!doctype html><html><body><article>
+	  <h1>Title</h1>
+	  <p>Body text long enough that the Readability heuristic keeps the article
+	  element as the main content region instead of scoring a child higher.</p>
+	  <figure><img src="/a.png"><figcaption>Cap</figcaption></figure>
+	  <figure><img src="/b.png"></figure>
+	  <svg viewBox="0 0 10 10"><rect/></svg>
+	  <svg><circle/></svg>
+	  <video src="/v.mp4"></video>
+	  <audio src="/a.mp3"></audio>
+	  <iframe src="/x"></iframe>
+	  <a href="https://ext.com">ext</a>
+	  <a href="/rel">rel</a>
+	</article></body></html>`)
+
+	// Disable Readability so the tally covers the whole fixture deterministically.
+	doc, err := html.NewParser(html.WithReadability(false)).Parse(src, "t.html")
+	require.NoError(t, err)
+
+	assert.Len(t, doc.Figures(), 2, "two <figure> elements")
+	// Figure-owned images are NOT double-counted as standalone images.
+	assert.Len(t, doc.GetImages(), 0, "no standalone images; both live in figures")
+	assert.Equal(t, 2, doc.SVGCount(), "two inline <svg>")
+	assert.Greater(t, doc.SVGBytes(), 0, "svg bytes tallied")
+	assert.Equal(t, 1, doc.Media()["video"])
+	assert.Equal(t, 1, doc.Media()["audio"])
+	assert.Equal(t, 1, doc.Media()["iframe"])
+
+	a := doc.BuildAssets()
+	assert.Equal(t, 1, a.LinksExternal)
+	assert.Equal(t, 1, a.LinksRelative)
+	if len(doc.Figures()) > 0 {
+		assert.Equal(t, "Cap", doc.Figures()[0].Caption)
+	}
+}
+
+func TestFigureNestedContentCounted(t *testing.T) {
+	// A figure can wrap an <svg> diagram or a linked image; nested content must
+	// still be tallied, while the figure's own <img> is not double-counted.
+	src := []byte(`<!doctype html><html><body><article>
+	  <h1>T</h1>
+	  <p>Body text long enough to keep the article as the main content region here now.</p>
+	  <figure><svg><rect/></svg><figcaption>diagram</figcaption></figure>
+	  <figure><img src="/g.png"><img src="/g2.png"><a href="https://ext.example/i">gallery source</a></figure>
+	</article></body></html>`)
+
+	doc, err := html.NewParser(html.WithReadability(false)).Parse(src, "t.html")
+	require.NoError(t, err)
+
+	assert.Len(t, doc.Figures(), 2)
+	assert.Equal(t, 1, doc.SVGCount(), "svg nested in a figure is still counted")
+	assert.Len(t, doc.GetImages(), 0, "figure-owned img is not a standalone image")
+
+	a := doc.BuildAssets()
+	assert.Equal(t, 1, a.LinksExternal, "link nested in a figure is still counted")
+}

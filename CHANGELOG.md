@@ -1,5 +1,29 @@
 # Changelog
 
+## [0.4.0] - 2026-07-31
+
+### Added
+
+- **`--trim <N><unit>`**: control the snippet size under each heading in the file
+  tree. Unit suffix — `L` lines, `P` paragraphs, `C` chars, `S` sentences, `W`
+  words (e.g. `--trim 4L`, `--trim 3P`, `--trim 200C`). Default is an adaptive
+  `2L`. A negative `N` keeps the tail (`--trim -3L`, like `tail`); `--trim 0`
+  shows headings only.
+- **Remainder marker**: truncated snippets now show a `…+N` marker of how much
+  more there is, in the same unit as `--trim` (e.g. `…+3P`). `--more off` hides it.
+- **`--full`** (whole section bodies) and **`--bare`** (headings only, no snippets
+  or asset index).
+- **`--depth N`**, **`--only <list>`**, **`--drop <list>`**: filter the heading
+  spine by level and/or element kind. Hidden headings reparent their descendants
+  so the tree stays connected. Tokens: `h1`..`h6` and
+  `images, figures, links, tables, lists, code, svg, media`.
+- **Asset index footer** for HTML/PDF (on by default, `--no-assets` to hide):
+  a compact summary of images, figures, tables, lists, code (by language), links
+  (external vs relative), inline SVG (counted with approximate size, never
+  dumped), and skipped media (`video/audio/canvas/iframe/embed/object`).
+- **HTML `<figure>`, inline `<svg>`, and media elements** are now captured or
+  counted instead of silently dropped.
+
 ## [0.3.9] - 2026-03-29
 
 ### Documentation

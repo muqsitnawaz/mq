@@ -39,6 +39,13 @@ type Document struct {
 	images          []*Image                // all images
 	tables          []*Table                // all tables
 	lists           []*List                 // all lists
+
+	// Non-text assets that are counted but not extracted as content
+	// (populated by the HTML parser; zero-valued for other formats).
+	figures  []*Figure      // <figure> elements
+	svgCount int            // number of inline <svg> elements
+	svgBytes int            // approximate total bytes of inline SVG markup
+	media    map[string]int // skipped media by tag: video/audio/canvas/iframe/...
 }
 
 // NewDocument creates a Document from pre-extracted structural elements.
@@ -445,6 +452,44 @@ func (d *Document) GetTables() []*Table {
 	defer d.mu.RUnlock()
 
 	return d.tables
+}
+
+// SetAssets records non-text asset tallies collected by a parser.
+func (d *Document) SetAssets(figures []*Figure, svgCount, svgBytes int, media map[string]int) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	d.figures = figures
+	d.svgCount = svgCount
+	d.svgBytes = svgBytes
+	d.media = media
+}
+
+// Figures returns the document's <figure> elements.
+func (d *Document) Figures() []*Figure {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+	return d.figures
+}
+
+// SVGCount returns the number of inline <svg> elements.
+func (d *Document) SVGCount() int {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+	return d.svgCount
+}
+
+// SVGBytes returns the approximate total bytes of inline SVG markup.
+func (d *Document) SVGBytes() int {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+	return d.svgBytes
+}
+
+// Media returns skipped media element counts keyed by tag name.
+func (d *Document) Media() map[string]int {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+	return d.media
 }
 
 // GetLists returns all lists in the document.

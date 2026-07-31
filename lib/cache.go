@@ -26,7 +26,7 @@ var (
 )
 
 const (
-	cacheSchemaVersion = "3"
+	cacheSchemaVersion = "4"
 	trimMaxAge         = 5 * 24 * time.Hour // Evict entries unused for 5 days
 )
 
@@ -67,6 +67,15 @@ type cachedDocument struct {
 	Tables       []cachedTable          `msgpack:"tb"`
 	Lists        []cachedList           `msgpack:"ls"`
 	Metadata     map[string]interface{} `msgpack:"md"`
+	Figures      []cachedFigure         `msgpack:"fg"`
+	SVGCount     int                    `msgpack:"sc"`
+	SVGBytes     int                    `msgpack:"sb"`
+	Media        map[string]int         `msgpack:"mv"`
+}
+
+type cachedFigure struct {
+	ImageURL string `msgpack:"u"`
+	Caption  string `msgpack:"c"`
 }
 
 type cachedSearchResult struct {
@@ -954,6 +963,14 @@ func documentToCache(doc *Document) cachedDocument {
 		cd.Lists = append(cd.Lists, listToCache(l))
 	}
 
+	// Non-text asset tallies
+	for _, f := range doc.figures {
+		cd.Figures = append(cd.Figures, cachedFigure{ImageURL: f.ImageURL, Caption: f.Caption})
+	}
+	cd.SVGCount = doc.svgCount
+	cd.SVGBytes = doc.svgBytes
+	cd.Media = doc.media
+
 	return cd
 }
 
@@ -1071,6 +1088,13 @@ func cacheToDocument(cd *cachedDocument, source []byte, path string) *Document {
 	if cd.Metadata != nil {
 		doc.metadata = cd.Metadata
 	}
+
+	// Restore non-text asset tallies
+	var figures []*Figure
+	for _, cf := range cd.Figures {
+		figures = append(figures, &Figure{ImageURL: cf.ImageURL, Caption: cf.Caption})
+	}
+	doc.SetAssets(figures, cd.SVGCount, cd.SVGBytes, cd.Media)
 
 	return doc
 }

@@ -68,6 +68,41 @@ project/ (6 files)
 | JSON/YAML | keys | `key name` / `subkey field` |
 | JSONL | records | `field name` |
 
+### Controlling the tree view
+
+`mq <file>` renders an adaptive snippet (~2 lines) under each heading with a
+`…+N` marker showing how much more there is, plus an asset index for HTML/PDF.
+Flags let you tune it:
+
+```bash
+mq page.html --trim 4L      # snippet size; unit = L lines, P paragraphs,
+mq page.html --trim 3P      #   C chars, S sentences, W words (e.g. 4L, 3P, 200C)
+mq page.html --trim -3L     # negative N keeps the tail (like `tail`)
+mq page.html --full         # whole section bodies, no truncation
+mq page.html --bare         # headings only: no snippets, no asset index
+mq page.html --more off     # hide the "…+N" remainder marker
+
+mq page.html --depth 2      # only show headings down to h2 (h3+ collapse)
+mq page.html --only h1,h2   # whitelist levels and/or kinds
+mq page.html --drop svg,media   # blacklist (drop wins over only)
+```
+
+The asset index (on by default for HTML/PDF, `--no-assets` to hide) summarizes
+non-text content — images, figures, tables, lists, code, links (external vs
+relative), inline SVG (counted, not dumped), and skipped media:
+
+```
+Assets
+  Images   9      Tables  2
+  Code     5 (ts 3, py 2)   Links  47 (12 ext, 35 rel)
+  Figures  4      Lists   6
+  SVG      12 inline (~840 KB, not shown)
+  Media    2 (1 video, 1 audio) [skipped]
+```
+
+Kinds for `--only`/`--drop`: `images, figures, links, tables, lists, code, svg, media`
+(plus heading levels `h1`..`h6`).
+
 ### Works With
 
 <p>

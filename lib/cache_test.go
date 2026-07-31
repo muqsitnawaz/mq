@@ -921,7 +921,7 @@ func TestCacheRoundtripNonMarkdownSectionText(t *testing.T) {
 		"cached section text should match original")
 
 	// Verify tree uses page numbers and readable text line count
-	tree := cached.BuildTree()
+	tree := cached.BuildTree(mq.DefaultFileTreeOptions())
 	assert.Equal(t, 4, tree.Pages,
 		"cached PDF page count should survive roundtrip")
 	output := tree.String()

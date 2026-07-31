@@ -310,7 +310,7 @@ func (v *compilerVisitor) VisitSelector(node *SelectorNode) (interface{}, error)
 		}
 
 		// Otherwise, build tree for the whole document
-		return doc.BuildTree(), nil
+		return doc.BuildTree(mq.DefaultFileTreeOptions()), nil
 
 	case "search":
 		if len(args) == 0 {
