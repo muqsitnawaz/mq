@@ -117,7 +117,7 @@ func BenchmarkPDFBuildTree(b *testing.B) {
 			b.ResetTimer()
 
 			for i := 0; i < b.N; i++ {
-				tree := doc.BuildTree()
+				tree := doc.BuildTree(mq.DefaultFileTreeOptions())
 				_ = tree.String()
 			}
 		})

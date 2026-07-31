@@ -122,6 +122,12 @@ type Image struct {
 	Node    ast.Node
 }
 
+// Figure represents an HTML <figure> — an image with an optional caption.
+type Figure struct {
+	ImageURL string // src of the figure's image (may be empty)
+	Caption  string // <figcaption> text (may be empty)
+}
+
 // Table represents a markdown table.
 type Table struct {
 	Headers []string

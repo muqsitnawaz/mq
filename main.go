@@ -28,8 +28,14 @@ const (
 )
 
 func main() {
-	if len(os.Args) >= 2 {
-		switch os.Args[1] {
+	// Pull --flags out of the args, leaving positional [path, query].
+	args, opts, assetsSet, err := parseFileTreeFlags(os.Args[1:])
+	if err != nil {
+		log.Fatalf("%v", err)
+	}
+
+	if len(args) >= 1 {
+		switch args[0] {
 		case "-h", "--help", "help":
 			printUsage()
 			os.Exit(0)
@@ -47,15 +53,15 @@ func main() {
 	// Check for updates (non-blocking, silent on error)
 	checkForUpdates()
 
-	if len(os.Args) < 2 {
+	if len(args) < 1 {
 		printUsage()
 		os.Exit(1)
 	}
 
-	path := os.Args[1]
+	path := args[0]
 	query := ""
-	if len(os.Args) >= 3 {
-		query = os.Args[2]
+	if len(args) >= 2 {
+		query = args[1]
 	}
 
 	// Check if path is a directory
@@ -77,9 +83,16 @@ func main() {
 		log.Fatalf("Failed to load document: %v", err)
 	}
 
-	// If no query provided, show tree (always includes previews now)
+	// No query: render the default tree with the flag-driven options, plus the
+	// asset index footer for HTML/PDF.
 	if query == "" {
-		query = ".tree"
+		if !assetsSet {
+			opts.Assets = doc.Format() == mq.FormatHTML || doc.Format() == mq.FormatPDF
+		}
+		result := doc.BuildTree(opts)
+		displayResult(result)
+		printAssets(doc, opts)
+		return
 	}
 
 	// Execute the query
@@ -90,6 +103,139 @@ func main() {
 
 	// Display results
 	displayResult(result)
+}
+
+// parseFileTreeFlags extracts the file-tree flags from args, returning the
+// remaining positional args, the assembled options, and whether the asset
+// footer was explicitly toggled.
+func parseFileTreeFlags(args []string) (positional []string, opts mq.TreeOptions, assetsSet bool, err error) {
+	opts = mq.DefaultFileTreeOptions()
+
+	next := func(i *int, flag string) (string, error) {
+		if *i+1 >= len(args) {
+			return "", fmt.Errorf("%s requires a value", flag)
+		}
+		*i++
+		return args[*i], nil
+	}
+
+	for i := 0; i < len(args); i++ {
+		a := args[i]
+		switch {
+		case a == "--trim":
+			v, e := next(&i, "--trim")
+			if e != nil {
+				return nil, opts, false, e
+			}
+			if e := parseTrim(v, &opts); e != nil {
+				return nil, opts, false, e
+			}
+		case strings.HasPrefix(a, "--trim="):
+			if e := parseTrim(strings.TrimPrefix(a, "--trim="), &opts); e != nil {
+				return nil, opts, false, e
+			}
+		case a == "--full":
+			opts.TrimFull = true
+		case a == "--bare":
+			opts.TrimN = 0
+			opts.TrimFull = false
+			opts.Assets = false
+			assetsSet = true
+		case a == "--depth":
+			v, e := next(&i, "--depth")
+			if e != nil {
+				return nil, opts, false, e
+			}
+			n, e := parseInt(v)
+			if e != nil {
+				return nil, opts, false, fmt.Errorf("--depth requires an integer")
+			}
+			opts.MaxLevel = n
+		case a == "--only":
+			v, e := next(&i, "--only")
+			if e != nil {
+				return nil, opts, false, e
+			}
+			opts.Only = parseTokenSet(v)
+		case a == "--drop":
+			v, e := next(&i, "--drop")
+			if e != nil {
+				return nil, opts, false, e
+			}
+			opts.Drop = parseTokenSet(v)
+		case a == "--more":
+			v, e := next(&i, "--more")
+			if e != nil {
+				return nil, opts, false, e
+			}
+			opts.More = v
+		case a == "--assets":
+			opts.Assets = true
+			assetsSet = true
+		case a == "--no-assets":
+			opts.Assets = false
+			assetsSet = true
+		default:
+			positional = append(positional, a)
+		}
+	}
+	return positional, opts, assetsSet, nil
+}
+
+// parseTrim parses a --trim value like "4L", "3P", "200C", "-3L", "full".
+func parseTrim(v string, opts *mq.TreeOptions) error {
+	v = strings.TrimSpace(v)
+	if v == "full" || v == "all" {
+		opts.TrimFull = true
+		return nil
+	}
+	tail := false
+	if strings.HasPrefix(v, "-") {
+		tail = true
+		v = v[1:]
+	}
+	unit := "L"
+	if v != "" {
+		last := v[len(v)-1]
+		if last < '0' || last > '9' {
+			switch strings.ToUpper(string(last)) {
+			case "L", "P", "C", "S", "W":
+				unit = strings.ToUpper(string(last))
+				v = v[:len(v)-1]
+			default:
+				return fmt.Errorf("unknown --trim unit %q (use L/P/C/S/W)", string(last))
+			}
+		}
+	}
+	n, e := parseInt(strings.TrimSpace(v))
+	if e != nil {
+		return fmt.Errorf("bad --trim value (want e.g. 4L, 3P, 200C, full)")
+	}
+	opts.TrimN = n
+	opts.TrimUnit = unit
+	opts.TrimTail = tail
+	opts.TrimFull = false
+	return nil
+}
+
+// parseTokenSet parses "h1,h2,images" into a lowercased set.
+func parseTokenSet(v string) map[string]bool {
+	set := map[string]bool{}
+	for _, tok := range strings.Split(v, ",") {
+		tok = strings.ToLower(strings.TrimSpace(tok))
+		if tok != "" {
+			set[tok] = true
+		}
+	}
+	return set
+}
+
+// printAssets renders the asset index footer when enabled.
+func printAssets(doc *mq.Document, opts mq.TreeOptions) {
+	if !opts.Assets {
+		return
+	}
+	fmt.Print(doc.BuildAssets().Render(opts))
 }
 
 func printUsage() {
@@ -190,6 +336,20 @@ func printUsage() {
 	fmt.Println("")
 	fmt.Println("  -h, --help           Show this help")
 	fmt.Println("  -v, --version        Show version")
+	fmt.Println("")
+	fmt.Println("  Tree snippet (mq <file>):")
+	fmt.Println("    --trim <N><unit>   Snippet size; unit = L lines, P paragraphs, C chars,")
+	fmt.Println("                       S sentences, W words (e.g. 4L, 3P, 200C). Default: 2L.")
+	fmt.Println("                       Negative N keeps the tail (--trim -3L). --trim 0 = none.")
+	fmt.Println("    --full             Print whole section bodies (alias: --trim full)")
+	fmt.Println("    --bare             Headings only: no snippets, no asset index")
+	fmt.Println("    --more off         Hide the '…+N' remainder marker")
+	fmt.Println("    --depth <N>        Max heading level shown (--depth 2 = just h1/h2)")
+	fmt.Println("    --only <list>      Show only these: levels h1..h6 and/or kinds")
+	fmt.Println("                       (images,figures,links,tables,code,svg,media)")
+	fmt.Println("    --drop <list>      Hide these (drop wins over only)")
+	fmt.Println("    --assets           Force the asset index footer (default on for HTML/PDF)")
+	fmt.Println("    --no-assets        Suppress the asset index footer")
 }
 
 func checkForUpdates() {

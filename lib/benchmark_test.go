@@ -407,7 +407,7 @@ func BenchmarkBuildTree(b *testing.B) {
 			b.ResetTimer()
 
 			for i := 0; i < b.N; i++ {
-				result := doc.BuildTree()
+				result := doc.BuildTree(DefaultFileTreeOptions())
 				_ = result
 			}
 		})
