@@ -382,3 +382,24 @@ func TestParseCountsFiguresSVGMedia(t *testing.T) {
 		assert.Equal(t, "Cap", doc.Figures()[0].Caption)
 	}
 }
+
+func TestFigureNestedContentCounted(t *testing.T) {
+	// A figure can wrap an <svg> diagram or a linked image; nested content must
+	// still be tallied, while the figure's own <img> is not double-counted.
+	src := []byte(`<!doctype html><html><body><article>
+	  <h1>T</h1>
+	  <p>Body text long enough to keep the article as the main content region here now.</p>
+	  <figure><svg><rect/></svg><figcaption>diagram</figcaption></figure>
+	  <figure><img src="/g.png"><a href="https://ext.example/i">gallery source</a></figure>
+	</article></body></html>`)
+
+	doc, err := html.NewParser(html.WithReadability(false)).Parse(src, "t.html")
+	require.NoError(t, err)
+
+	assert.Len(t, doc.Figures(), 2)
+	assert.Equal(t, 1, doc.SVGCount(), "svg nested in a figure is still counted")
+	assert.Len(t, doc.GetImages(), 0, "figure-owned img is not a standalone image")
+
+	a := doc.BuildAssets()
+	assert.Equal(t, 1, a.LinksExternal, "link nested in a figure is still counted")
+}

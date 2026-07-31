@@ -318,7 +318,9 @@ func (e *extractor) extractElements(n *html.Node, depth int) {
 			return
 		case atom.Figure:
 			e.extractFigure(n)
-			return // counted as a figure; don't also tally its <img> as standalone
+			// Recurse normally below so nested <svg>/links/tables/extra images
+			// inside the figure still get tallied. extractFigure marked the
+			// figure's primary <img> as seen to avoid a double count.
 		}
 
 		// Skip non-content elements
@@ -543,6 +545,9 @@ func (e *extractor) extractFigure(n *html.Node) {
 							fig.ImageURL = attr.Val
 						}
 					}
+					// Mark this img as owned by the figure so the normal
+					// recursion doesn't also tally it as a standalone image.
+					e.seen[c] = true
 				}
 			case atom.Figcaption:
 				if fig.Caption == "" {
