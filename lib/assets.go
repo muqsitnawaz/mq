@@ -2,9 +2,13 @@ package mq
 
 import (
 	"fmt"
+	"regexp"
 	"sort"
 	"strings"
 )
+
+// schemeRe matches a URL scheme at the very start (e.g. "https:", "mailto:").
+var schemeRe = regexp.MustCompile(`^[a-zA-Z][a-zA-Z0-9+.-]*:`)
 
 // AssetSummary tallies the non-text content of a document for the tree footer.
 type AssetSummary struct {
@@ -52,11 +56,11 @@ func (d *Document) BuildAssets() *AssetSummary {
 	return a
 }
 
+// isExternalURL reports whether a link points off-document. It matches a scheme
+// at the START (so "/redirect?url=http://x" stays relative) or a protocol-relative
+// "//host" prefix.
 func isExternalURL(u string) bool {
-	return strings.Contains(u, "://") ||
-		strings.HasPrefix(u, "//") ||
-		strings.HasPrefix(u, "mailto:") ||
-		strings.HasPrefix(u, "tel:")
+	return strings.HasPrefix(u, "//") || schemeRe.MatchString(u)
 }
 
 // Render returns the "Assets" footer block, honoring --only/--drop kind filters.

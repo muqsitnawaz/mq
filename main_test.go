@@ -193,3 +193,85 @@ func captureOutput(t *testing.T, fn func()) string {
 	require.NoError(t, r.Close())
 	return buf.String()
 }
+
+func TestParseTrim(t *testing.T) {
+	cases := []struct {
+		in       string
+		wantN    int
+		wantUnit string
+		wantTail bool
+		wantFull bool
+		wantErr  bool
+	}{
+		{in: "4L", wantN: 4, wantUnit: "L"},
+		{in: "3P", wantN: 3, wantUnit: "P"},
+		{in: "200C", wantN: 200, wantUnit: "C"},
+		{in: "2s", wantN: 2, wantUnit: "S"},
+		{in: "5", wantN: 5, wantUnit: "L"}, // bare number -> default unit
+		{in: "-3L", wantN: 3, wantUnit: "L", wantTail: true},
+		{in: "0", wantN: 0, wantUnit: "L"},
+		{in: "full", wantFull: true},
+		{in: "all", wantFull: true},
+		{in: "3x", wantErr: true},  // trailing garbage
+		{in: "3xL", wantErr: true}, // bad unit letter
+		{in: "abc", wantErr: true},
+	}
+	for _, c := range cases {
+		var opts mq.TreeOptions
+		err := parseTrim(c.in, &opts)
+		if c.wantErr {
+			assert.Error(t, err, "parseTrim(%q) should error", c.in)
+			continue
+		}
+		require.NoError(t, err, "parseTrim(%q)", c.in)
+		assert.Equal(t, c.wantFull, opts.TrimFull, "%q full", c.in)
+		if !c.wantFull {
+			assert.Equal(t, c.wantN, opts.TrimN, "%q n", c.in)
+			assert.Equal(t, c.wantUnit, opts.TrimUnit, "%q unit", c.in)
+			assert.Equal(t, c.wantTail, opts.TrimTail, "%q tail", c.in)
+		}
+	}
+}
+
+func TestParseFileTreeFlags(t *testing.T) {
+	// Positional args survive; flags are consumed.
+	pos, opts, assetsSet, err := parseFileTreeFlags([]string{"file.html", "--trim", "3P", "--depth", "2"})
+	require.NoError(t, err)
+	assert.Equal(t, []string{"file.html"}, pos)
+	assert.Equal(t, 3, opts.TrimN)
+	assert.Equal(t, "P", opts.TrimUnit)
+	assert.Equal(t, 2, opts.MaxLevel)
+	assert.False(t, assetsSet)
+
+	// --bare zeroes trim and turns off assets explicitly.
+	_, opts, assetsSet, err = parseFileTreeFlags([]string{"f", "--bare"})
+	require.NoError(t, err)
+	assert.Equal(t, 0, opts.TrimN)
+	assert.False(t, opts.Assets)
+	assert.True(t, assetsSet)
+
+	// --only / --drop token sets.
+	_, opts, _, err = parseFileTreeFlags([]string{"f", "--only", "h1,h2", "--drop", "svg,media"})
+	require.NoError(t, err)
+	assert.True(t, opts.Only["h1"] && opts.Only["h2"])
+	assert.True(t, opts.Drop["svg"] && opts.Drop["media"])
+
+	// --trim=4L inline form.
+	_, opts, _, err = parseFileTreeFlags([]string{"f", "--trim=4L"})
+	require.NoError(t, err)
+	assert.Equal(t, 4, opts.TrimN)
+	assert.Equal(t, "L", opts.TrimUnit)
+
+	// Unknown flag errors instead of being swallowed as a positional.
+	_, _, _, err = parseFileTreeFlags([]string{"f", "--trm", "4L"})
+	assert.Error(t, err)
+
+	// -h/--version pass through as positional (handled by the subcommand switch).
+	pos, _, _, err = parseFileTreeFlags([]string{"--help"})
+	require.NoError(t, err)
+	assert.Equal(t, []string{"--help"}, pos)
+
+	// Missing value errors.
+	_, _, _, err = parseFileTreeFlags([]string{"f", "--trim"})
+	assert.Error(t, err)
+}

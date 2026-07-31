@@ -13,6 +13,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"time"
 
@@ -83,9 +84,9 @@ func main() {
 		log.Fatalf("Failed to load document: %v", err)
 	}
 
-	// No query: render the default tree with the flag-driven options, plus the
-	// asset index footer for HTML/PDF.
-	if query == "" {
+	// No query (or an explicit ".tree"): render the tree with the flag-driven
+	// options, plus the asset index footer for HTML/PDF.
+	if query == "" || strings.TrimSpace(query) == ".tree" {
 		if !assetsSet {
 			opts.Assets = doc.Format() == mq.FormatHTML || doc.Format() == mq.FormatPDF
 		}
@@ -146,9 +147,9 @@ func parseFileTreeFlags(args []string) (positional []string, opts mq.TreeOptions
 			if e != nil {
 				return nil, opts, false, e
 			}
-			n, e := parseInt(v)
+			n, e := strconv.Atoi(v)
 			if e != nil {
-				return nil, opts, false, fmt.Errorf("--depth requires an integer")
+				return nil, opts, false, fmt.Errorf("--depth requires an integer, got %q", v)
 			}
 			opts.MaxLevel = n
 		case a == "--only":
@@ -175,7 +176,13 @@ func parseFileTreeFlags(args []string) (positional []string, opts mq.TreeOptions
 		case a == "--no-assets":
 			opts.Assets = false
 			assetsSet = true
+		case a == "-h", a == "--help", a == "-v", a == "--version":
+			// Handled by the subcommand switch in main(); pass through.
+			positional = append(positional, a)
 		default:
+			if strings.HasPrefix(a, "-") && a != "-" {
+				return nil, opts, false, fmt.Errorf("unknown flag: %s", a)
+			}
 			positional = append(positional, a)
 		}
 	}
@@ -207,7 +214,7 @@ func parseTrim(v string, opts *mq.TreeOptions) error {
 			}
 		}
 	}
-	n, e := parseInt(strings.TrimSpace(v))
+	n, e := strconv.Atoi(strings.TrimSpace(v))
 	if e != nil {
 		return fmt.Errorf("bad --trim value (want e.g. 4L, 3P, 200C, full)")
 	}

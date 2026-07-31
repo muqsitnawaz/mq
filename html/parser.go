@@ -318,7 +318,7 @@ func (e *extractor) extractElements(n *html.Node, depth int) {
 			return
 		case atom.Figure:
 			e.extractFigure(n)
-			// fall through: recurse so an inner <img> still lands in images
+			return // counted as a figure; don't also tally its <img> as standalone
 		}
 
 		// Skip non-content elements
@@ -558,13 +558,22 @@ func (e *extractor) extractFigure(n *html.Node) {
 	e.figures = append(e.figures, fig)
 }
 
-// renderedLen returns the approximate serialized byte length of a node subtree.
+// countWriter tallies bytes written without buffering them.
+type countWriter int
+
+func (c *countWriter) Write(p []byte) (int, error) {
+	*c += countWriter(len(p))
+	return len(p), nil
+}
+
+// renderedLen returns the approximate serialized byte length of a node subtree
+// without buffering it — important for large inline <svg> we never keep.
 func renderedLen(n *html.Node) int {
-	var b bytes.Buffer
-	if err := html.Render(&b, n); err != nil {
+	var c countWriter
+	if err := html.Render(&c, n); err != nil {
 		return 0
 	}
-	return b.Len()
+	return int(c)
 }
 
 func (e *extractor) extractTable(n *html.Node) {

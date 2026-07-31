@@ -367,6 +367,8 @@ func TestParseCountsFiguresSVGMedia(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Len(t, doc.Figures(), 2, "two <figure> elements")
+	// Figure-owned images are NOT double-counted as standalone images.
+	assert.Len(t, doc.GetImages(), 0, "no standalone images; both live in figures")
 	assert.Equal(t, 2, doc.SVGCount(), "two inline <svg>")
 	assert.Greater(t, doc.SVGBytes(), 0, "svg bytes tallied")
 	assert.Equal(t, 1, doc.Media()["video"])
